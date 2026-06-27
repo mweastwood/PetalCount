@@ -58,7 +58,7 @@ class _HomeScreenState extends State<HomeScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              theme.colorScheme.primaryContainer.withOpacity(0.3),
+              theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
               theme.colorScheme.surface,
             ],
           ),
@@ -75,10 +75,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 120,
                     height: 120,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.1),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: theme.colorScheme.primary.withOpacity(0.3),
+                        color: theme.colorScheme.primary.withValues(alpha: 0.3),
                         width: 2,
                       ),
                     ),
@@ -108,14 +108,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Premium Card showing status
                   Card(
                     elevation: 0,
-                    color: theme.colorScheme.secondaryContainer.withOpacity(
-                      0.5,
+                    color: theme.colorScheme.secondaryContainer.withValues(
+                      alpha: 0.5,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                       side: BorderSide(
-                        color: theme.colorScheme.outlineVariant.withOpacity(
-                          0.5,
+                        color: theme.colorScheme.outlineVariant.withValues(
+                          alpha: 0.5,
                         ),
                       ),
                     ),
@@ -135,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             'Tap the button below to add more petals',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.colorScheme.onSecondaryContainer
-                                  .withOpacity(0.8),
+                                  .withValues(alpha: 0.8),
                             ),
                           ),
                         ],
