@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/main.dart';
 
 void main() {
-  testWidgets('HomeScreen interactive widget test', (WidgetTester tester) async {
+  testWidgets('HomeScreen interactive widget test', (
+    WidgetTester tester,
+  ) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const PetalCountApp());
 
