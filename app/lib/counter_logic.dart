@@ -6,5 +6,6 @@ class CounterLogic {
     _count++;
   }
 
-  String get label => _count == 1 ? '1 petal counted' : '$_count petals counted';
+  String get label =>
+      _count == 1 ? '1 petal counted' : '$_count petals counted';
 }

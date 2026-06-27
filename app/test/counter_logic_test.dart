@@ -11,7 +11,7 @@ void main() {
 
     test('increments count and formats label correctly', () {
       final logic = CounterLogic();
-      
+
       logic.increment();
       expect(logic.count, 1);
       expect(logic.label, '1 petal counted');
