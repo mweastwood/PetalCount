@@ -2,7 +2,17 @@ import 'package:flutter/material.dart';
 import 'counter_logic.dart';
 
 void main() {
+  mainCommon();
+}
+
+void mainCommon() {
   runApp(const PetalCountApp());
+}
+
+enum AppEnvironment { dev, prod }
+
+class AppConfig {
+  static AppEnvironment environment = AppEnvironment.dev;
 }
 
 class PetalCountApp extends StatelessWidget {
