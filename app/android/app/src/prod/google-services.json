@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "847947122489",
+    "project_id": "petal-count-prod",
+    "storage_bucket": "petal-count-prod.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:847947122489:android:144d8867e4c14281ef0ae8",
+        "android_client_info": {
+          "package_name": "com.mweastwood.petal_count"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBk3zDw-4rWJcLrP-GrBosWpq8EZIyx0Wc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
