@@ -463,7 +463,7 @@ class InMemoryDatabaseService implements DatabaseService {
     };
 
     // Prepopulate with a mock cycle so the app opens with data immediately
-    final mockCycleStart = DateTime.now().subtract(const Duration(days: 28));
+    final mockCycleStart = DateTime(2026, 6, 1);
     final mockCycle = Cycle(
       id: mockCycleStart.toIso8601String().substring(0, 10),
       startDate: mockCycleStart,
