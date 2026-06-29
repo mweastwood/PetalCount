@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'firebase_options_dev.dart';
 import 'main.dart';
+import 'services/services.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -11,5 +12,6 @@ void main() async {
     );
   }
   AppConfig.environment = AppEnvironment.dev;
+  await Services.init();
   mainCommon();
 }
