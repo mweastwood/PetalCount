@@ -99,8 +99,8 @@ class FirebaseDatabaseService implements DatabaseService {
         if (!_googleSignInInitialized) {
           final String serverClientId =
               AppConfig.environment == AppEnvironment.prod
-              ? '847947122489-YOUR_PROD_WEB_CLIENT_ID.apps.googleusercontent.com'
-              : '688587508865-YOUR_DEV_WEB_CLIENT_ID.apps.googleusercontent.com';
+              ? '847947122489-kbpqd3e7m8b3aehd3ah9714rgsd10es3.apps.googleusercontent.com'
+              : '688587508865-fhe9rghlo1f909rn8t7vqjvld7km36sl.apps.googleusercontent.com';
           await _googleSignIn.initialize(serverClientId: serverClientId);
           _googleSignInInitialized = true;
         }

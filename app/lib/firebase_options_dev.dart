@@ -67,6 +67,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '688587508865',
     projectId: 'petal-count-dev',
     storageBucket: 'petal-count-dev.firebasestorage.app',
+    iosClientId:
+        '688587508865-n93mjdqmioc45sooov82te08kia8vp8m.apps.googleusercontent.com',
     iosBundleId: 'com.mweastwood.petalCount',
   );
 
