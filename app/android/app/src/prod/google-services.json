@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "847947122489-lmlvlv3adao1ei6g5p0epditq75iugst.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mweastwood.petal_count",
+            "certificate_hash": "eceacd39fe8b88474d175eaebd84586e1d40d95a"
+          }
+        },
+        {
           "client_id": "847947122489-kbpqd3e7m8b3aehd3ah9714rgsd10es3.apps.googleusercontent.com",
           "client_type": 3
         }
