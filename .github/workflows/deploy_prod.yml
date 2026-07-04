@@ -149,6 +149,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify Secrets
+        run: |
+          if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_PROD }}" ]; then
+            echo "ERROR: FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_PROD is empty or not configured in GitHub Secrets!"
+            exit 1
+          fi
+          if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            echo "ERROR: ANDROID_KEYSTORE_BASE64 is empty or not configured in GitHub Secrets!"
+            exit 1
+          fi
+
       - name: Parse Version from Git Tag
         run: |
           TAG="${{ github.ref_name }}"
