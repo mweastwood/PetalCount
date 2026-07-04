@@ -55,7 +55,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyAbQ-y1tL56alZBA_eWQ7hqimX7U2vbrfw',
-    appId: '1:688587508865:android:be2855c3ed2b4cac075180',
+    appId: '1:688587508865:android:f0b9e98405b0cc4a075180',
     messagingSenderId: '688587508865',
     projectId: 'petal-count-dev',
     storageBucket: 'petal-count-dev.firebasestorage.app',

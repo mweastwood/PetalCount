@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import '../main.dart';
 import '../models/cycle.dart';
 import '../models/observation.dart';
 import '../models/daily_entry.dart';
@@ -12,8 +14,7 @@ abstract class DatabaseService {
   String? get currentChartId;
   Stream<User?> get authStateChanges;
 
-  Future<void> signIn(String email, String password);
-  Future<void> signUp(String email, String password);
+  Future<void> signInWithGoogle();
   Future<void> signOut();
 
   Future<void> createChart();
@@ -51,6 +52,8 @@ abstract class DatabaseService {
 class FirebaseDatabaseService implements DatabaseService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  bool _googleSignInInitialized = false;
 
   String? _cachedChartId;
 
@@ -84,37 +87,74 @@ class FirebaseDatabaseService implements DatabaseService {
   }
 
   @override
-  Future<void> signIn(String email, String password) async {
-    final credential = await _auth.signInWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-    if (credential.user != null) {
-      _cachedChartId = await _fetchChartId(credential.user!.uid);
-    }
-  }
+  Future<void> signInWithGoogle() async {
+    try {
+      final User? user;
+      if (kIsWeb) {
+        final UserCredential userCredential = await _auth.signInWithPopup(
+          GoogleAuthProvider(),
+        );
+        user = userCredential.user;
+      } else {
+        if (!_googleSignInInitialized) {
+          final String serverClientId =
+              AppConfig.environment == AppEnvironment.prod
+              ? '847947122489-YOUR_PROD_WEB_CLIENT_ID.apps.googleusercontent.com'
+              : '688587508865-YOUR_DEV_WEB_CLIENT_ID.apps.googleusercontent.com';
+          await _googleSignIn.initialize(serverClientId: serverClientId);
+          _googleSignInInitialized = true;
+        }
 
-  @override
-  Future<void> signUp(String email, String password) async {
-    final credential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
-    );
-    final user = credential.user;
-    if (user != null) {
-      // Create user record
-      await _db.collection('users').doc(user.uid).set({
-        'uid': user.uid,
-        'email': email,
-        'chartId': null,
-      });
-      _cachedChartId = null;
+        final GoogleSignInAccount googleUser = await _googleSignIn
+            .authenticate();
+        final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+
+        final OAuthCredential credential = GoogleAuthProvider.credential(
+          idToken: googleAuth.idToken,
+        );
+
+        final UserCredential userCredential = await _auth.signInWithCredential(
+          credential,
+        );
+        user = userCredential.user;
+      }
+
+      if (user != null) {
+        final userDoc = await _db.collection('users').doc(user.uid).get();
+        if (!userDoc.exists) {
+          await _db.collection('users').doc(user.uid).set({
+            'uid': user.uid,
+            'email': user.email ?? '',
+            'chartId': null,
+          });
+        }
+        _cachedChartId = await _fetchChartId(user.uid);
+      }
+    } catch (e) {
+      if (!kIsWeb &&
+          e is GoogleSignInException &&
+          e.code == GoogleSignInExceptionCode.canceled) {
+        debugPrint('Google Sign-In canceled: $e');
+        throw GoogleSignInException(
+          code: e.code,
+          description:
+              'Sign-in was canceled or failed due to configuration. If you selected '
+              'an account and this happened, it is likely due to a developer configuration '
+              'mismatch (e.g., missing SHA-1 signature fingerprint in the Firebase Console).',
+          details: e.details,
+        );
+      }
+      debugPrint('Error signing in with Google: $e');
+      rethrow;
     }
   }
 
   @override
   Future<void> signOut() async {
     await _auth.signOut();
+    if (!kIsWeb) {
+      await _googleSignIn.signOut();
+    }
     _cachedChartId = null;
   }
 
@@ -674,38 +714,20 @@ class InMemoryDatabaseService implements DatabaseService {
   }
 
   @override
-  Future<void> signIn(String email, String password) async {
-    final cleanEmail = email.trim().toLowerCase();
-    String uid = '';
+  Future<void> signInWithGoogle() async {
+    const email = 'google_user@example.com';
+    const uid = 'mock_uid_google_user';
 
-    // Find or create user
-    _users.forEach((key, value) {
-      if (value['email'] == cleanEmail) uid = key;
-    });
-
-    if (uid.isEmpty) {
-      uid = 'mock_uid_${cleanEmail.split('@')[0]}';
+    if (!_users.containsKey(uid)) {
       _users[uid] = {
         'uid': uid,
-        'email': cleanEmail,
+        'email': email,
         'chartId': 'mock_shared_chart',
       };
     }
 
-    _currentUser = MockUser(uid: uid, email: cleanEmail);
+    _currentUser = MockUser(uid: uid, email: email);
     _chartId = _users[uid]!['chartId'];
-    _authController.add(_currentUser);
-  }
-
-  @override
-  Future<void> signUp(String email, String password) async {
-    final cleanEmail = email.trim().toLowerCase();
-    final uid = 'mock_uid_${cleanEmail.split('@')[0]}';
-
-    _users[uid] = {'uid': uid, 'email': cleanEmail, 'chartId': null};
-
-    _currentUser = MockUser(uid: uid, email: cleanEmail);
-    _chartId = null;
     _authController.add(_currentUser);
   }
 
