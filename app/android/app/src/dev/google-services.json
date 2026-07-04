@@ -7,12 +7,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:688587508865:android:be2855c3ed2b4cac075180",
+        "mobilesdk_app_id": "1:688587508865:android:f0b9e98405b0cc4a075180",
         "android_client_info": {
-          "package_name": "com.mweastwood.petal_count.dev"
+          "package_name": "com.mweastwood.petal_count"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "688587508865-fhe9rghlo1f909rn8t7vqjvld7km36sl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAbQ-y1tL56alZBA_eWQ7hqimX7U2vbrfw"
@@ -20,7 +25,55 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "688587508865-fhe9rghlo1f909rn8t7vqjvld7km36sl.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "688587508865-n93mjdqmioc45sooov82te08kia8vp8m.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mweastwood.petalCount"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:688587508865:android:be2855c3ed2b4cac075180",
+        "android_client_info": {
+          "package_name": "com.mweastwood.petal_count.dev"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "688587508865-fhe9rghlo1f909rn8t7vqjvld7km36sl.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbQ-y1tL56alZBA_eWQ7hqimX7U2vbrfw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "688587508865-fhe9rghlo1f909rn8t7vqjvld7km36sl.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "688587508865-n93mjdqmioc45sooov82te08kia8vp8m.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mweastwood.petalCount"
+              }
+            }
+          ]
         }
       }
     }

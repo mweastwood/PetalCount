@@ -97,26 +97,26 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   bool _isLoading = false;
   String _errorMessage = '';
 
-  Future<void> _login() async {
+  Future<void> _loginWithGoogle() async {
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
     try {
-      await Services.db.signIn(_emailController.text, _passwordController.text);
+      await Services.db.signInWithGoogle();
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -151,135 +151,22 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 40),
               if (_errorMessage.isNotEmpty) ...[
-                Text(_errorMessage, style: const TextStyle(color: Colors.red)),
+                Text(
+                  _errorMessage,
+                  style: const TextStyle(color: Colors.red),
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 16),
               ],
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 24),
               _isLoading
                   ? const CircularProgressIndicator()
                   : SizedBox(
                       width: double.infinity,
                       height: 50,
-                      child: FilledButton(
-                        onPressed: _login,
-                        child: const Text('Login'),
-                      ),
-                    ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const SignUpScreen(),
-                    ),
-                  );
-                },
-                child: const Text('Create an Account'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({super.key});
-
-  @override
-  State<SignUpScreen> createState() => _SignUpScreenState();
-}
-
-class _SignUpScreenState extends State<SignUpScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _isLoading = false;
-  String _errorMessage = '';
-
-  Future<void> _signUp() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-    try {
-      await Services.db.signUp(_emailController.text, _passwordController.text);
-      if (mounted) Navigator.of(context).pop();
-    } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(title: const Text('Sign Up')),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.filter_vintage,
-                size: 64,
-                color: theme.colorScheme.primary,
-              ),
-              const SizedBox(height: 32),
-              if (_errorMessage.isNotEmpty) ...[
-                Text(_errorMessage, style: const TextStyle(color: Colors.red)),
-                const SizedBox(height: 16),
-              ],
-              TextField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email Address',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-              ),
-              const SizedBox(height: 24),
-              _isLoading
-                  ? const CircularProgressIndicator()
-                  : SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: FilledButton(
-                        onPressed: _signUp,
-                        child: const Text('Create Account'),
+                      child: FilledButton.icon(
+                        onPressed: _loginWithGoogle,
+                        icon: const Icon(Icons.login),
+                        label: const Text('Sign in with Google'),
                       ),
                     ),
             ],
