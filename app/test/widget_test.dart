@@ -17,7 +17,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify Dashboard Screen title is shown
-    expect(find.text('PetalCount Chart'), findsOneWidget);
+    expect(find.text('Petal Count'), findsOneWidget);
 
     // Verify that the cycle date header is shown
     expect(find.textContaining('Cycle starting'), findsOneWidget);

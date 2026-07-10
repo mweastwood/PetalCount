@@ -73,7 +73,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify we transitioned to DashboardScreen
-    expect(find.text('PetalCount Chart'), findsOneWidget);
+    expect(find.text('Petal Count'), findsOneWidget);
   });
 
   testWidgets(

@@ -393,7 +393,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('PetalCount Chart'),
+            title: const Text('Petal Count'),
             actions: [
               if (cycles.isNotEmpty)
                 IconButton(
