@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'database_service.dart';
 
 class Services {
-  static late final DatabaseService db;
+  static late DatabaseService db;
 
   static Future<void> init() async {
     WidgetsFlutterBinding.ensureInitialized();
