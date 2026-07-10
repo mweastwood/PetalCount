@@ -380,7 +380,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return StreamBuilder<List<Cycle>>(
       stream: _cyclesStream,
       builder: (context, snapshot) {
@@ -394,16 +393,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         return Scaffold(
           appBar: AppBar(
-            title: Row(
-              children: [
-                Icon(Icons.filter_vintage, color: theme.colorScheme.primary),
-                const SizedBox(width: 8),
-                const Text(
-                  'PetalCount Chart',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
+            title: const Text('PetalCount Chart'),
             actions: [
               if (cycles.isNotEmpty)
                 IconButton(
