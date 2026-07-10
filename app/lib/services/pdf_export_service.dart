@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 import '../models/cycle.dart';
 import '../models/daily_entry.dart';
+import 'web_download_helper.dart';
 
 class PdfExportService {
   static Future<void> exportCyclesToPdf(List<Cycle> cycles) async {
@@ -64,9 +65,8 @@ class PdfExportService {
           'Creighton_Chart_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
       if (kIsWeb) {
-        // Sharing on Web is handled differently, but we can write to a file or share it.
-        // For standard Flutter execution, let's save to documents and share.
-        debugPrint('Web PDF generation completed');
+        downloadFileWeb(bytes, filename);
+        debugPrint('Web PDF generation and download completed');
         return;
       }
 
