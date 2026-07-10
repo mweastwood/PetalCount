@@ -210,11 +210,20 @@ class _SetupChartScreenState extends State<SetupChartScreen> {
     try {
       await Services.db.createChart();
     } catch (e) {
+      debugPrint('Error creating chart: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error creating chart: $e'),
+            content: SelectableText('Error creating chart: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 20),
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
         );
       }
@@ -230,11 +239,20 @@ class _SetupChartScreenState extends State<SetupChartScreen> {
     try {
       await Services.db.acceptInvitation(chartId);
     } catch (e) {
+      debugPrint('Error accepting invitation: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error accepting invitation: $e'),
+            content: SelectableText('Error accepting invitation: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 20),
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
         );
       }
