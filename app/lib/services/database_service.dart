@@ -56,6 +56,35 @@ class FirebaseDatabaseService implements DatabaseService {
   bool _googleSignInInitialized = false;
 
   String? _cachedChartId;
+  final StreamController<User?> _authController =
+      StreamController<User?>.broadcast();
+  late final Stream<User?> _authStateChangesStream;
+
+  FirebaseDatabaseService() {
+    _auth.authStateChanges().listen((user) async {
+      if (user != null) {
+        _cachedChartId = await _fetchChartId(user.uid);
+      } else {
+        _cachedChartId = null;
+      }
+      _authController.add(user);
+    });
+
+    late StreamController<User?> controller;
+    StreamSubscription<User?>? sub;
+
+    controller = StreamController<User?>(
+      onListen: () {
+        controller.add(currentUser);
+        sub = _authController.stream.listen(controller.add);
+      },
+      onCancel: () {
+        sub?.cancel();
+      },
+    );
+
+    _authStateChangesStream = controller.stream.asBroadcastStream();
+  }
 
   @override
   User? get currentUser => _auth.currentUser;
@@ -64,15 +93,7 @@ class FirebaseDatabaseService implements DatabaseService {
   String? get currentChartId => _cachedChartId;
 
   @override
-  Stream<User?> get authStateChanges =>
-      _auth.authStateChanges().asyncMap((user) async {
-        if (user != null) {
-          _cachedChartId = await _fetchChartId(user.uid);
-        } else {
-          _cachedChartId = null;
-        }
-        return user;
-      });
+  Stream<User?> get authStateChanges => _authStateChangesStream;
 
   Future<String?> _fetchChartId(String uid) async {
     try {
@@ -176,6 +197,7 @@ class FirebaseDatabaseService implements DatabaseService {
     await _db.collection('users').doc(user.uid).update({'chartId': chartId});
 
     _cachedChartId = chartId;
+    _authController.add(user);
   }
 
   @override
@@ -240,6 +262,7 @@ class FirebaseDatabaseService implements DatabaseService {
     await docRef.update({'status': 'accepted'});
 
     _cachedChartId = chartId;
+    _authController.add(user);
   }
 
   @override

@@ -207,14 +207,42 @@ class _SetupChartScreenState extends State<SetupChartScreen> {
 
   Future<void> _createChart() async {
     setState(() => _isLoading = true);
-    await Services.db.createChart();
-    setState(() => _isLoading = false);
+    try {
+      await Services.db.createChart();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating chart: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _acceptInvite(String chartId) async {
     setState(() => _isLoading = true);
-    await Services.db.acceptInvitation(chartId);
-    setState(() => _isLoading = false);
+    try {
+      await Services.db.acceptInvitation(chartId);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error accepting invitation: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
