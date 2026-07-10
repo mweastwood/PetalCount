@@ -194,7 +194,11 @@ class FirebaseDatabaseService implements DatabaseService {
       'createdAt': FieldValue.serverTimestamp(),
     });
 
-    await _db.collection('users').doc(user.uid).update({'chartId': chartId});
+    await _db.collection('users').doc(user.uid).set({
+      'chartId': chartId,
+      'uid': user.uid,
+      'email': user.email ?? '',
+    }, SetOptions(merge: true));
 
     _cachedChartId = chartId;
     _authController.add(user);
@@ -256,7 +260,11 @@ class FirebaseDatabaseService implements DatabaseService {
     });
 
     // Update user profile
-    await _db.collection('users').doc(user.uid).update({'chartId': chartId});
+    await _db.collection('users').doc(user.uid).set({
+      'chartId': chartId,
+      'uid': user.uid,
+      'email': user.email ?? '',
+    }, SetOptions(merge: true));
 
     // Update invitation status
     await docRef.update({'status': 'accepted'});
