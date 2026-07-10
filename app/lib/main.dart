@@ -5,6 +5,7 @@ import 'models/daily_entry.dart';
 import 'models/observation.dart';
 import 'services/services.dart';
 import 'services/pdf_export_service.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,30 +28,37 @@ class PetalCountApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'PetalCount',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.pink,
-          primary: const Color(0xFFD81B60),
-          secondary: const Color(0xFF8E24AA),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.pink,
-          primary: const Color(0xFFF48FB1),
-          secondary: const Color(0xFFCE93D8),
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-      ),
-      home: const AuthGate(),
-      debugShowCheckedModeBanner: false,
+    return DynamicColorBuilder(
+      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+        ColorScheme lightScheme;
+        ColorScheme darkScheme;
+
+        if (lightDynamic != null && darkDynamic != null) {
+          lightScheme = lightDynamic;
+          darkScheme = darkDynamic;
+        } else {
+          lightScheme = ColorScheme.fromSeed(
+            seedColor: Colors.pink,
+            primary: const Color(0xFFD81B60),
+            secondary: const Color(0xFF8E24AA),
+            brightness: Brightness.light,
+          );
+          darkScheme = ColorScheme.fromSeed(
+            seedColor: Colors.pink,
+            primary: const Color(0xFFF48FB1),
+            secondary: const Color(0xFFCE93D8),
+            brightness: Brightness.dark,
+          );
+        }
+
+        return MaterialApp(
+          title: 'PetalCount',
+          theme: ThemeData(colorScheme: lightScheme, useMaterial3: true),
+          darkTheme: ThemeData(colorScheme: darkScheme, useMaterial3: true),
+          home: const AuthGate(),
+          debugShowCheckedModeBanner: false,
+        );
+      },
     );
   }
 }
