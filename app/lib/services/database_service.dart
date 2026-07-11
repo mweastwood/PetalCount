@@ -22,6 +22,7 @@ abstract class DatabaseService {
   Future<List<Map<String, dynamic>>> getPendingInvitations();
   Future<void> acceptInvitation(String invitationId);
   Future<void> declineInvitation(String invitationId);
+  Future<void> unlinkChart();
 
   Stream<List<Cycle>> streamCycles();
   Future<void> startNewCycle(DateTime startDate, List<String> bipCodes);
@@ -278,6 +279,17 @@ class FirebaseDatabaseService implements DatabaseService {
     await _db.collection('invitations').doc(invitationId).update({
       'status': 'declined',
     });
+  }
+
+  @override
+  Future<void> unlinkChart() async {
+    final user = currentUser;
+    if (user == null) return;
+    await _db.collection('users').doc(user.uid).set({
+      'chartId': null,
+    }, SetOptions(merge: true));
+    _cachedChartId = null;
+    _authController.add(user);
   }
 
   @override
@@ -850,6 +862,15 @@ class InMemoryDatabaseService implements DatabaseService {
     if (invIndex != -1) {
       _invitations[invIndex]['status'] = 'declined';
     }
+  }
+
+  @override
+  Future<void> unlinkChart() async {
+    if (_currentUser == null) return;
+    _currentUser = MockUser(uid: _currentUser!.uid, email: _currentUser!.email);
+    _users[_currentUser!.uid]?['chartId'] = null;
+    _chartId = null;
+    _authController.add(_currentUser);
   }
 
   // Stream emulation
