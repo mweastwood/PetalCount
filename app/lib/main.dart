@@ -1749,6 +1749,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _confirmLeaveChart(BuildContext context, String chartId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Leave Chart?'),
+          content: Text(
+            'Are you sure you want to leave the chart "$chartId"? You will lose access to its cycles and observations, but the data will remain active for other collaborators.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
+                await Services.db.leaveChart(chartId);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              child: const Text('Leave Chart'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1906,6 +1938,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         style: FilledButton.styleFrom(
                           backgroundColor: theme.colorScheme.error,
                           foregroundColor: theme.colorScheme.onError,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Divider(),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Leave this chart. You will lose access to its observations, but the data will remain active for other collaborators.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onErrorContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: () => _confirmLeaveChart(context, chartId),
+                        icon: const Icon(Icons.exit_to_app),
+                        label: const Text('Leave Chart'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: theme.colorScheme.error,
+                          side: BorderSide(color: theme.colorScheme.error),
                         ),
                       ),
                     ],

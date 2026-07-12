@@ -96,4 +96,32 @@ void main() {
 
     await screenMatchesGolden(tester, 'delete_chart_confirmation_dialog');
   });
+
+  testGoldens('Leave chart confirmation dialog renders correctly', (
+    tester,
+  ) async {
+    await tester.pumpWidgetBuilder(
+      const PetalCountApp(),
+      surfaceSize: const Size(400, 800),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap settings icon
+    await tester.tap(find.byIcon(Icons.settings));
+    await tester.pumpAndSettle();
+
+    // Scroll to the leave button
+    await tester.scrollUntilVisible(
+      find.text('Leave Chart'),
+      100.0,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    // Tap "Leave Chart"
+    await tester.tap(find.text('Leave Chart'));
+    await tester.pumpAndSettle();
+
+    await screenMatchesGolden(tester, 'leave_chart_confirmation_dialog');
+  });
 }

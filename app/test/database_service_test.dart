@@ -78,4 +78,20 @@ void main() {
       expect(db.currentChartId, isNull);
     },
   );
+
+  test(
+    'leaveChart removes user access to the chart and unlinks active profile',
+    () async {
+      final initialCharts = await db.streamAvailableCharts().first;
+      expect(initialCharts.length, 1);
+      final activeId = db.currentChartId;
+      expect(activeId, isNotNull);
+
+      await db.leaveChart(activeId!);
+
+      final updatedCharts = await db.streamAvailableCharts().first;
+      expect(updatedCharts, isEmpty);
+      expect(db.currentChartId, isNull);
+    },
+  );
 }
