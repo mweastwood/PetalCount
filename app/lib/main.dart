@@ -1733,9 +1733,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             FilledButton(
               onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.of(context).pop();
                 Navigator.of(context).pop();
-                await Services.db.deleteChart(chartId);
+                try {
+                  await Services.db.deleteChart(chartId);
+                } catch (e) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Error deleting chart: ${e.toString().replaceFirst("Exception: ", "")}',
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
               style: FilledButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.error,
@@ -1765,9 +1777,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             FilledButton(
               onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
                 Navigator.of(context).pop();
                 Navigator.of(context).pop();
-                await Services.db.leaveChart(chartId);
+                try {
+                  await Services.db.leaveChart(chartId);
+                } catch (e) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Error leaving chart: ${e.toString().replaceFirst("Exception: ", "")}',
+                      ),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               },
               style: FilledButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.error,

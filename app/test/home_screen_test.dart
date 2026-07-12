@@ -132,4 +132,29 @@ void main() {
 
     await screenMatchesGolden(tester, 'leave_chart_confirmation_dialog');
   });
+
+  testGoldens(
+    'SettingsScreen danger zone sole collaborator renders correctly',
+    (tester) async {
+      await tester.pumpWidgetBuilder(
+        const PetalCountApp(),
+        surfaceSize: const Size(400, 800),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap settings icon
+      await tester.tap(find.byIcon(Icons.settings));
+      await tester.pumpAndSettle();
+
+      // Scroll to the delete button to bring it into view
+      await tester.scrollUntilVisible(
+        find.text('Delete Chart'),
+        100.0,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+
+      await screenMatchesGolden(tester, 'settings_screen_danger_zone_sole');
+    },
+  );
 }
