@@ -363,6 +363,12 @@ class FirebaseDatabaseService implements DatabaseService {
       final userIds = List<String>.from(chartSnap.data()?['userIds'] ?? []);
       final emails = List<String>.from(chartSnap.data()?['emails'] ?? []);
 
+      if (userIds.length <= 1) {
+        throw Exception(
+          "Cannot leave a chart when you are the sole collaborator. Please delete the chart instead.",
+        );
+      }
+
       userIds.remove(user.uid);
       emails.remove(user.email ?? '');
 
@@ -1044,6 +1050,12 @@ class InMemoryDatabaseService implements DatabaseService {
     if (chart != null) {
       final userIds = List<String>.from(chart['userIds'] ?? []);
       final emails = List<String>.from(chart['emails'] ?? []);
+
+      if (userIds.length <= 1) {
+        throw Exception(
+          "Cannot leave a chart when you are the sole collaborator. Please delete the chart instead.",
+        );
+      }
 
       userIds.remove(_currentUser!.uid);
       emails.remove(_currentUser!.email ?? '');

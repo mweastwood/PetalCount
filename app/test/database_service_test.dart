@@ -87,11 +87,35 @@ void main() {
       final activeId = db.currentChartId;
       expect(activeId, isNotNull);
 
+      // Add a collaborator so leaving is allowed
+      await db.invitePartner('partner@example.com');
+
       await db.leaveChart(activeId!);
 
       final updatedCharts = await db.streamAvailableCharts().first;
       expect(updatedCharts, isEmpty);
       expect(db.currentChartId, isNull);
+    },
+  );
+
+  test(
+    'leaveChart throws Exception when user is the sole collaborator',
+    () async {
+      // Create a new chart which starts with only 1 user (the current user)
+      await db.createChart();
+      final activeId = db.currentChartId;
+      expect(activeId, isNotNull);
+
+      expect(
+        db.leaveChart(activeId!),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'message',
+            contains('Cannot leave a chart when you are the sole collaborator'),
+          ),
+        ),
+      );
     },
   );
 }

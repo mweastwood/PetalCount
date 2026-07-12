@@ -54,6 +54,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    // Add collaborator so Leave Chart button is rendered
+    await Services.db.invitePartner('partner@example.com');
+    await tester.pumpAndSettle();
+
     // Tap settings icon
     await tester.tap(find.byIcon(Icons.settings));
     await tester.pumpAndSettle();
@@ -104,6 +108,10 @@ void main() {
       const PetalCountApp(),
       surfaceSize: const Size(400, 800),
     );
+    await tester.pumpAndSettle();
+
+    // Add collaborator so Leave Chart button is rendered
+    await Services.db.invitePartner('partner@example.com');
     await tester.pumpAndSettle();
 
     // Tap settings icon
