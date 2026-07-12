@@ -1742,6 +1742,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await Services.db.updateBipCodes(widget.activeCycle!.id, _selectedBips);
   }
 
+  void _confirmDeleteChart(BuildContext context, String chartId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete Chart?'),
+          content: Text(
+            'Are you sure you want to permanently delete the chart "$chartId" and all of its cycles/observations? This will delete the data for all collaborators and cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
+                await Services.db.deleteChart(chartId);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              child: const Text('Delete Permanently'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1857,6 +1889,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       : Colors.green,
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
+                ),
+              ),
+            ],
+            if (chartId != null) ...[
+              const SizedBox(height: 40),
+              const Divider(),
+              const SizedBox(height: 24),
+              Text(
+                'Danger Zone',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.error,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Card(
+                color: theme.colorScheme.errorContainer.withValues(alpha: 0.1),
+                shape: RoundedRectangleBorder(
+                  side: BorderSide(
+                    color: theme.colorScheme.error.withValues(alpha: 0.5),
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Permanently delete this chart and all associated cycle logs and observations. This action is destructive and cannot be undone.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onErrorContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: () => _confirmDeleteChart(context, chartId),
+                        icon: const Icon(Icons.delete_forever),
+                        label: const Text('Delete Chart'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: theme.colorScheme.error,
+                          foregroundColor: theme.colorScheme.onError,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],

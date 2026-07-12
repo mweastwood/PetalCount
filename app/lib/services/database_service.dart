@@ -25,6 +25,7 @@ abstract class DatabaseService {
   Future<void> unlinkChart();
   Stream<List<Map<String, dynamic>>> streamAvailableCharts();
   Future<void> setActiveChart(String chartId);
+  Future<void> deleteChart(String chartId);
 
   Stream<List<Cycle>> streamCycles();
   Future<void> startNewCycle(DateTime startDate, List<String> bipCodes);
@@ -314,6 +315,36 @@ class FirebaseDatabaseService implements DatabaseService {
     }, SetOptions(merge: true));
     _cachedChartId = chartId;
     _authController.add(user);
+  }
+
+  @override
+  Future<void> deleteChart(String chartId) async {
+    final user = currentUser;
+    if (user == null) return;
+
+    final cyclesSnapshot = await _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('cycles')
+        .get();
+
+    for (final doc in cyclesSnapshot.docs) {
+      final obsSnapshot = await doc.reference.collection('observations').get();
+      for (final obsDoc in obsSnapshot.docs) {
+        await obsDoc.reference.delete();
+      }
+      await doc.reference.delete();
+    }
+
+    await _db.collection('charts').doc(chartId).delete();
+
+    if (_cachedChartId == chartId) {
+      await _db.collection('users').doc(user.uid).set({
+        'chartId': null,
+      }, SetOptions(merge: true));
+      _cachedChartId = null;
+      _authController.add(user);
+    }
   }
 
   @override
@@ -931,6 +962,27 @@ class InMemoryDatabaseService implements DatabaseService {
     if (_currentUser == null) return;
     _users[_currentUser!.uid]?['chartId'] = chartId;
     _chartId = chartId;
+    _authController.add(_currentUser);
+    _emitCharts();
+  }
+
+  @override
+  Future<void> deleteChart(String chartId) async {
+    if (_currentUser == null) return;
+
+    _charts.remove(chartId);
+    _cycles.remove(chartId);
+
+    for (final userVal in _users.values) {
+      if (userVal['chartId'] == chartId) {
+        userVal['chartId'] = null;
+      }
+    }
+
+    if (_chartId == chartId) {
+      _chartId = null;
+    }
+
     _authController.add(_currentUser);
     _emitCharts();
   }

@@ -62,4 +62,20 @@ void main() {
       expect(db.currentChartId, startsWith('chart_'));
     },
   );
+
+  test(
+    'deleteChart permanently deletes a chart and clears user link',
+    () async {
+      final initialCharts = await db.streamAvailableCharts().first;
+      expect(initialCharts.length, 1);
+      final activeId = db.currentChartId;
+      expect(activeId, isNotNull);
+
+      await db.deleteChart(activeId!);
+
+      final updatedCharts = await db.streamAvailableCharts().first;
+      expect(updatedCharts, isEmpty);
+      expect(db.currentChartId, isNull);
+    },
+  );
 }
