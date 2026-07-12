@@ -274,6 +274,8 @@ class _SetupChartScreenState extends State<SetupChartScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final currentUserEmail = Services.db.currentUser?.email ?? '';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Setup Chart'),
@@ -284,82 +286,144 @@ class _SetupChartScreenState extends State<SetupChartScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Welcome to PetalCount!',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Get started by creating a new shared cycle chart, or join one that your partner has already created.',
-              style: theme.textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 48),
-            if (_isLoading)
-              const Center(child: CircularProgressIndicator())
-            else ...[
-              FilledButton.icon(
-                onPressed: _createChart,
-                icon: const Icon(Icons.add),
-                label: const Text('Create New Shared Chart'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Divider(),
-              const SizedBox(height: 24),
-              Text(
-                'Pending Invitations',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (_pendingInvites.isEmpty)
-                Text(
-                  'No pending invites. Ask your partner to add you using your email: ${Services.db.currentUser?.email}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: Services.db.streamAvailableCharts(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final charts = snapshot.data ?? [];
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (charts.isNotEmpty) ...[
+                  Text(
+                    'Your Charts',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                )
-              else
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _pendingInvites.length,
-                  itemBuilder: (context, index) {
-                    final invite = _pendingInvites[index];
-                    return Card(
-                      child: ListTile(
-                        title: Text('Invite from ${invite['senderEmail']}'),
-                        subtitle: const Text('To link to their cycle chart'),
-                        trailing: ElevatedButton(
-                          onPressed: () => _acceptInvite(invite['chartId']),
-                          child: const Text('Accept & Link'),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Select an existing chart to continue tracking, or set up a new one below:',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: charts.length,
+                    itemBuilder: (context, index) {
+                      final chart = charts[index];
+                      final chartId = chart['id'] as String;
+
+                      final emails = List<String>.from(chart['emails'] ?? []);
+                      final partners = emails
+                          .where((e) => e != currentUserEmail)
+                          .toList();
+                      final titleText = partners.isEmpty
+                          ? 'My Solo Chart'
+                          : 'Shared with: ${partners.join(", ")}';
+
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8.0),
+                        child: ListTile(
+                          title: Text(
+                            titleText,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text('Chart ID: $chartId'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => Services.db.setActiveChart(chartId),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 24),
+                ],
+
+                Text(
+                  'Welcome to PetalCount!',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: _loadInvitations,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Refresh Invites'),
-              ),
-            ],
-          ],
-        ),
+                const SizedBox(height: 8),
+                Text(
+                  'Get started by creating a new shared cycle chart, or join one that your partner has already created.',
+                  style: theme.textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                if (_isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else ...[
+                  FilledButton.icon(
+                    onPressed: _createChart,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create New Shared Chart'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Pending Invitations',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (_pendingInvites.isEmpty)
+                    Text(
+                      'No pending invites. Ask your partner to add you using your email: ${Services.db.currentUser?.email}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    )
+                  else
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _pendingInvites.length,
+                      itemBuilder: (context, index) {
+                        final invite = _pendingInvites[index];
+                        return Card(
+                          child: ListTile(
+                            title: Text('Invite from ${invite['senderEmail']}'),
+                            subtitle: const Text(
+                              'To link to their cycle chart',
+                            ),
+                            trailing: ElevatedButton(
+                              onPressed: () => _acceptInvite(invite['chartId']),
+                              child: const Text('Accept & Link'),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: _loadInvitations,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh Invites'),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
       ),
     );
   }
