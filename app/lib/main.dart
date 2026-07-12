@@ -84,7 +84,7 @@ class AuthGate extends StatelessWidget {
 
         final chartId = Services.db.currentChartId;
         if (chartId == null) {
-          return const SetupChartScreen();
+          return const ChartSelectionScreen();
         }
 
         return const DashboardScreen();
@@ -186,184 +186,8 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 // ==========================================
-// 2. SETUP CHART / LINK PARTNER SCREEN
+// 2. CHART SELECTION & ONBOARDING SCREEN
 // ==========================================
-
-class SetupChartScreen extends StatefulWidget {
-  const SetupChartScreen({super.key});
-
-  @override
-  State<SetupChartScreen> createState() => _SetupChartScreenState();
-}
-
-class _SetupChartScreenState extends State<SetupChartScreen> {
-  bool _isLoading = false;
-  List<Map<String, dynamic>> _pendingInvites = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadInvitations();
-  }
-
-  Future<void> _loadInvitations() async {
-    final invites = await Services.db.getPendingInvitations();
-    setState(() {
-      _pendingInvites = invites;
-    });
-  }
-
-  Future<void> _createChart() async {
-    setState(() => _isLoading = true);
-    try {
-      await Services.db.createChart();
-    } catch (e) {
-      debugPrint('Error creating chart: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: SelectableText('Error creating chart: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 20),
-            action: SnackBarAction(
-              label: 'Dismiss',
-              textColor: Colors.white,
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              },
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _acceptInvite(String chartId) async {
-    setState(() => _isLoading = true);
-    try {
-      await Services.db.acceptInvitation(chartId);
-    } catch (e) {
-      debugPrint('Error accepting invitation: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: SelectableText('Error accepting invitation: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 20),
-            action: SnackBarAction(
-              label: 'Dismiss',
-              textColor: Colors.white,
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              },
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Setup Chart'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => Services.db.signOut(),
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Welcome to PetalCount!',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Get started by creating a new shared cycle chart, or join one that your partner has already created.',
-              style: theme.textTheme.bodyMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 48),
-            if (_isLoading)
-              const Center(child: CircularProgressIndicator())
-            else ...[
-              FilledButton.icon(
-                onPressed: _createChart,
-                icon: const Icon(Icons.add),
-                label: const Text('Create New Shared Chart'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Divider(),
-              const SizedBox(height: 24),
-              Text(
-                'Pending Invitations',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (_pendingInvites.isEmpty)
-                Text(
-                  'No pending invites. Ask your partner to add you using your email: ${Services.db.currentUser?.email}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                )
-              else
-                ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _pendingInvites.length,
-                  itemBuilder: (context, index) {
-                    final invite = _pendingInvites[index];
-                    return Card(
-                      child: ListTile(
-                        title: Text('Invite from ${invite['senderEmail']}'),
-                        subtitle: const Text('To link to their cycle chart'),
-                        trailing: ElevatedButton(
-                          onPressed: () => _acceptInvite(invite['chartId']),
-                          child: const Text('Accept & Link'),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: _loadInvitations,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Refresh Invites'),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // ==========================================
 // 3. DASHBOARD SCREEN & CHART GRID
@@ -583,13 +407,105 @@ class ChartSelectionScreen extends StatefulWidget {
 }
 
 class _ChartSelectionScreenState extends State<ChartSelectionScreen> {
+  bool _isLoading = false;
+  List<Map<String, dynamic>> _pendingInvites = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInvitations();
+  }
+
+  Future<void> _loadInvitations() async {
+    final invites = await Services.db.getPendingInvitations();
+    if (mounted) {
+      setState(() {
+        _pendingInvites = invites;
+      });
+    }
+  }
+
+  Future<void> _createChart() async {
+    setState(() => _isLoading = true);
+    try {
+      await Services.db.createChart();
+    } catch (e) {
+      debugPrint('Error creating chart: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: SelectableText('Error creating chart: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 20),
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _acceptInvite(String chartId) async {
+    setState(() => _isLoading = true);
+    try {
+      await Services.db.acceptInvitation(chartId);
+    } catch (e) {
+      debugPrint('Error accepting invitation: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: SelectableText('Error accepting invitation: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 20),
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final currentUserEmail = Services.db.currentUser?.email ?? '';
+    final currentChartId = Services.db.currentChartId;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Select Chart')),
+      appBar: AppBar(
+        title: const Text('Select Chart'),
+        leading: currentChartId != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
+        actions: [
+          if (currentChartId == null)
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () => Services.db.signOut(),
+            ),
+        ],
+      ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: Services.db.streamAvailableCharts(),
         builder: (context, snapshot) {
@@ -599,96 +515,155 @@ class _ChartSelectionScreenState extends State<ChartSelectionScreen> {
 
           final charts = snapshot.data ?? [];
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  'Select an active chart to view and log observations:',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (charts.isNotEmpty) ...[
+                  Text(
+                    'Your Charts',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ),
-              Expanded(
-                child: charts.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No charts found.',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        itemCount: charts.length,
-                        itemBuilder: (context, index) {
-                          final chart = charts[index];
-                          final chartId = chart['id'] as String;
-                          final isActive =
-                              Services.db.currentChartId == chartId;
+                  const SizedBox(height: 8),
+                  Text(
+                    'Select an active chart to view and log observations:',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: charts.length,
+                    itemBuilder: (context, index) {
+                      final chart = charts[index];
+                      final chartId = chart['id'] as String;
+                      final isActive = currentChartId == chartId;
 
-                          final emails = List<String>.from(
-                            chart['emails'] ?? [],
-                          );
-                          final partners = emails
-                              .where((e) => e != currentUserEmail)
-                              .toList();
-                          final titleText = partners.isEmpty
-                              ? 'My Solo Chart'
-                              : 'Shared with: ${partners.join(", ")}';
+                      final emails = List<String>.from(chart['emails'] ?? []);
+                      final partners = emails
+                          .where((e) => e != currentUserEmail)
+                          .toList();
+                      final titleText = partners.isEmpty
+                          ? 'My Solo Chart'
+                          : 'Shared with: ${partners.join(", ")}';
 
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12.0),
-                            shape: isActive
-                                ? RoundedRectangleBorder(
-                                    side: BorderSide(
-                                      color: theme.colorScheme.primary,
-                                      width: 2,
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                  )
-                                : null,
-                            child: ListTile(
-                              title: Text(
-                                titleText,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8.0),
+                        shape: isActive
+                            ? RoundedRectangleBorder(
+                                side: BorderSide(
+                                  color: theme.colorScheme.primary,
+                                  width: 2,
                                 ),
-                              ),
-                              subtitle: Text('Chart ID: $chartId'),
-                              trailing: isActive
-                                  ? Icon(
-                                      Icons.check_circle,
-                                      color: theme.colorScheme.primary,
-                                    )
-                                  : const Icon(Icons.chevron_right),
-                              onTap: () async {
-                                await Services.db.setActiveChart(chartId);
-                                if (context.mounted) {
-                                  Navigator.of(context).pop();
-                                }
-                              },
+                                borderRadius: BorderRadius.circular(12),
+                              )
+                            : null,
+                        child: ListTile(
+                          title: Text(
+                            titleText,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text('Chart ID: $chartId'),
+                          trailing: isActive
+                              ? Icon(
+                                  Icons.check_circle,
+                                  color: theme.colorScheme.primary,
+                                )
+                              : const Icon(Icons.chevron_right),
+                          onTap: () async {
+                            await Services.db.setActiveChart(chartId);
+                            if (context.mounted &&
+                                Navigator.of(context).canPop()) {
+                              Navigator.of(context).pop();
+                            }
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 24),
+                ] else ...[
+                  Text(
+                    'Welcome to PetalCount!',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Get started by creating a new shared cycle chart, or join one that your partner has already created.',
+                    style: theme.textTheme.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+                ],
+
+                if (_isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else ...[
+                  FilledButton.icon(
+                    onPressed: _createChart,
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create New Shared Chart'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Pending Invitations',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (_pendingInvites.isEmpty)
+                    Text(
+                      'No pending invites. Ask your partner to add you using your email: ${Services.db.currentUser?.email}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    )
+                  else
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _pendingInvites.length,
+                      itemBuilder: (context, index) {
+                        final invite = _pendingInvites[index];
+                        return Card(
+                          child: ListTile(
+                            title: Text('Invite from ${invite['senderEmail']}'),
+                            subtitle: const Text(
+                              'To link to their cycle chart',
                             ),
-                          );
-                        },
-                      ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: FilledButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const SetupChartScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Create or Link Another Chart'),
-                ),
-              ),
-            ],
+                            trailing: ElevatedButton(
+                              onPressed: () => _acceptInvite(invite['chartId']),
+                              child: const Text('Accept & Link'),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: _loadInvitations,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh Invites'),
+                  ),
+                ],
+              ],
+            ),
           );
         },
       ),
@@ -1742,6 +1717,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await Services.db.updateBipCodes(widget.activeCycle!.id, _selectedBips);
   }
 
+  void _confirmDeleteChart(BuildContext context, String chartId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete Chart?'),
+          content: Text(
+            'Are you sure you want to permanently delete the chart "$chartId" and all of its cycles/observations? This will delete the data for all collaborators and cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                Navigator.of(context).pop();
+                await Services.db.deleteChart(chartId);
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
+              ),
+              child: const Text('Delete Permanently'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1857,6 +1864,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       : Colors.green,
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
+                ),
+              ),
+            ],
+            if (chartId != null) ...[
+              const SizedBox(height: 40),
+              const Divider(),
+              const SizedBox(height: 24),
+              Text(
+                'Danger Zone',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.error,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Card(
+                color: theme.colorScheme.errorContainer.withValues(alpha: 0.1),
+                shape: RoundedRectangleBorder(
+                  side: BorderSide(
+                    color: theme.colorScheme.error.withValues(alpha: 0.5),
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Permanently delete this chart and all associated cycle logs and observations. This action is destructive and cannot be undone.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onErrorContainer,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: () => _confirmDeleteChart(context, chartId),
+                        icon: const Icon(Icons.delete_forever),
+                        label: const Text('Delete Chart'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: theme.colorScheme.error,
+                          foregroundColor: theme.colorScheme.onError,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
