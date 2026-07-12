@@ -19,8 +19,12 @@ void main() {
     // Verify Dashboard Screen title is shown
     expect(find.text('Petal Count'), findsOneWidget);
 
-    // Verify that the cycle date header is shown
+    // Verify that the cycle list shows the cycle entry
     expect(find.textContaining('Cycle starting'), findsOneWidget);
+
+    // Tap on the cycle card to open the CycleChartScreen
+    await tester.tap(find.textContaining('Cycle starting'));
+    await tester.pumpAndSettle();
 
     // Verify standard Log Observation button is present
     expect(find.text('Log Observation'), findsOneWidget);
