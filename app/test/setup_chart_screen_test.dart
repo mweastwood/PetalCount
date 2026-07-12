@@ -62,8 +62,8 @@ void main() {
     testDb.emitUser(testDb.testUser);
     await tester.pumpAndSettle();
 
-    // Verify we are on SetupChartScreen
-    expect(find.text('Setup Chart'), findsOneWidget);
+    // Verify we are on ChartSelectionScreen
+    expect(find.text('Select Chart'), findsOneWidget);
     expect(find.text('Create New Shared Chart'), findsOneWidget);
 
     // Tap "Create New Shared Chart"
@@ -102,7 +102,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify we are still on Setup Chart screen (not Dashboard)
-      expect(find.text('Setup Chart'), findsOneWidget);
+      expect(find.text('Select Chart'), findsOneWidget);
 
       // Verify loader is gone and button is visible again
       expect(find.text('Create New Shared Chart'), findsOneWidget);
