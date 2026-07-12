@@ -37,4 +37,29 @@ void main() {
 
     await subscription.cancel();
   });
+
+  test('streamAvailableCharts streams all charts linked to user', () async {
+    final chartsList = await db.streamAvailableCharts().first;
+    expect(chartsList.length, 1);
+    expect(chartsList.first['id'], 'mock_shared_chart');
+  });
+
+  test('setActiveChart updates currentChartId', () async {
+    await db.setActiveChart('another_mock_chart');
+    expect(db.currentChartId, 'another_mock_chart');
+  });
+
+  test(
+    'createChart creates a new chart, sets it active, and streams it',
+    () async {
+      final initialCharts = await db.streamAvailableCharts().first;
+      expect(initialCharts.length, 1);
+
+      await db.createChart();
+
+      final updatedCharts = await db.streamAvailableCharts().first;
+      expect(updatedCharts.length, 2);
+      expect(db.currentChartId, startsWith('chart_'));
+    },
+  );
 }

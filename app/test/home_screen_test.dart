@@ -33,17 +33,17 @@ void main() {
     await screenMatchesGolden(tester, 'cycle_chart_screen');
   });
 
-  testGoldens('Disconnect dialog renders correctly', (tester) async {
+  testGoldens('ChartSelectionScreen renders correctly', (tester) async {
     await tester.pumpWidgetBuilder(
       const PetalCountApp(),
       surfaceSize: const Size(400, 800),
     );
     await tester.pumpAndSettle();
 
-    // Tap the back arrow on the list screen to open the disconnect dialog
-    await tester.tap(find.byIcon(Icons.arrow_back));
+    // Tap the switch chart icon to open the selection screen
+    await tester.tap(find.byIcon(Icons.swap_horiz));
     await tester.pumpAndSettle();
 
-    await screenMatchesGolden(tester, 'disconnect_dialog');
+    await screenMatchesGolden(tester, 'chart_selection_screen');
   });
 }

@@ -385,33 +385,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _cyclesStream = Services.db.streamCycles();
   }
 
-  void _confirmUnlink(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Disconnect Chart'),
-          content: const Text(
-            'Are you sure you want to disconnect from this shared chart? You can link back to it later using the Chart ID.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await Services.db.unlinkChart();
-              },
-              child: const Text('Disconnect'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   void _startNewCycleDialog(BuildContext context) {
     final dateController = TextEditingController(
       text: DateFormat('yyyy-MM-dd').format(DateTime.now()),
@@ -530,9 +503,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           appBar: AppBar(
             title: const Text('Petal Count'),
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back),
-              tooltip: 'Disconnect Chart',
-              onPressed: () => _confirmUnlink(context),
+              icon: const Icon(Icons.swap_horiz),
+              tooltip: 'Switch Chart',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ChartSelectionScreen(),
+                  ),
+                );
+              },
             ),
             actions: [
               IconButton(
@@ -592,6 +571,127 @@ class _DashboardScreenState extends State<DashboardScreen> {
               : null,
         );
       },
+    );
+  }
+}
+
+class ChartSelectionScreen extends StatefulWidget {
+  const ChartSelectionScreen({super.key});
+
+  @override
+  State<ChartSelectionScreen> createState() => _ChartSelectionScreenState();
+}
+
+class _ChartSelectionScreenState extends State<ChartSelectionScreen> {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final currentUserEmail = Services.db.currentUser?.email ?? '';
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Select Chart')),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: Services.db.streamAvailableCharts(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final charts = snapshot.data ?? [];
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'Select an active chart to view and log observations:',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: charts.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No charts found.',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        itemCount: charts.length,
+                        itemBuilder: (context, index) {
+                          final chart = charts[index];
+                          final chartId = chart['id'] as String;
+                          final isActive =
+                              Services.db.currentChartId == chartId;
+
+                          final emails = List<String>.from(
+                            chart['emails'] ?? [],
+                          );
+                          final partners = emails
+                              .where((e) => e != currentUserEmail)
+                              .toList();
+                          final titleText = partners.isEmpty
+                              ? 'My Solo Chart'
+                              : 'Shared with: ${partners.join(", ")}';
+
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12.0),
+                            shape: isActive
+                                ? RoundedRectangleBorder(
+                                    side: BorderSide(
+                                      color: theme.colorScheme.primary,
+                                      width: 2,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  )
+                                : null,
+                            child: ListTile(
+                              title: Text(
+                                titleText,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Text('Chart ID: $chartId'),
+                              trailing: isActive
+                                  ? Icon(
+                                      Icons.check_circle,
+                                      color: theme.colorScheme.primary,
+                                    )
+                                  : const Icon(Icons.chevron_right),
+                              onTap: () async {
+                                await Services.db.setActiveChart(chartId);
+                                if (context.mounted) {
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const SetupChartScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Create or Link Another Chart'),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
