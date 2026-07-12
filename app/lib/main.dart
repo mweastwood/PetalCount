@@ -377,7 +377,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  int _selectedCycleIndex = 0;
   late final Stream<List<Cycle>> _cyclesStream;
 
   @override
@@ -386,435 +385,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _cyclesStream = Services.db.streamCycles();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<List<Cycle>>(
-      stream: _cyclesStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        final cycles = snapshot.data ?? [];
-
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Petal Count'),
-            actions: [
-              if (cycles.isNotEmpty)
-                IconButton(
-                  icon: const Icon(Icons.picture_as_pdf),
-                  tooltip: 'Export Chart to PDF',
-                  onPressed: () => PdfExportService.exportCyclesToPdf(cycles),
-                ),
-              IconButton(
-                icon: const Icon(Icons.settings),
-                tooltip: 'Settings',
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => SettingsScreen(
-                        activeCycle: cycles.isNotEmpty
-                            ? cycles[_selectedCycleIndex]
-                            : null,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
-          body: cycles.isEmpty
-              ? _buildNoCyclesView(context)
-              : _buildDashboard(context, cycles),
-          floatingActionButton: cycles.isNotEmpty
-              ? FloatingActionButton.extended(
-                  onPressed: () => _showAddObservationDialog(
-                    context,
-                    cycles[_selectedCycleIndex],
-                  ),
-                  icon: const Icon(Icons.edit_calendar),
-                  label: const Text('Log Observation'),
-                )
-              : null,
-        );
-      },
-    );
-  }
-
-  Widget _buildNoCyclesView(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.all(32.0),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.calendar_today_outlined,
-              size: 80,
-              color: theme.colorScheme.outlineVariant,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'No Cycles Started Yet',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Click the button below to start your very first cycle chart. Typically, Day 1 is the first day of menstruation.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 32),
-            FilledButton.icon(
-              onPressed: () => _startNewCycleDialog(context),
-              icon: const Icon(Icons.add),
-              label: const Text('Start First Cycle'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDashboard(BuildContext context, List<Cycle> cycles) {
-    // Ensure selected index is within bounds
-    if (_selectedCycleIndex >= cycles.length) {
-      _selectedCycleIndex = 0;
-    }
-
-    final cycle = cycles[_selectedCycleIndex];
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Cycle Switcher & Header
-        Container(
-          color: theme.colorScheme.surfaceContainerHighest.withValues(
-            alpha: 0.3,
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.arrow_back_ios, size: 18),
-                onPressed: _selectedCycleIndex < cycles.length - 1
-                    ? () {
-                        setState(() {
-                          _selectedCycleIndex++;
-                        });
-                      }
-                    : null,
-              ),
-              Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      'Cycle starting ${DateFormat('MMM dd, yyyy').format(cycle.startDate)}',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Cycle Day: ${cycle.dailyEntries.length} logged  |  BIP: ${cycle.bipCodes.isEmpty ? 'None' : cycle.bipCodes.join(', ')}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.arrow_forward_ios, size: 18),
-                onPressed: _selectedCycleIndex > 0
-                    ? () {
-                        setState(() {
-                          _selectedCycleIndex--;
-                        });
-                      }
-                    : null,
-              ),
-            ],
-          ),
-        ),
-
-        // The Scrollable Grid Chart
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildCreightonGrid(context, cycle),
-                const SizedBox(height: 32),
-                _buildActionButtons(context, cycle),
-                const SizedBox(height: 80), // Offset for FAB
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCreightonGrid(BuildContext context, Cycle cycle) {
-    final entries = cycle.sortedEntries;
-    final theme = Theme.of(context);
-
-    // Let's lay it out as a responsive GridView or custom Wrap that represents the standard row of stamps
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Cycle Chart View',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 12,
-          children: List.generate(entries.length < 35 ? 35 : entries.length, (
-            index,
-          ) {
-            DailyEntry? entry;
-            if (index < entries.length) {
-              entry = entries[index];
-            }
-
-            final dayNum = index + 1;
-            return _buildGridStampCell(context, entry, dayNum, cycle);
-          }),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGridStampCell(
-    BuildContext context,
-    DailyEntry? entry,
-    int dayNum,
-    Cycle cycle,
-  ) {
-    final theme = Theme.of(context);
-
-    // Setup stamp aesthetics
-    Color stampColor = theme.colorScheme.surfaceContainerLowest;
-    Color borderCol = theme.colorScheme.outlineVariant;
-    bool hasBaby = false;
-    bool hasGreenBaby = false;
-    Color babyIconColor = Colors.black87;
-
-    if (entry != null) {
-      borderCol = Colors.grey.shade400;
-      switch (entry.stampType) {
-        case StampType.red:
-          stampColor = Colors.red.shade400;
-          break;
-        case StampType.green:
-          stampColor = Colors.green.shade400;
-          break;
-        case StampType.whiteBaby:
-          stampColor = Colors.white;
-          borderCol = Colors.green.shade600;
-          hasBaby = true;
-          babyIconColor = Colors.green.shade700;
-          break;
-        case StampType.greenBaby:
-          stampColor = Colors.green.shade400;
-          hasGreenBaby = true;
-          break;
-        case StampType.yellow:
-          stampColor = Colors.yellow.shade400;
-          break;
-        case StampType.yellowBaby:
-          stampColor = Colors.yellow.shade400;
-          hasBaby = true;
-          babyIconColor = Colors.green.shade800;
-          break;
-      }
-    }
-
-    final hasPain = entry != null && entry.painLevel > 0;
-    final hasComments = entry != null && entry.comments.isNotEmpty;
-
-    return GestureDetector(
-      onTap: () {
-        if (entry != null) {
-          _showDailyDetailSheet(context, entry, cycle);
-        } else {
-          // Log directly for this day
-          final mockDate = cycle.startDate.add(Duration(days: dayNum - 1));
-          _showAddObservationDialogForDate(context, cycle, mockDate);
-        }
-      },
-      child: Container(
-        width: 58,
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            // Peak Day Label (P, 1, 2, 3)
-            Container(
-              height: 18,
-              alignment: Alignment.center,
-              child: Text(
-                entry?.peakDayLabel ?? '',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: entry?.peakDayLabel == 'P'
-                      ? Colors.red
-                      : theme.colorScheme.onSurface,
-                ),
-              ),
-            ),
-            // Stamp Card
-            Container(
-              width: 50,
-              height: 56,
-              decoration: BoxDecoration(
-                color: stampColor,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: borderCol,
-                  width: entry != null ? 1.5 : 1,
-                ),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Cycle day number in light overlay
-                  Align(
-                    alignment: Alignment.topLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.all(2.0),
-                      child: Text(
-                        '$dayNum',
-                        style: TextStyle(
-                          fontSize: 8,
-                          color:
-                              entry != null &&
-                                  entry.stampType != StampType.whiteBaby
-                              ? Colors.white70
-                              : Colors.grey,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (hasBaby)
-                    Icon(Icons.child_care, size: 24, color: babyIconColor)
-                  else if (hasGreenBaby)
-                    const Icon(Icons.child_care, size: 24, color: Colors.white),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-            // Date / VDRS Code
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2.0),
-              child: Text(
-                entry != null ? DateFormat('MMM dd').format(entry.date) : '-',
-                style: const TextStyle(fontSize: 8, color: Colors.grey),
-                textAlign: TextAlign.center,
-              ),
-            ),
-            Container(
-              height: 24,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 2.0),
-              child: Text(
-                entry?.resolvedVdrsCode ?? '',
-                style: const TextStyle(
-                  fontSize: 8,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            // Comments / Pain indicator footer
-            SizedBox(
-              height: 14,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (hasPain)
-                    const Icon(
-                      Icons.local_fire_department,
-                      size: 10,
-                      color: Colors.redAccent,
-                    ),
-                  if (hasComments) ...[
-                    const SizedBox(width: 2),
-                    const Icon(Icons.notes, size: 10, color: Colors.blueAccent),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButtons(BuildContext context, Cycle cycle) {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () => _startNewCycleDialog(context),
-            icon: const Icon(Icons.add),
-            label: const Text('Start Next Cycle'),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () => _confirmDeleteCycle(context, cycle),
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
-            label: const Text(
-              'Delete Cycle',
-              style: TextStyle(color: Colors.red),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Dialog to start a new cycle (picks a start date and pre-populates BIP from current)
   void _startNewCycleDialog(BuildContext context) {
     final dateController = TextEditingController(
-      text: DateFormat('yyyy-MM-DD').format(DateTime.now()),
+      text: DateFormat('yyyy-MM-dd').format(DateTime.now()),
     );
     DateTime selectedDate = DateTime.now();
 
@@ -870,6 +443,583 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildNoCyclesView(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(32.0),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 80,
+              color: theme.colorScheme.outlineVariant,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'No Cycles Started Yet',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Click the button below to start your very first cycle chart. Typically, Day 1 is the first day of menstruation.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 32),
+            FilledButton.icon(
+              onPressed: () => _startNewCycleDialog(context),
+              icon: const Icon(Icons.add),
+              label: const Text('Start First Cycle'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Cycle>>(
+      stream: _cyclesStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final cycles = snapshot.data ?? [];
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Petal Count'),
+            leading: IconButton(
+              icon: const Icon(Icons.swap_horiz),
+              tooltip: 'Switch Chart',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const ChartSelectionScreen(),
+                  ),
+                );
+              },
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.settings),
+                tooltip: 'Settings',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => SettingsScreen(
+                        activeCycle: cycles.isNotEmpty ? cycles.first : null,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          body: cycles.isEmpty
+              ? _buildNoCyclesView(context)
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16.0),
+                  itemCount: cycles.length,
+                  itemBuilder: (context, index) {
+                    final cycle = cycles[index];
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12.0),
+                      child: ListTile(
+                        title: Text(
+                          'Cycle starting ${DateFormat('MMMM dd, yyyy').format(cycle.startDate)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 6.0),
+                          child: Text(
+                            '${cycle.dailyEntries.length} entries logged  |  BIP: ${cycle.bipCodes.isEmpty ? 'None' : cycle.bipCodes.join(', ')}',
+                          ),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  CycleChartScreen(cycleId: cycle.id),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+          floatingActionButton: cycles.isNotEmpty
+              ? FloatingActionButton.extended(
+                  onPressed: () => _startNewCycleDialog(context),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Start New Cycle'),
+                )
+              : null,
+        );
+      },
+    );
+  }
+}
+
+class ChartSelectionScreen extends StatefulWidget {
+  const ChartSelectionScreen({super.key});
+
+  @override
+  State<ChartSelectionScreen> createState() => _ChartSelectionScreenState();
+}
+
+class _ChartSelectionScreenState extends State<ChartSelectionScreen> {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final currentUserEmail = Services.db.currentUser?.email ?? '';
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Select Chart')),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: Services.db.streamAvailableCharts(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final charts = snapshot.data ?? [];
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  'Select an active chart to view and log observations:',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: charts.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No charts found.',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        itemCount: charts.length,
+                        itemBuilder: (context, index) {
+                          final chart = charts[index];
+                          final chartId = chart['id'] as String;
+                          final isActive =
+                              Services.db.currentChartId == chartId;
+
+                          final emails = List<String>.from(
+                            chart['emails'] ?? [],
+                          );
+                          final partners = emails
+                              .where((e) => e != currentUserEmail)
+                              .toList();
+                          final titleText = partners.isEmpty
+                              ? 'My Solo Chart'
+                              : 'Shared with: ${partners.join(", ")}';
+
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12.0),
+                            shape: isActive
+                                ? RoundedRectangleBorder(
+                                    side: BorderSide(
+                                      color: theme.colorScheme.primary,
+                                      width: 2,
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  )
+                                : null,
+                            child: ListTile(
+                              title: Text(
+                                titleText,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Text('Chart ID: $chartId'),
+                              trailing: isActive
+                                  ? Icon(
+                                      Icons.check_circle,
+                                      color: theme.colorScheme.primary,
+                                    )
+                                  : const Icon(Icons.chevron_right),
+                              onTap: () async {
+                                await Services.db.setActiveChart(chartId);
+                                if (context.mounted) {
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const SetupChartScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Create or Link Another Chart'),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class CycleChartScreen extends StatefulWidget {
+  final String cycleId;
+  const CycleChartScreen({super.key, required this.cycleId});
+
+  @override
+  State<CycleChartScreen> createState() => _CycleChartScreenState();
+}
+
+class _CycleChartScreenState extends State<CycleChartScreen> {
+  late final Stream<List<Cycle>> _cyclesStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _cyclesStream = Services.db.streamCycles();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Cycle>>(
+      stream: _cyclesStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final cycles = snapshot.data ?? [];
+        final cycleIndex = cycles.indexWhere((c) => c.id == widget.cycleId);
+
+        if (cycleIndex == -1) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.of(context).pop();
+            }
+          });
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final cycle = cycles[cycleIndex];
+        final theme = Theme.of(context);
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(
+              'Cycle: ${DateFormat('MMM dd, yyyy').format(cycle.startDate)}',
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.picture_as_pdf),
+                tooltip: 'Export Chart to PDF',
+                onPressed: () => PdfExportService.exportCyclesToPdf([cycle]),
+              ),
+              IconButton(
+                icon: const Icon(Icons.settings),
+                tooltip: 'Settings',
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => SettingsScreen(activeCycle: cycle),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                tooltip: 'Delete Cycle',
+                onPressed: () => _confirmDeleteCycle(context, cycle),
+              ),
+            ],
+          ),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 12.0,
+                ),
+                child: Center(
+                  child: Text(
+                    'Cycle Day: ${cycle.dailyEntries.length} logged  |  BIP: ${cycle.bipCodes.isEmpty ? 'None' : cycle.bipCodes.join(', ')}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildCreightonGrid(context, cycle),
+                      const SizedBox(height: 80),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _showAddObservationDialog(context, cycle),
+            icon: const Icon(Icons.edit_calendar),
+            label: const Text('Log Observation'),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCreightonGrid(BuildContext context, Cycle cycle) {
+    final entries = cycle.sortedEntries;
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Cycle Chart View',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 12,
+          children: List.generate(entries.length < 35 ? 35 : entries.length, (
+            index,
+          ) {
+            DailyEntry? entry;
+            if (index < entries.length) {
+              entry = entries[index];
+            }
+
+            final dayNum = index + 1;
+            return _buildGridStampCell(context, entry, dayNum, cycle);
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGridStampCell(
+    BuildContext context,
+    DailyEntry? entry,
+    int dayNum,
+    Cycle cycle,
+  ) {
+    final theme = Theme.of(context);
+
+    Color stampColor = theme.colorScheme.surfaceContainerLowest;
+    Color borderCol = theme.colorScheme.outlineVariant;
+    bool hasBaby = false;
+    bool hasGreenBaby = false;
+    Color babyIconColor = Colors.black87;
+
+    if (entry != null) {
+      borderCol = Colors.grey.shade400;
+      switch (entry.stampType) {
+        case StampType.red:
+          stampColor = Colors.red.shade400;
+          break;
+        case StampType.green:
+          stampColor = Colors.green.shade400;
+          break;
+        case StampType.whiteBaby:
+          stampColor = Colors.white;
+          borderCol = Colors.green.shade600;
+          hasBaby = true;
+          babyIconColor = Colors.green.shade700;
+          break;
+        case StampType.greenBaby:
+          stampColor = Colors.green.shade400;
+          hasGreenBaby = true;
+          break;
+        case StampType.yellow:
+          stampColor = Colors.yellow.shade400;
+          break;
+        case StampType.yellowBaby:
+          stampColor = Colors.yellow.shade400;
+          hasBaby = true;
+          babyIconColor = Colors.green.shade800;
+          break;
+      }
+    }
+
+    final hasPain = entry != null && entry.painLevel > 0;
+    final hasComments = entry != null && entry.comments.isNotEmpty;
+
+    return GestureDetector(
+      onTap: () {
+        if (entry != null) {
+          _showDailyDetailSheet(context, entry, cycle);
+        } else {
+          final mockDate = cycle.startDate.add(Duration(days: dayNum - 1));
+          _showAddObservationDialogForDate(context, cycle, mockDate);
+        }
+      },
+      child: Container(
+        width: 58,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              height: 18,
+              alignment: Alignment.center,
+              child: Text(
+                entry?.peakDayLabel ?? '',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: entry?.peakDayLabel == 'P'
+                      ? Colors.red
+                      : theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+            Container(
+              width: 50,
+              height: 56,
+              decoration: BoxDecoration(
+                color: stampColor,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: borderCol,
+                  width: entry != null ? 1.5 : 1,
+                ),
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.all(2.0),
+                      child: Text(
+                        '$dayNum',
+                        style: TextStyle(
+                          fontSize: 8,
+                          color:
+                              entry != null &&
+                                  entry.stampType != StampType.whiteBaby
+                              ? Colors.white70
+                              : Colors.grey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (hasBaby)
+                    Icon(Icons.child_care, size: 24, color: babyIconColor)
+                  else if (hasGreenBaby)
+                    const Icon(Icons.child_care, size: 24, color: Colors.white),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2.0),
+              child: Text(
+                entry != null ? DateFormat('MMM dd').format(entry.date) : '-',
+                style: const TextStyle(fontSize: 8, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            Container(
+              height: 24,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 2.0),
+              child: Text(
+                entry?.resolvedVdrsCode ?? '',
+                style: const TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            SizedBox(
+              height: 14,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (hasPain)
+                    const Icon(
+                      Icons.local_fire_department,
+                      size: 10,
+                      color: Colors.redAccent,
+                    ),
+                  if (hasComments) ...[
+                    const SizedBox(width: 2),
+                    const Icon(Icons.notes, size: 10, color: Colors.blueAccent),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
+        ),
+      ),
     );
   }
 

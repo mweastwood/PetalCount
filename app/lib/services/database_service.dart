@@ -22,6 +22,9 @@ abstract class DatabaseService {
   Future<List<Map<String, dynamic>>> getPendingInvitations();
   Future<void> acceptInvitation(String invitationId);
   Future<void> declineInvitation(String invitationId);
+  Future<void> unlinkChart();
+  Stream<List<Map<String, dynamic>>> streamAvailableCharts();
+  Future<void> setActiveChart(String chartId);
 
   Stream<List<Cycle>> streamCycles();
   Future<void> startNewCycle(DateTime startDate, List<String> bipCodes);
@@ -281,6 +284,39 @@ class FirebaseDatabaseService implements DatabaseService {
   }
 
   @override
+  Future<void> unlinkChart() async {
+    final user = currentUser;
+    if (user == null) return;
+    await _db.collection('users').doc(user.uid).set({
+      'chartId': null,
+    }, SetOptions(merge: true));
+    _cachedChartId = null;
+    _authController.add(user);
+  }
+
+  @override
+  Stream<List<Map<String, dynamic>>> streamAvailableCharts() {
+    final user = currentUser;
+    if (user == null) return Stream.value([]);
+    return _db
+        .collection('charts')
+        .where('userIds', arrayContains: user.uid)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+  }
+
+  @override
+  Future<void> setActiveChart(String chartId) async {
+    final user = currentUser;
+    if (user == null) return;
+    await _db.collection('users').doc(user.uid).set({
+      'chartId': chartId,
+    }, SetOptions(merge: true));
+    _cachedChartId = chartId;
+    _authController.add(user);
+  }
+
+  @override
   Stream<List<Cycle>> streamCycles() {
     final chartId = currentChartId;
     if (chartId == null) {
@@ -507,6 +543,8 @@ class MockUser implements User {
 
 class InMemoryDatabaseService implements DatabaseService {
   final _authController = StreamController<User?>.broadcast();
+  final _chartsController =
+      StreamController<List<Map<String, dynamic>>>.broadcast();
   User? _currentUser;
   String? _chartId;
 
@@ -760,6 +798,7 @@ class InMemoryDatabaseService implements DatabaseService {
     _currentUser = MockUser(uid: uid, email: email);
     _chartId = _users[uid]!['chartId'];
     _authController.add(_currentUser);
+    _emitCharts();
   }
 
   @override
@@ -767,6 +806,7 @@ class InMemoryDatabaseService implements DatabaseService {
     _currentUser = null;
     _chartId = null;
     _authController.add(null);
+    _emitCharts();
   }
 
   @override
@@ -784,6 +824,7 @@ class InMemoryDatabaseService implements DatabaseService {
     _chartId = chartId;
     _cycles[chartId] = {};
     _authController.add(_currentUser); // Trigger refresh
+    _emitCharts();
   }
 
   @override
@@ -839,6 +880,7 @@ class InMemoryDatabaseService implements DatabaseService {
     _chartId = chartId;
 
     _authController.add(_currentUser);
+    _emitCharts();
   }
 
   @override
@@ -850,6 +892,47 @@ class InMemoryDatabaseService implements DatabaseService {
     if (invIndex != -1) {
       _invitations[invIndex]['status'] = 'declined';
     }
+  }
+
+  @override
+  Future<void> unlinkChart() async {
+    if (_currentUser == null) return;
+    _currentUser = MockUser(uid: _currentUser!.uid, email: _currentUser!.email);
+    _users[_currentUser!.uid]?['chartId'] = null;
+    _chartId = null;
+    _authController.add(_currentUser);
+    _emitCharts();
+  }
+
+  void _emitCharts() {
+    final user = _currentUser;
+    if (user == null) {
+      _chartsController.add([]);
+      return;
+    }
+    final list = _charts.values
+        .where((chart) => (chart['userIds'] as List).contains(user.uid))
+        .toList();
+    _chartsController.add(list);
+  }
+
+  @override
+  Stream<List<Map<String, dynamic>>> streamAvailableCharts() {
+    final user = _currentUser;
+    if (user == null) return Stream.value([]);
+
+    Future.microtask(() => _emitCharts());
+
+    return _chartsController.stream;
+  }
+
+  @override
+  Future<void> setActiveChart(String chartId) async {
+    if (_currentUser == null) return;
+    _users[_currentUser!.uid]?['chartId'] = chartId;
+    _chartId = chartId;
+    _authController.add(_currentUser);
+    _emitCharts();
   }
 
   // Stream emulation
