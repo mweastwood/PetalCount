@@ -26,6 +26,7 @@ abstract class DatabaseService {
   Stream<List<Map<String, dynamic>>> streamAvailableCharts();
   Future<void> setActiveChart(String chartId);
   Future<void> deleteChart(String chartId);
+  Future<void> leaveChart(String chartId);
 
   Stream<List<Cycle>> streamCycles();
   Future<void> startNewCycle(DateTime startDate, List<String> bipCodes);
@@ -337,6 +338,60 @@ class FirebaseDatabaseService implements DatabaseService {
     }
 
     await _db.collection('charts').doc(chartId).delete();
+
+    if (_cachedChartId == chartId) {
+      await _db.collection('users').doc(user.uid).set({
+        'chartId': null,
+      }, SetOptions(merge: true));
+      _cachedChartId = null;
+      _authController.add(user);
+    }
+  }
+
+  @override
+  Future<void> leaveChart(String chartId) async {
+    final user = currentUser;
+    if (user == null) return;
+
+    final chartRef = _db.collection('charts').doc(chartId);
+    bool shouldDeleteAll = false;
+
+    await _db.runTransaction((transaction) async {
+      final chartSnap = await transaction.get(chartRef);
+      if (!chartSnap.exists) return;
+
+      final userIds = List<String>.from(chartSnap.data()?['userIds'] ?? []);
+      final emails = List<String>.from(chartSnap.data()?['emails'] ?? []);
+
+      if (userIds.length <= 1) {
+        throw Exception(
+          "Cannot leave a chart when you are the sole collaborator. Please delete the chart instead.",
+        );
+      }
+
+      userIds.remove(user.uid);
+      emails.remove(user.email ?? '');
+
+      if (userIds.isEmpty) {
+        shouldDeleteAll = true;
+        transaction.delete(chartRef);
+      } else {
+        transaction.update(chartRef, {'userIds': userIds, 'emails': emails});
+      }
+    });
+
+    if (shouldDeleteAll) {
+      final cyclesSnapshot = await chartRef.collection('cycles').get();
+      for (final doc in cyclesSnapshot.docs) {
+        final obsSnapshot = await doc.reference
+            .collection('observations')
+            .get();
+        for (final obsDoc in obsSnapshot.docs) {
+          await obsDoc.reference.delete();
+        }
+        await doc.reference.delete();
+      }
+    }
 
     if (_cachedChartId == chartId) {
       await _db.collection('users').doc(user.uid).set({
@@ -980,6 +1035,42 @@ class InMemoryDatabaseService implements DatabaseService {
     }
 
     if (_chartId == chartId) {
+      _chartId = null;
+    }
+
+    _authController.add(_currentUser);
+    _emitCharts();
+  }
+
+  @override
+  Future<void> leaveChart(String chartId) async {
+    if (_currentUser == null) return;
+
+    final chart = _charts[chartId];
+    if (chart != null) {
+      final userIds = List<String>.from(chart['userIds'] ?? []);
+      final emails = List<String>.from(chart['emails'] ?? []);
+
+      if (userIds.length <= 1) {
+        throw Exception(
+          "Cannot leave a chart when you are the sole collaborator. Please delete the chart instead.",
+        );
+      }
+
+      userIds.remove(_currentUser!.uid);
+      emails.remove(_currentUser!.email ?? '');
+
+      if (userIds.isEmpty) {
+        _charts.remove(chartId);
+        _cycles.remove(chartId);
+      } else {
+        chart['userIds'] = userIds;
+        chart['emails'] = emails;
+      }
+    }
+
+    if (_chartId == chartId) {
+      _users[_currentUser!.uid]?['chartId'] = null;
       _chartId = null;
     }
 
