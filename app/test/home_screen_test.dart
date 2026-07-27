@@ -10,27 +10,47 @@ void main() {
     await Services.init();
   });
 
-  testGoldens('Dashboard renders correctly in initial state', (tester) async {
+  testGoldens('Dashboard renders Vertical Timeline view correctly', (
+    tester,
+  ) async {
     await tester.pumpWidgetBuilder(
       const PetalCountApp(),
       surfaceSize: const Size(400, 800),
     );
     await tester.pumpAndSettle();
-    await screenMatchesGolden(tester, 'dashboard_screen_initial');
+    await screenMatchesGolden(tester, 'dashboard_vertical_timeline_view');
   });
 
-  testGoldens('CycleChartScreen renders grid correctly', (tester) async {
+  testGoldens('Dashboard renders Creighton Grid view in Portrait correctly', (
+    tester,
+  ) async {
     await tester.pumpWidgetBuilder(
       const PetalCountApp(),
       surfaceSize: const Size(400, 800),
     );
     await tester.pumpAndSettle();
 
-    // Tap on the cycle card to open CycleChartScreen
-    await tester.tap(find.textContaining('Cycle starting'));
+    // Tap on "Creighton Grid" segment button to switch to grid view
+    await tester.tap(find.text('Creighton Grid'));
     await tester.pumpAndSettle();
 
-    await screenMatchesGolden(tester, 'cycle_chart_screen');
+    await screenMatchesGolden(tester, 'dashboard_creighton_grid_portrait');
+  });
+
+  testGoldens('Dashboard renders Creighton Grid view in Landscape correctly', (
+    tester,
+  ) async {
+    await tester.pumpWidgetBuilder(
+      const PetalCountApp(),
+      surfaceSize: const Size(800, 400),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap on "Creighton Grid" segment button to switch to grid view
+    await tester.tap(find.text('Creighton Grid'));
+    await tester.pumpAndSettle();
+
+    await screenMatchesGolden(tester, 'dashboard_creighton_grid_landscape');
   });
 
   testGoldens('ChartSelectionScreen renders correctly', (tester) async {

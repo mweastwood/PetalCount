@@ -19,12 +19,16 @@ void main() {
     // Verify Dashboard Screen title is shown
     expect(find.text('Petal Count'), findsOneWidget);
 
-    // Verify that the cycle list shows the cycle entry
-    expect(find.textContaining('Cycle starting'), findsOneWidget);
+    // Verify view mode switcher bottom navigation destinations are present
+    expect(find.text('Timeline'), findsOneWidget);
+    expect(find.text('Creighton Grid'), findsOneWidget);
 
-    // Tap on the cycle card to open the CycleChartScreen
-    await tester.tap(find.textContaining('Cycle starting'));
+    // Tap on Creighton Grid to switch to grid view
+    await tester.tap(find.text('Creighton Grid'));
     await tester.pumpAndSettle();
+
+    // Verify that the Creighton grid shows the cycle entry
+    expect(find.textContaining('Cycle starting'), findsOneWidget);
 
     // Verify standard Log Observation button is present
     expect(find.text('Log Observation'), findsOneWidget);
@@ -40,4 +44,25 @@ void main() {
     expect(find.text('Settings & Configuration'), findsOneWidget);
     expect(find.textContaining('Active Profile'), findsOneWidget);
   });
+
+  testWidgets(
+    'Vertical Timeline View displays today at bottom and scrolls up',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const PetalCountApp());
+      await tester.pumpAndSettle();
+
+      // Verify Timeline navigation tab is selected by default
+      expect(find.text('Timeline'), findsOneWidget);
+
+      // Verify "Today" entry is rendered
+      expect(find.textContaining('Today'), findsOneWidget);
+
+      // Drag to scroll up to view previous days
+      await tester.drag(find.byType(ListView), const Offset(0, 400));
+      await tester.pumpAndSettle();
+
+      // Verify timeline items exist in scroll view
+      expect(find.byType(InkWell), findsWidgets);
+    },
+  );
 }

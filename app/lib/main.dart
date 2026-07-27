@@ -193,6 +193,24 @@ class _LoginScreenState extends State<LoginScreen> {
 // 3. DASHBOARD SCREEN & CHART GRID
 // ==========================================
 
+enum ViewMode { timeline, creightonGrid }
+
+class _TimelineItem {
+  final DateTime date;
+  final DailyEntry? entry;
+  final Cycle? cycle;
+  final int dayNumber;
+  final bool isCycleStart;
+
+  _TimelineItem({
+    required this.date,
+    required this.entry,
+    required this.cycle,
+    required this.dayNumber,
+    required this.isCycleStart,
+  });
+}
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -202,6 +220,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   late final Stream<List<Cycle>> _cyclesStream;
+  ViewMode _viewMode = ViewMode.timeline;
 
   @override
   void initState() {
@@ -214,6 +233,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       builder: (context) =>
           AddObservationDialog(cycle: cycle, defaultDate: DateTime.now()),
+    );
+  }
+
+  void _showAddObservationDialogForDate(
+    BuildContext context,
+    Cycle? cycle,
+    DateTime date,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) =>
+          AddObservationDialog(cycle: cycle, defaultDate: date),
+    );
+  }
+
+  void _showDailyDetailSheet(
+    BuildContext context,
+    DailyEntry entry,
+    Cycle cycle,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DailyDetailSheet(entry: entry, cycle: cycle),
     );
   }
 
@@ -257,6 +303,608 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // --- VIEW MODE 1: VERTICAL TIMELINE VIEW ---
+  // Days are laid out vertically. Today (current day) is at the bottom,
+  // and swiping UP scrolls back in time to previous days.
+  Widget _buildVerticalTimelineView(BuildContext context, List<Cycle> cycles) {
+    final theme = Theme.of(context);
+
+    // Extract all logged daily entries across all cycles
+    final timelineItems = <_TimelineItem>[];
+
+    for (var cycle in cycles) {
+      final sortedEntries = cycle.sortedEntries;
+
+      if (sortedEntries.isNotEmpty) {
+        for (int i = 0; i < sortedEntries.length; i++) {
+          final entry = sortedEntries[i];
+          timelineItems.add(
+            _TimelineItem(
+              date: entry.date,
+              entry: entry,
+              cycle: cycle,
+              dayNumber: i + 1,
+              isCycleStart: i == 0,
+            ),
+          );
+        }
+      } else {
+        timelineItems.add(
+          _TimelineItem(
+            date: cycle.startDate,
+            entry: null,
+            cycle: cycle,
+            dayNumber: 1,
+            isCycleStart: true,
+          ),
+        );
+      }
+    }
+
+    // Ensure Today is included in the timeline if not already logged
+    final today = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
+
+    final hasToday = timelineItems.any(
+      (item) =>
+          item.date.year == today.year &&
+          item.date.month == today.month &&
+          item.date.day == today.day,
+    );
+
+    if (!hasToday) {
+      final activeCycle = cycles.isNotEmpty ? cycles.first : null;
+      int dayNum = 1;
+      if (activeCycle != null) {
+        dayNum = today.difference(activeCycle.startDate).inDays + 1;
+      }
+      timelineItems.add(
+        _TimelineItem(
+          date: today,
+          entry: null,
+          cycle: activeCycle,
+          dayNumber: dayNum > 0 ? dayNum : 1,
+          isCycleStart: false,
+        ),
+      );
+    }
+
+    // Sort ascending chronologically (oldest date first, today/latest date last)
+    timelineItems.sort((a, b) => a.date.compareTo(b.date));
+
+    // Reverse list so index 0 = Today (latest), which reverse: true places at the BOTTOM of the screen!
+    final reversedItems = timelineItems.reversed.toList();
+
+    return ListView.builder(
+      reverse: true, // Today at bottom, scroll UP to see previous days
+      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 88.0),
+      itemCount: reversedItems.length,
+      itemBuilder: (context, index) {
+        final item = reversedItems[index];
+        final entry = item.entry;
+        final isToday =
+            item.date.year == today.year &&
+            item.date.month == today.month &&
+            item.date.day == today.day;
+
+        Color stampColor = theme.colorScheme.surfaceContainerLowest;
+        Color borderColor = theme.colorScheme.outlineVariant;
+        IconData? stampIcon;
+        Color stampIconColor = Colors.black87;
+
+        if (entry != null) {
+          borderColor = Colors.grey.shade400;
+          switch (entry.stampType) {
+            case StampType.red:
+              stampColor = Colors.red.shade400;
+              break;
+            case StampType.green:
+              stampColor = Colors.green.shade400;
+              break;
+            case StampType.whiteBaby:
+              stampColor = Colors.white;
+              borderColor = Colors.green.shade600;
+              stampIcon = Icons.child_care;
+              stampIconColor = Colors.green.shade700;
+              break;
+            case StampType.greenBaby:
+              stampColor = Colors.green.shade400;
+              stampIcon = Icons.child_care;
+              stampIconColor = Colors.white;
+              break;
+            case StampType.yellow:
+              stampColor = Colors.yellow.shade400;
+              break;
+            case StampType.yellowBaby:
+              stampColor = Colors.yellow.shade400;
+              stampIcon = Icons.child_care;
+              stampIconColor = Colors.green.shade800;
+              break;
+          }
+        }
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12.0),
+          decoration: BoxDecoration(
+            color: isToday
+                ? theme.colorScheme.primaryContainer.withValues(alpha: 0.15)
+                : theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isToday
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+              width: isToday ? 2 : 1,
+            ),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              if (entry != null && item.cycle != null) {
+                _showDailyDetailSheet(context, entry, item.cycle!);
+              } else {
+                _showAddObservationDialogForDate(
+                  context,
+                  item.cycle,
+                  item.date,
+                );
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Row(
+                children: [
+                  // Stamp Badge
+                  Container(
+                    width: 54,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: stampColor,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: borderColor, width: 1.5),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (entry?.peakDayLabel != null)
+                          Text(
+                            entry!.peakDayLabel!,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: entry.peakDayLabel == 'P'
+                                  ? Colors.red
+                                  : Colors.black87,
+                            ),
+                          ),
+                        if (stampIcon != null)
+                          Icon(stampIcon, size: 20, color: stampIconColor)
+                        else
+                          Text(
+                            entry?.resolvedVdrsCode ?? '-',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  entry != null &&
+                                      entry.stampType != StampType.whiteBaby
+                                  ? Colors.white
+                                  : Colors.grey.shade800,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  // Details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              isToday
+                                  ? 'Today – ${DateFormat('EEE, MMM dd').format(item.date)}'
+                                  : DateFormat(
+                                      'EEEE, MMM dd, yyyy',
+                                    ).format(item.date),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: isToday
+                                    ? FontWeight.bold
+                                    : FontWeight.w600,
+                                color: isToday
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            if (item.isCycleStart) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primaryContainer,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'Cycle starting ${DateFormat('MMMM dd, yyyy').format(item.date)}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          entry != null
+                              ? 'Day ${item.dayNumber} • ${entry.resolvedVdrsCode.isNotEmpty ? entry.resolvedVdrsCode : 'Logged'}${entry.comments.isNotEmpty ? ' • "${entry.comments}"' : ''}'
+                              : 'Day ${item.dayNumber} • Tap to log observation',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: entry != null
+                                ? theme.colorScheme.onSurfaceVariant
+                                : theme.colorScheme.outline,
+                            fontStyle: entry == null ? FontStyle.italic : null,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: Colors.grey),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // --- VIEW MODE 2: CLASSIC CREIGHTON MODEL GRID VIEW ---
+  // Adaptive layout:
+  // - Narrow screen (portrait): most recent cycle going DOWN starting from the LEFT,
+  //   previous cycle just to the right, next cycle to the right of that, etc.
+  // - Wider screen (landscape): most recent cycle going LEFT-TO-RIGHT at the TOP,
+  //   previous cycle just below it, next cycle below that, etc.
+  Widget _buildCreightonGridView(BuildContext context, List<Cycle> cycles) {
+    final media = MediaQuery.of(context);
+    final isNarrow =
+        media.size.width < media.size.height || media.size.width < 600;
+
+    if (isNarrow) {
+      // Narrow screen: side-by-side vertical columns (most recent cycle on left, going down)
+      return SingleChildScrollView(
+        scrollDirection: Axis.vertical,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 88.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: cycles.map((cycle) {
+              return _buildVerticalCycleColumn(context, cycle);
+            }).toList(),
+          ),
+        ),
+      );
+    } else {
+      // Wider screen: stacked horizontal rows (most recent cycle at top, going left-to-right)
+      return ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 88.0),
+        itemCount: cycles.length,
+        itemBuilder: (context, index) {
+          final cycle = cycles[index];
+          return _buildHorizontalCycleRow(context, cycle);
+        },
+      );
+    }
+  }
+
+  Widget _buildVerticalCycleColumn(BuildContext context, Cycle cycle) {
+    final entries = cycle.sortedEntries;
+    final totalCells = entries.length < 35 ? 35 : entries.length;
+
+    return Container(
+      width: 68,
+      margin: const EdgeInsets.only(right: 12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  DateFormat('MMM dd').format(cycle.startDate),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                Text(
+                  '${cycle.startDate.year}',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...List.generate(totalCells, (index) {
+            DailyEntry? entry;
+            if (index < entries.length) {
+              entry = entries[index];
+            }
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 6.0),
+              child: _buildGridStampCell(context, entry, index + 1, cycle),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHorizontalCycleRow(BuildContext context, Cycle cycle) {
+    final entries = cycle.sortedEntries;
+    final totalCells = entries.length < 35 ? 35 : entries.length;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16.0),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Cycle starting ${DateFormat('MMMM dd, yyyy').format(cycle.startDate)}',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.picture_as_pdf, size: 20),
+                  tooltip: 'Export Cycle PDF',
+                  onPressed: () => PdfExportService.exportCyclesToPdf([cycle]),
+                ),
+              ],
+            ),
+            Text(
+              '${cycle.dailyEntries.length} entries logged  |  BIP: ${cycle.bipCodes.isEmpty ? 'None' : cycle.bipCodes.join(', ')}',
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: List.generate(totalCells, (index) {
+                  DailyEntry? entry;
+                  if (index < entries.length) {
+                    entry = entries[index];
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6.0),
+                    child: _buildGridStampCell(
+                      context,
+                      entry,
+                      index + 1,
+                      cycle,
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGridStampCell(
+    BuildContext context,
+    DailyEntry? entry,
+    int dayNum,
+    Cycle cycle,
+  ) {
+    final theme = Theme.of(context);
+
+    Color stampColor = theme.colorScheme.surfaceContainerLowest;
+    Color borderCol = theme.colorScheme.outlineVariant;
+    bool hasBaby = false;
+    bool hasGreenBaby = false;
+    Color babyIconColor = Colors.black87;
+
+    if (entry != null) {
+      borderCol = Colors.grey.shade400;
+      switch (entry.stampType) {
+        case StampType.red:
+          stampColor = Colors.red.shade400;
+          break;
+        case StampType.green:
+          stampColor = Colors.green.shade400;
+          break;
+        case StampType.whiteBaby:
+          stampColor = Colors.white;
+          borderCol = Colors.green.shade600;
+          hasBaby = true;
+          babyIconColor = Colors.green.shade700;
+          break;
+        case StampType.greenBaby:
+          stampColor = Colors.green.shade400;
+          hasGreenBaby = true;
+          break;
+        case StampType.yellow:
+          stampColor = Colors.yellow.shade400;
+          break;
+        case StampType.yellowBaby:
+          stampColor = Colors.yellow.shade400;
+          hasBaby = true;
+          babyIconColor = Colors.green.shade800;
+          break;
+      }
+    }
+
+    final hasPain = entry != null && entry.painLevel > 0;
+    final hasComments = entry != null && entry.comments.isNotEmpty;
+
+    return GestureDetector(
+      onTap: () {
+        if (entry != null) {
+          _showDailyDetailSheet(context, entry, cycle);
+        } else {
+          final mockDate = cycle.startDate.add(Duration(days: dayNum - 1));
+          _showAddObservationDialogForDate(context, cycle, mockDate);
+        }
+      },
+      child: Container(
+        width: 58,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Container(
+              height: 18,
+              alignment: Alignment.center,
+              child: Text(
+                entry?.peakDayLabel ?? '',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: entry?.peakDayLabel == 'P'
+                      ? Colors.red
+                      : theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+            Container(
+              width: 50,
+              height: 56,
+              decoration: BoxDecoration(
+                color: stampColor,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(
+                  color: borderCol,
+                  width: entry != null ? 1.5 : 1,
+                ),
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.all(2.0),
+                      child: Text(
+                        '$dayNum',
+                        style: TextStyle(
+                          fontSize: 8,
+                          color:
+                              entry != null &&
+                                  entry.stampType != StampType.whiteBaby
+                              ? Colors.white70
+                              : Colors.grey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (hasBaby)
+                    Icon(Icons.child_care, size: 24, color: babyIconColor)
+                  else if (hasGreenBaby)
+                    const Icon(Icons.child_care, size: 24, color: Colors.white),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2.0),
+              child: Text(
+                entry != null ? DateFormat('MMM dd').format(entry.date) : '-',
+                style: const TextStyle(fontSize: 8, color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            Container(
+              height: 24,
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 2.0),
+              child: Text(
+                entry?.resolvedVdrsCode ?? '',
+                style: const TextStyle(
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            SizedBox(
+              height: 14,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (hasPain)
+                    const Icon(
+                      Icons.local_fire_department,
+                      size: 10,
+                      color: Colors.redAccent,
+                    ),
+                  if (hasComments) ...[
+                    const SizedBox(width: 2),
+                    const Icon(Icons.notes, size: 10, color: Colors.blueAccent),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Cycle>>(
@@ -286,6 +934,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             actions: [
               IconButton(
+                icon: const Icon(Icons.picture_as_pdf),
+                tooltip: 'Export Chart to PDF',
+                onPressed: cycles.isNotEmpty
+                    ? () => PdfExportService.exportCyclesToPdf(cycles)
+                    : null,
+              ),
+              IconButton(
                 icon: const Icon(Icons.settings),
                 tooltip: 'Settings',
                 onPressed: () {
@@ -302,36 +957,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           body: cycles.isEmpty
               ? _buildNoCyclesView(context)
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16.0),
-                  itemCount: cycles.length,
-                  itemBuilder: (context, index) {
-                    final cycle = cycles[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12.0),
-                      child: ListTile(
-                        title: Text(
-                          'Cycle starting ${DateFormat('MMMM dd, yyyy').format(cycle.startDate)}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 6.0),
-                          child: Text(
-                            '${cycle.dailyEntries.length} entries logged  |  BIP: ${cycle.bipCodes.isEmpty ? 'None' : cycle.bipCodes.join(', ')}',
-                          ),
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  CycleChartScreen(cycleId: cycle.id),
-                            ),
-                          );
-                        },
-                      ),
-                    );
+              : (_viewMode == ViewMode.timeline
+                    ? _buildVerticalTimelineView(context, cycles)
+                    : _buildCreightonGridView(context, cycles)),
+          bottomNavigationBar: cycles.isEmpty
+              ? null
+              : NavigationBar(
+                  selectedIndex: _viewMode.index,
+                  onDestinationSelected: (index) {
+                    setState(() {
+                      _viewMode = ViewMode.values[index];
+                    });
                   },
+                  destinations: const [
+                    NavigationDestination(
+                      icon: Icon(Icons.view_timeline_outlined),
+                      selectedIcon: Icon(Icons.view_timeline),
+                      label: 'Timeline',
+                    ),
+                    NavigationDestination(
+                      icon: Icon(Icons.grid_on_outlined),
+                      selectedIcon: Icon(Icons.grid_on),
+                      label: 'Creighton Grid',
+                    ),
+                  ],
                 ),
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () => _showAddObservationDialog(
