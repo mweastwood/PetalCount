@@ -341,12 +341,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
 
-    // Ensure Today is included in the timeline if not already logged
-    final today = DateTime(
-      DateTime.now().year,
-      DateTime.now().month,
-      DateTime.now().day,
-    );
+    // Determine current/anchor date (latest entry date or today)
+    final DateTime today;
+    if (timelineItems.isNotEmpty) {
+      DateTime maxDate = timelineItems.first.date;
+      for (final item in timelineItems) {
+        if (item.date.isAfter(maxDate)) {
+          maxDate = item.date;
+        }
+      }
+      today = DateTime(maxDate.year, maxDate.month, maxDate.day);
+    } else {
+      final now = DateTime.now();
+      today = DateTime(now.year, now.month, now.day);
+    }
 
     final hasToday = timelineItems.any(
       (item) =>
