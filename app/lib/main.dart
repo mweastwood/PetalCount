@@ -209,64 +209,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _cyclesStream = Services.db.streamCycles();
   }
 
-  void _startNewCycleDialog(BuildContext context) {
-    final dateController = TextEditingController(
-      text: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-    );
-    DateTime selectedDate = DateTime.now();
-
+  void _showAddObservationDialog(BuildContext context, Cycle? cycle) {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Start New Cycle'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'This will close the active cycle and start a new one on Day 1.',
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                title: const Text('Start Date (Day 1)'),
-                subtitle: Text(DateFormat('yyyy-MM-dd').format(selectedDate)),
-                trailing: const Icon(Icons.calendar_today),
-                onTap: () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    initialDate: selectedDate,
-                    firstDate: DateTime.now().subtract(
-                      const Duration(days: 90),
-                    ),
-                    lastDate: DateTime.now(),
-                  );
-                  if (picked != null) {
-                    selectedDate = picked;
-                    dateController.text = DateFormat(
-                      'yyyy-MM-dd',
-                    ).format(picked);
-                  }
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                await Services.db.startNewCycle(selectedDate, const [
-                  '6-C',
-                ]); // Default BIP
-                if (context.mounted) Navigator.of(context).pop();
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        );
-      },
+      builder: (context) =>
+          AddObservationDialog(cycle: cycle, defaultDate: DateTime.now()),
     );
   }
 
@@ -279,20 +226,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.calendar_today_outlined,
+              Icons.edit_note_rounded,
               size: 80,
-              color: theme.colorScheme.outlineVariant,
+              color: theme.colorScheme.primary,
             ),
             const SizedBox(height: 24),
             Text(
-              'No Cycles Started Yet',
+              'No Observations Yet',
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Click the button below to start your very first cycle chart. Typically, Day 1 is the first day of menstruation.',
+              'Log your self-reported observations to automatically track and detect your cycles.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
@@ -300,9 +247,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 32),
             FilledButton.icon(
-              onPressed: () => _startNewCycleDialog(context),
+              onPressed: () => _showAddObservationDialog(context, null),
               icon: const Icon(Icons.add),
-              label: const Text('Start First Cycle'),
+              label: const Text('Log First Observation'),
             ),
           ],
         ),
@@ -386,13 +333,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     );
                   },
                 ),
-          floatingActionButton: cycles.isNotEmpty
-              ? FloatingActionButton.extended(
-                  onPressed: () => _startNewCycleDialog(context),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Start New Cycle'),
-                )
-              : null,
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => _showAddObservationDialog(
+              context,
+              cycles.isNotEmpty ? cycles.first : null,
+            ),
+            icon: const Icon(Icons.add),
+            label: const Text('Log Observation'),
+          ),
         );
       },
     );
@@ -1025,7 +973,7 @@ class _CycleChartScreenState extends State<CycleChartScreen> {
     );
   }
 
-  void _showAddObservationDialog(BuildContext context, Cycle cycle) {
+  void _showAddObservationDialog(BuildContext context, Cycle? cycle) {
     showDialog(
       context: context,
       builder: (context) =>
@@ -1035,7 +983,7 @@ class _CycleChartScreenState extends State<CycleChartScreen> {
 
   void _showAddObservationDialogForDate(
     BuildContext context,
-    Cycle cycle,
+    Cycle? cycle,
     DateTime date,
   ) {
     showDialog(
@@ -1066,12 +1014,12 @@ class _CycleChartScreenState extends State<CycleChartScreen> {
 // ==========================================
 
 class AddObservationDialog extends StatefulWidget {
-  final Cycle cycle;
+  final Cycle? cycle;
   final DateTime defaultDate;
 
   const AddObservationDialog({
     super.key,
-    required this.cycle,
+    this.cycle,
     required this.defaultDate,
   });
 
@@ -1126,7 +1074,9 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                 final picked = await showDatePicker(
                   context: context,
                   initialDate: _selectedDate,
-                  firstDate: widget.cycle.startDate,
+                  firstDate:
+                      widget.cycle?.startDate ??
+                      DateTime.now().subtract(const Duration(days: 730)),
                   lastDate: DateTime.now(),
                 );
                 if (picked != null) {
@@ -1382,7 +1332,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
     setState(() => _isSaving = true);
     try {
       await Services.db.saveObservation(
-        cycleId: widget.cycle.id,
+        cycleId: widget.cycle?.id,
         date: _selectedDate,
         sensation: _sensation,
         stretch: _stretch,

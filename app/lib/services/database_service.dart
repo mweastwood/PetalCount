@@ -34,7 +34,7 @@ abstract class DatabaseService {
   Future<void> updateBipCodes(String cycleId, List<String> bipCodes);
 
   Future<void> saveObservation({
-    required String cycleId,
+    String? cycleId,
     required DateTime date,
     required Sensation sensation,
     required Stretch stretch,
@@ -489,7 +489,7 @@ class FirebaseDatabaseService implements DatabaseService {
 
   @override
   Future<void> saveObservation({
-    required String cycleId,
+    String? cycleId,
     required DateTime date,
     required Sensation sensation,
     required Stretch stretch,
@@ -505,19 +505,108 @@ class FirebaseDatabaseService implements DatabaseService {
     final user = currentUser;
     if (chartId == null || user == null) return;
 
+    final cyclesSnap = await _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('cycles')
+        .get();
+
+    final cycles = cyclesSnap.docs
+        .map((doc) => Cycle.fromMap(doc.data()))
+        .toList();
+    cycles.sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    final isMenses =
+        (bleeding == Bleeding.heavy ||
+        bleeding == Bleeding.moderate ||
+        bleeding == Bleeding.light ||
+        bleeding == Bleeding.red);
+
+    String targetCycleId;
+    Cycle targetCycle;
+
+    if (cycles.isEmpty) {
+      final dateStr = date.toIso8601String().substring(0, 10);
+      targetCycle = Cycle(
+        id: dateStr,
+        startDate: date,
+        bipCodes: const ['6-C'],
+        dailyEntries: {},
+      );
+      targetCycleId = dateStr;
+      await _db
+          .collection('charts')
+          .doc(chartId)
+          .collection('cycles')
+          .doc(targetCycleId)
+          .set(targetCycle.toMap());
+    } else {
+      Cycle? matchedCycle;
+      if (isMenses) {
+        final eligible = cycles
+            .where((c) => c.startDate.compareTo(date) <= 0)
+            .toList();
+        if (eligible.isEmpty) {
+          final dateStr = date.toIso8601String().substring(0, 10);
+          matchedCycle = Cycle(
+            id: dateStr,
+            startDate: date,
+            bipCodes: cycles.first.bipCodes,
+            dailyEntries: {},
+          );
+          await _db
+              .collection('charts')
+              .doc(chartId)
+              .collection('cycles')
+              .doc(dateStr)
+              .set(matchedCycle.toMap());
+        } else {
+          final latest = eligible.last;
+          final daysDiff = date.difference(latest.startDate).inDays;
+          if (daysDiff >= 10) {
+            final dateStr = date.toIso8601String().substring(0, 10);
+            matchedCycle = Cycle(
+              id: dateStr,
+              startDate: date,
+              bipCodes: latest.bipCodes,
+              dailyEntries: {},
+            );
+            await _db
+                .collection('charts')
+                .doc(chartId)
+                .collection('cycles')
+                .doc(dateStr)
+                .set(matchedCycle.toMap());
+          } else {
+            matchedCycle = latest;
+          }
+        }
+      } else {
+        if (cycleId != null) {
+          final found = cycles.where((c) => c.id == cycleId).firstOrNull;
+          if (found != null) {
+            matchedCycle = found;
+          }
+        }
+        if (matchedCycle == null) {
+          final eligible = cycles
+              .where((c) => c.startDate.compareTo(date) <= 0)
+              .toList();
+          matchedCycle = eligible.isNotEmpty ? eligible.last : cycles.first;
+        }
+      }
+      targetCycle = matchedCycle;
+      targetCycleId = matchedCycle.id;
+    }
+
     final cycleRef = _db
         .collection('charts')
         .doc(chartId)
         .collection('cycles')
-        .doc(cycleId);
+        .doc(targetCycleId);
 
-    final doc = await cycleRef.get();
-    if (!doc.exists) return;
-
-    final cycle = Cycle.fromMap(doc.data()!);
     final dateKey = date.toIso8601String().substring(0, 10);
 
-    // Create new observation
     final newObs = Observation(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       timestamp: DateTime.now(),
@@ -533,8 +622,9 @@ class FirebaseDatabaseService implements DatabaseService {
       userId: user.uid,
     );
 
-    // Fetch existing entries
-    final currentEntries = Map<String, DailyEntry>.from(cycle.dailyEntries);
+    final currentEntries = Map<String, DailyEntry>.from(
+      targetCycle.dailyEntries,
+    );
     final existingEntry = currentEntries[dateKey];
 
     List<Observation> observations = [];
@@ -545,7 +635,6 @@ class FirebaseDatabaseService implements DatabaseService {
       observations = [newObs];
     }
 
-    // Resolve daily entry
     final resolvedDaily = CreightonLogic.resolveDailyEntry(
       date: date,
       observations: observations,
@@ -553,10 +642,9 @@ class FirebaseDatabaseService implements DatabaseService {
 
     currentEntries[dateKey] = resolvedDaily;
 
-    // Recalculate entire cycle stamps
     final updatedEntries = CreightonLogic.recalculateCycle(
       entries: currentEntries.values.toList(),
-      bipCodes: cycle.bipCodes,
+      bipCodes: targetCycle.bipCodes,
     );
 
     await cycleRef.update({
@@ -1162,7 +1250,7 @@ class InMemoryDatabaseService implements DatabaseService {
 
   @override
   Future<void> saveObservation({
-    required String cycleId,
+    String? cycleId,
     required DateTime date,
     required Sensation sensation,
     required Stretch stretch,
@@ -1178,10 +1266,79 @@ class InMemoryDatabaseService implements DatabaseService {
     final user = _currentUser;
     if (chartId == null || user == null) return;
 
-    final cycleData = _cycles[chartId]?[cycleId];
-    if (cycleData == null) return;
+    _cycles[chartId] ??= {};
+    final chartCyclesData = _cycles[chartId]!;
+    final cycles = chartCyclesData.values.map((d) => Cycle.fromMap(d)).toList();
+    cycles.sort((a, b) => a.startDate.compareTo(b.startDate));
 
-    final cycle = Cycle.fromMap(cycleData);
+    final isMenses =
+        (bleeding == Bleeding.heavy ||
+        bleeding == Bleeding.moderate ||
+        bleeding == Bleeding.light ||
+        bleeding == Bleeding.red);
+
+    String targetCycleId;
+    Cycle targetCycle;
+
+    if (cycles.isEmpty) {
+      final dateStr = date.toIso8601String().substring(0, 10);
+      targetCycle = Cycle(
+        id: dateStr,
+        startDate: date,
+        bipCodes: const ['6-C'],
+        dailyEntries: {},
+      );
+      targetCycleId = dateStr;
+      _cycles[chartId]![targetCycleId] = targetCycle.toMap();
+    } else {
+      Cycle? matchedCycle;
+      if (isMenses) {
+        final eligible = cycles
+            .where((c) => c.startDate.compareTo(date) <= 0)
+            .toList();
+        if (eligible.isEmpty) {
+          final dateStr = date.toIso8601String().substring(0, 10);
+          matchedCycle = Cycle(
+            id: dateStr,
+            startDate: date,
+            bipCodes: cycles.first.bipCodes,
+            dailyEntries: {},
+          );
+          _cycles[chartId]![dateStr] = matchedCycle.toMap();
+        } else {
+          final latest = eligible.last;
+          final daysDiff = date.difference(latest.startDate).inDays;
+          if (daysDiff >= 10) {
+            final dateStr = date.toIso8601String().substring(0, 10);
+            matchedCycle = Cycle(
+              id: dateStr,
+              startDate: date,
+              bipCodes: latest.bipCodes,
+              dailyEntries: {},
+            );
+            _cycles[chartId]![dateStr] = matchedCycle.toMap();
+          } else {
+            matchedCycle = latest;
+          }
+        }
+      } else {
+        if (cycleId != null) {
+          final found = cycles.where((c) => c.id == cycleId).firstOrNull;
+          if (found != null) {
+            matchedCycle = found;
+          }
+        }
+        if (matchedCycle == null) {
+          final eligible = cycles
+              .where((c) => c.startDate.compareTo(date) <= 0)
+              .toList();
+          matchedCycle = eligible.isNotEmpty ? eligible.last : cycles.first;
+        }
+      }
+      targetCycle = matchedCycle;
+      targetCycleId = matchedCycle.id;
+    }
+
     final dateKey = date.toIso8601String().substring(0, 10);
 
     final newObs = Observation(
@@ -1199,7 +1356,9 @@ class InMemoryDatabaseService implements DatabaseService {
       userId: user.uid,
     );
 
-    final currentEntries = Map<String, DailyEntry>.from(cycle.dailyEntries);
+    final currentEntries = Map<String, DailyEntry>.from(
+      targetCycle.dailyEntries,
+    );
     final existingEntry = currentEntries[dateKey];
     List<Observation> observations = existingEntry != null
         ? (List<Observation>.from(existingEntry.observations)..add(newObs))
@@ -1213,10 +1372,12 @@ class InMemoryDatabaseService implements DatabaseService {
 
     final updated = CreightonLogic.recalculateCycle(
       entries: currentEntries.values.toList(),
-      bipCodes: cycle.bipCodes,
+      bipCodes: targetCycle.bipCodes,
     );
 
-    _cycles[chartId]![cycleId] = cycle.copyWith(dailyEntries: updated).toMap();
+    _cycles[chartId]![targetCycleId] = targetCycle
+        .copyWith(dailyEntries: updated)
+        .toMap();
     _emitCycles();
   }
 
