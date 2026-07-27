@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:petal_count/models/observation.dart';
 import 'package:petal_count/services/database_service.dart';
 
 void main() {
@@ -118,4 +119,161 @@ void main() {
       );
     },
   );
+
+  group('Automatic Cycle Detection', () {
+    test(
+      'auto-creates initial cycle when saving observation on an empty chart',
+      () async {
+        await db.createChart();
+
+        final obsDate = DateTime(2026, 7, 1);
+        await db.saveObservation(
+          date: obsDate,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Initial entry',
+        );
+
+        final cycles = await db.streamCycles().first;
+        expect(cycles.length, 1);
+        expect(cycles.first.startDate, obsDate);
+        expect(cycles.first.dailyEntries.containsKey('2026-07-01'), true);
+      },
+    );
+
+    test(
+      'auto-detects a NEW cycle when menses is reported >= 10 days after cycle start',
+      () async {
+        await db.createChart();
+
+        // Start cycle on June 1
+        final june1 = DateTime(2026, 6, 1);
+        await db.saveObservation(
+          date: june1,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.heavy,
+          bleedingColor: 'R',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Day 1 of June cycle',
+        );
+
+        var cycles = await db.streamCycles().first;
+        expect(cycles.length, 1);
+        expect(cycles.first.startDate, june1);
+
+        // Log menses 27 days later on June 28
+        final june28 = DateTime(2026, 6, 28);
+        await db.saveObservation(
+          date: june28,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.heavy,
+          bleedingColor: 'R',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Period starts for next cycle',
+        );
+
+        cycles = await db.streamCycles().first;
+        expect(cycles.length, 2);
+        // Cycles sorted descending: newest first
+        expect(cycles[0].startDate, june28);
+        expect(cycles[1].startDate, june1);
+        expect(cycles[0].dailyEntries.containsKey('2026-06-28'), true);
+      },
+    );
+
+    test(
+      'does NOT split cycle when menses is reported < 10 days from cycle start (e.g. Day 2 of period)',
+      () async {
+        await db.createChart();
+
+        final june1 = DateTime(2026, 6, 1);
+        await db.saveObservation(
+          date: june1,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.heavy,
+          bleedingColor: 'R',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Day 1',
+        );
+
+        final june2 = DateTime(2026, 6, 2);
+        await db.saveObservation(
+          date: june2,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.moderate,
+          bleedingColor: 'R',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Day 2',
+        );
+
+        final cycles = await db.streamCycles().first;
+        expect(cycles.length, 1);
+        expect(cycles.first.startDate, june1);
+        expect(cycles.first.dailyEntries.length, 2);
+      },
+    );
+
+    test('routes non-menses observations to existing matching cycle', () async {
+      await db.createChart();
+
+      final june1 = DateTime(2026, 6, 1);
+      await db.saveObservation(
+        date: june1,
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.heavy,
+        bleedingColor: 'R',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Day 1',
+      );
+
+      // Log stretchy mucus mid-cycle on June 14
+      final june14 = DateTime(2026, 6, 14);
+      await db.saveObservation(
+        date: june14,
+        sensation: Sensation.wet,
+        stretch: Stretch.stretchy,
+        colors: [MucusColor.clear],
+        consistencies: [Consistency.lubricative],
+        bleeding: Bleeding.none,
+        bleedingColor: '',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Peak mucus',
+      );
+
+      final cycles = await db.streamCycles().first;
+      expect(cycles.length, 1);
+      expect(cycles.first.dailyEntries.containsKey('2026-06-14'), true);
+      expect(
+        cycles.first.dailyEntries['2026-06-14']?.resolvedVdrsCode,
+        contains('10'),
+      );
+    });
+  });
 }
