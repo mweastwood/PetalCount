@@ -2015,6 +2015,24 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
     );
   }
 
+  Widget _buildOptionGrid({
+    required List<Widget> children,
+    double spacing = 10,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = (constraints.maxWidth - spacing) / 2;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: children
+              .map((child) => SizedBox(width: itemWidth, child: child))
+              .toList(),
+        );
+      },
+    );
+  }
+
   Widget _buildStepContent(BuildContext context, WizardStep step) {
     final theme = Theme.of(context);
 
@@ -2037,74 +2055,76 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 12),
-              _OptionCard(
-                label: 'No Bleeding',
-                icon: Icons.check_circle_outline,
-                subtitle: 'No menstrual flow or spotting observed',
-                isSelected: !_hasBleeding,
-                onTap: () {
-                  setState(() {
-                    _hasBleeding = false;
-                  });
-                  _nextStep();
-                },
-              ),
-              const SizedBox(height: 8),
-              _OptionCard(
-                label: 'Spotting',
-                icon: Icons.water_drop_outlined,
-                subtitle: 'Very light spotting or trace bleeding',
-                isSelected: _hasBleeding && _bleedingFlow == Bleeding.spotting,
-                onTap: () {
-                  setState(() {
-                    _hasBleeding = true;
-                    _bleedingFlow = Bleeding.spotting;
-                  });
-                  _nextStep();
-                },
-              ),
-              const SizedBox(height: 8),
-              _OptionCard(
-                label: 'Light',
-                icon: Icons.water_drop,
-                subtitle: 'Light menstrual flow',
-                isSelected: _hasBleeding && _bleedingFlow == Bleeding.light,
-                onTap: () {
-                  setState(() {
-                    _hasBleeding = true;
-                    _bleedingFlow = Bleeding.light;
-                  });
-                  _nextStep();
-                },
-              ),
-              const SizedBox(height: 8),
-              _OptionCard(
-                label: 'Moderate',
-                icon: Icons.water_drop,
-                subtitle: 'Moderate menstrual flow',
-                isSelected: _hasBleeding && _bleedingFlow == Bleeding.moderate,
-                onTap: () {
-                  setState(() {
-                    _hasBleeding = true;
-                    _bleedingFlow = Bleeding.moderate;
-                  });
-                  _nextStep();
-                },
-              ),
-              const SizedBox(height: 8),
-              _OptionCard(
-                label: 'Heavy',
-                icon: Icons.opacity,
-                subtitle: 'Heavy menstrual flow',
-                isSelected: _hasBleeding && _bleedingFlow == Bleeding.heavy,
-                onTap: () {
-                  setState(() {
-                    _hasBleeding = true;
-                    _bleedingFlow = Bleeding.heavy;
-                  });
-                  _nextStep();
-                },
+              const SizedBox(height: 14),
+              _buildOptionGrid(
+                children: [
+                  _OptionCard(
+                    label: 'No Bleeding',
+                    icon: Icons.check_circle_outline,
+                    subtitle: 'No menstrual flow or spotting observed',
+                    isSelected: !_hasBleeding,
+                    onTap: () {
+                      setState(() {
+                        _hasBleeding = false;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Spotting',
+                    icon: Icons.water_drop_outlined,
+                    subtitle: 'Very light spotting or trace bleeding',
+                    isSelected:
+                        _hasBleeding && _bleedingFlow == Bleeding.spotting,
+                    onTap: () {
+                      setState(() {
+                        _hasBleeding = true;
+                        _bleedingFlow = Bleeding.spotting;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Light',
+                    icon: Icons.water_drop,
+                    subtitle: 'Light menstrual flow',
+                    isSelected: _hasBleeding && _bleedingFlow == Bleeding.light,
+                    onTap: () {
+                      setState(() {
+                        _hasBleeding = true;
+                        _bleedingFlow = Bleeding.light;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Moderate',
+                    icon: Icons.water_drop,
+                    subtitle: 'Moderate menstrual flow',
+                    isSelected:
+                        _hasBleeding && _bleedingFlow == Bleeding.moderate,
+                    onTap: () {
+                      setState(() {
+                        _hasBleeding = true;
+                        _bleedingFlow = Bleeding.moderate;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Heavy',
+                    icon: Icons.opacity,
+                    subtitle: 'Heavy menstrual flow',
+                    isSelected: _hasBleeding && _bleedingFlow == Bleeding.heavy,
+                    onTap: () {
+                      setState(() {
+                        _hasBleeding = true;
+                        _bleedingFlow = Bleeding.heavy;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                ],
               ),
             ],
           ),
@@ -2129,37 +2149,39 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                 ),
               ),
               const SizedBox(height: 14),
-              _OptionCard(
-                label: 'Red (default)',
-                icon: Icons.water_drop,
-                subtitle: 'Bright red or normal menstrual blood',
-                isSelected: _bleedingColor == 'R',
-                onTap: () {
-                  setState(() => _bleedingColor = 'R');
-                  _nextStep();
-                },
-              ),
-              const SizedBox(height: 10),
-              _OptionCard(
-                label: 'Brown',
-                icon: Icons.water_drop_outlined,
-                subtitle: 'Dark brown or oxidized blood',
-                isSelected: _bleedingColor == 'B',
-                onTap: () {
-                  setState(() => _bleedingColor = 'B');
-                  _nextStep();
-                },
-              ),
-              const SizedBox(height: 10),
-              _OptionCard(
-                label: 'Black',
-                icon: Icons.water_drop_sharp,
-                subtitle: 'Very dark or black blood',
-                isSelected: _bleedingColor == 'Black',
-                onTap: () {
-                  setState(() => _bleedingColor = 'Black');
-                  _nextStep();
-                },
+              _buildOptionGrid(
+                children: [
+                  _OptionCard(
+                    label: 'Red (default)',
+                    icon: Icons.water_drop,
+                    subtitle: 'Bright red or normal blood',
+                    isSelected: _bleedingColor == 'R',
+                    onTap: () {
+                      setState(() => _bleedingColor = 'R');
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Brown',
+                    icon: Icons.water_drop_outlined,
+                    subtitle: 'Dark brown or oxidized blood',
+                    isSelected: _bleedingColor == 'B',
+                    onTap: () {
+                      setState(() => _bleedingColor = 'B');
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Black',
+                    icon: Icons.water_drop_sharp,
+                    subtitle: 'Very dark or black blood',
+                    isSelected: _bleedingColor == 'Black',
+                    onTap: () {
+                      setState(() => _bleedingColor = 'Black');
+                      _nextStep();
+                    },
+                  ),
+                ],
               ),
             ],
           ),
@@ -2184,48 +2206,49 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                 ),
               ),
               const SizedBox(height: 14),
-              _OptionCard(
-                label: 'Dry',
-                icon: Icons.wb_sunny_outlined,
-                subtitle: 'No moisture or sensation felt',
-                isSelected: _sensation == Sensation.dry,
-                onTap: () {
-                  setState(() {
-                    _sensation = Sensation.dry;
-                    _hasLubrication = false;
-                  });
-                  _nextStep();
-                },
-              ),
-              const SizedBox(height: 8),
-              _OptionCard(
-                label: 'Damp',
-                icon: Icons.water_drop_outlined,
-                subtitle: 'Slight moisture felt',
-                isSelected: _sensation == Sensation.damp,
-                onTap: () {
-                  setState(() => _sensation = Sensation.damp);
-                },
-              ),
-              const SizedBox(height: 8),
-              _OptionCard(
-                label: 'Wet',
-                icon: Icons.opacity,
-                subtitle: 'Noticeable wet sensation',
-                isSelected: _sensation == Sensation.wet,
-                onTap: () {
-                  setState(() => _sensation = Sensation.wet);
-                },
-              ),
-              const SizedBox(height: 8),
-              _OptionCard(
-                label: 'Shiny',
-                icon: Icons.auto_awesome,
-                subtitle: 'Glistening or shiny appearance',
-                isSelected: _sensation == Sensation.shiny,
-                onTap: () {
-                  setState(() => _sensation = Sensation.shiny);
-                },
+              _buildOptionGrid(
+                children: [
+                  _OptionCard(
+                    label: 'Dry',
+                    icon: Icons.wb_sunny_outlined,
+                    subtitle: 'No moisture or sensation felt',
+                    isSelected: _sensation == Sensation.dry,
+                    onTap: () {
+                      setState(() {
+                        _sensation = Sensation.dry;
+                        _hasLubrication = false;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Damp',
+                    icon: Icons.water_drop_outlined,
+                    subtitle: 'Slight moisture felt',
+                    isSelected: _sensation == Sensation.damp,
+                    onTap: () {
+                      setState(() => _sensation = Sensation.damp);
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Wet',
+                    icon: Icons.opacity,
+                    subtitle: 'Noticeable wet sensation',
+                    isSelected: _sensation == Sensation.wet,
+                    onTap: () {
+                      setState(() => _sensation = Sensation.wet);
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Shiny',
+                    icon: Icons.auto_awesome,
+                    subtitle: 'Glistening or shiny appearance',
+                    isSelected: _sensation == Sensation.shiny,
+                    onTap: () {
+                      setState(() => _sensation = Sensation.shiny);
+                    },
+                  ),
+                ],
               ),
               if (_sensation != Sensation.dry) ...[
                 const SizedBox(height: 14),
@@ -2290,29 +2313,32 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                 ),
               ),
               const SizedBox(height: 14),
-              _OptionCard(
-                label: 'No Mucus',
-                icon: Icons.block,
-                subtitle: 'No mucus observed on tissue or fingers',
-                isSelected: !_hasMucus,
-                onTap: () {
-                  setState(() {
-                    _hasMucus = false;
-                  });
-                  _nextStep();
-                },
-              ),
-              const SizedBox(height: 10),
-              _OptionCard(
-                label: 'Yes (Mucus Present)',
-                icon: Icons.science_outlined,
-                subtitle: 'Mucus observed during checks',
-                isSelected: _hasMucus,
-                onTap: () {
-                  setState(() {
-                    _hasMucus = true;
-                  });
-                },
+              _buildOptionGrid(
+                children: [
+                  _OptionCard(
+                    label: 'No Mucus',
+                    icon: Icons.block,
+                    subtitle: 'No mucus observed on tissue/fingers',
+                    isSelected: !_hasMucus,
+                    onTap: () {
+                      setState(() {
+                        _hasMucus = false;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Yes (Mucus)',
+                    icon: Icons.science_outlined,
+                    subtitle: 'Mucus observed during checks',
+                    isSelected: _hasMucus,
+                    onTap: () {
+                      setState(() {
+                        _hasMucus = true;
+                      });
+                    },
+                  ),
+                ],
               ),
               if (_hasMucus) ...[
                 const SizedBox(height: 16),
@@ -2451,29 +2477,32 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                 ),
               ),
               const SizedBox(height: 14),
-              _OptionCard(
-                label: 'No Pain',
-                icon: Icons.sentiment_satisfied_alt,
-                subtitle: 'No pain or discomfort experienced',
-                isSelected: !_hasPain,
-                onTap: () {
-                  setState(() {
-                    _hasPain = false;
-                  });
-                  _nextStep();
-                },
-              ),
-              const SizedBox(height: 10),
-              _OptionCard(
-                label: 'Yes (Log Pain)',
-                icon: Icons.healing,
-                subtitle: 'Cramps, ovulation pain, backache, etc.',
-                isSelected: _hasPain,
-                onTap: () {
-                  setState(() {
-                    _hasPain = true;
-                  });
-                },
+              _buildOptionGrid(
+                children: [
+                  _OptionCard(
+                    label: 'No Pain',
+                    icon: Icons.sentiment_satisfied_alt,
+                    subtitle: 'No discomfort experienced',
+                    isSelected: !_hasPain,
+                    onTap: () {
+                      setState(() {
+                        _hasPain = false;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Yes (Log Pain)',
+                    icon: Icons.healing,
+                    subtitle: 'Cramps, backache, etc.',
+                    isSelected: _hasPain,
+                    onTap: () {
+                      setState(() {
+                        _hasPain = true;
+                      });
+                    },
+                  ),
+                ],
               ),
               if (_hasPain) ...[
                 const SizedBox(height: 16),
@@ -2744,7 +2773,7 @@ class _OptionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
@@ -2754,33 +2783,33 @@ class _OptionCard extends StatelessWidget {
               width: isSelected ? 2 : 1,
             ),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              if (icon != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? colorScheme.primary
-                        : colorScheme.surface,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 20,
-                    color: isSelected
-                        ? colorScheme.onPrimary
-                        : colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(width: 14),
-              ],
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
+              Row(
+                children: [
+                  if (icon != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? colorScheme.primary
+                            : colorScheme.surface,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        icon,
+                        size: 18,
+                        color: isSelected
+                            ? colorScheme.onPrimary
+                            : colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: Text(
                       label,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
@@ -2788,29 +2817,32 @@ class _OptionCard extends StatelessWidget {
                             ? colorScheme.onPrimaryContainer
                             : colorScheme.onSurface,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle!,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: isSelected
-                              ? colorScheme.onPrimaryContainer.withValues(
-                                  alpha: 0.8,
-                                )
-                              : colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+                  ),
+                  if (isSelected)
+                    Icon(
+                      Icons.check_circle_rounded,
+                      color: colorScheme.primary,
+                      size: 18,
+                    ),
+                ],
               ),
-              if (isSelected)
-                Icon(
-                  Icons.check_circle_rounded,
-                  color: colorScheme.primary,
-                  size: 20,
+              if (subtitle != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitle!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: 11,
+                    color: isSelected
+                        ? colorScheme.onPrimaryContainer.withValues(alpha: 0.85)
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
+              ],
             ],
           ),
         ),
