@@ -1727,7 +1727,29 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
   // Pain (nullable so no option is pre-selected)
   bool? _hasPain;
   final List<String> _painTypes = [];
+  bool _abdominalLeft = false;
+  bool _abdominalRight = false;
   double _painLevel = 3.0;
+
+  List<String> get _formattedPainTypes {
+    final list = <String>[];
+    for (final p in _painTypes) {
+      if (p == 'Abdominal Pain') {
+        if (_abdominalLeft && _abdominalRight) {
+          list.add('Abdominal Pain (Left & Right)');
+        } else if (_abdominalLeft) {
+          list.add('Abdominal Pain (Left)');
+        } else if (_abdominalRight) {
+          list.add('Abdominal Pain (Right)');
+        } else {
+          list.add('Abdominal Pain');
+        }
+      } else {
+        list.add(p);
+      }
+    }
+    return list;
+  }
 
   // Comments
   final _commentController = TextEditingController();
@@ -2658,6 +2680,8 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         );
 
       case WizardStep.painDetails:
+        final isAbdominalSelected = _painTypes.contains('Abdominal Pain');
+
         return SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2689,16 +2713,14 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                 children:
                     [
                       'Cramps',
-                      'Abdominal Pain (Left)',
-                      'Abdominal Pain (Right)',
-                      'Abdominal Pain (General)',
-                      'Ovulation Pain',
+                      'Abdominal Pain',
                       'Backache',
                       'Headache',
                       'Pelvic Pain',
                     ].map((p) {
                       final isSelected = _painTypes.contains(p);
                       return FilterChip(
+                        showCheckmark: false,
                         label: Text(p),
                         selected: isSelected,
                         onSelected: (val) {
@@ -2713,6 +2735,54 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       );
                     }).toList(),
               ),
+              if (isAbdominalSelected) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.4,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Abdominal Side (Optional):',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      FilterChip(
+                        showCheckmark: false,
+                        label: const Text('Left'),
+                        selected: _abdominalLeft,
+                        onSelected: (val) {
+                          setState(() => _abdominalLeft = val);
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      FilterChip(
+                        showCheckmark: false,
+                        label: const Text('Right'),
+                        selected: _abdominalRight,
+                        onSelected: (val) {
+                          setState(() => _abdominalRight = val);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 18),
               Row(
                 children: [
@@ -2814,7 +2884,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       ),
                     ],
                     Text(
-                      'Pain: ${hasPain ? "${_painTypes.isNotEmpty ? _painTypes.join(', ') : 'Logged'} (${_painLevel.toInt()}/10)" : "None"}',
+                      'Pain: ${hasPain ? "${_formattedPainTypes.isNotEmpty ? _formattedPainTypes.join(', ') : 'Logged'} (${_painLevel.toInt()}/10)" : "None"}',
                       style: const TextStyle(fontSize: 12),
                     ),
                   ],
@@ -2888,7 +2958,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
 
     final bool hasPain = _hasPain ?? false;
     final double painLevel = hasPain ? _painLevel : 0.0;
-    final List<String> painTypes = hasPain ? _painTypes : [];
+    final List<String> painTypes = hasPain ? _formattedPainTypes : [];
 
     try {
       await Services.db.saveObservation(
