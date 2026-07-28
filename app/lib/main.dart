@@ -1676,6 +1676,9 @@ enum WizardStep {
   sensation('Sensation'),
   lubrication('Lubrication'),
   mucus('Mucus'),
+  mucusStretch('Stretch'),
+  mucusColor('Mucus Color'),
+  mucusConsistency('Consistency'),
   pain('Pain'),
   comments('Comments & Save');
 
@@ -1714,11 +1717,11 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
 
   // Mucus Observation (nullable so no option is pre-selected)
   bool? _hasMucus;
-  Stretch _stretch = Stretch.sticky;
-  String _colorSelection =
-      'cloudy'; // 'cloudy', 'clear', 'cloudy_clear', 'yellow'
+  Stretch? _stretch;
+  String? _colorSelection; // 'cloudy', 'clear', 'cloudy_clear', 'yellow'
   bool _isGummy = false;
   bool _isPasty = false;
+  bool _hasSelectedConsistency = false;
 
   // Pain (nullable so no option is pre-selected)
   bool? _hasPain;
@@ -1766,6 +1769,11 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         steps.add(WizardStep.lubrication);
       }
       steps.add(WizardStep.mucus);
+      if (_hasMucus == true) {
+        steps.add(WizardStep.mucusStretch);
+        steps.add(WizardStep.mucusColor);
+        steps.add(WizardStep.mucusConsistency);
+      }
     }
     steps.add(WizardStep.pain);
     steps.add(WizardStep.comments);
@@ -2023,6 +2031,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
     required List<Widget> children,
     double spacing = 10,
     double targetMinItemWidth = 180.0,
+    List<int> fullWidthIndexes = const [],
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -2030,18 +2039,22 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         int crossAxisCount = (availableWidth / (targetMinItemWidth + spacing))
             .floor();
         if (crossAxisCount < 1) crossAxisCount = 1;
-        if (crossAxisCount > children.length) crossAxisCount = children.length;
 
         final itemWidth =
             (availableWidth - (spacing * (crossAxisCount - 1))) /
             crossAxisCount;
 
+        final gridChildren = <Widget>[];
+        for (int i = 0; i < children.length; i++) {
+          final isFullWidth = fullWidthIndexes.contains(i);
+          final width = isFullWidth ? availableWidth : itemWidth;
+          gridChildren.add(SizedBox(width: width, child: children[i]));
+        }
+
         return Wrap(
           spacing: spacing,
           runSpacing: spacing,
-          children: children
-              .map((child) => SizedBox(width: itemWidth, child: child))
-              .toList(),
+          children: gridChildren,
         );
       },
     );
@@ -2071,6 +2084,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
               ),
               const SizedBox(height: 14),
               _buildOptionGrid(
+                fullWidthIndexes: const [0],
                 children: [
                   _OptionCard(
                     label: 'No Bleeding',
@@ -2356,7 +2370,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     },
                   ),
                   _OptionCard(
-                    label: 'Yes (Mucus)',
+                    label: 'Yes Mucus',
                     icon: Icons.science_outlined,
                     subtitle: 'Mucus observed during this check',
                     isSelected: _hasMucus == true,
@@ -2364,124 +2378,219 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       setState(() {
                         _hasMucus = true;
                       });
+                      _nextStep();
                     },
                   ),
                 ],
               ),
-              if (_hasMucus == true) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Finger Test Stretch:',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+            ],
+          ),
+        );
+
+      case WizardStep.mucusStretch:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Finger Test Stretch',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'How far does the mucus stretch between your fingers during this check?',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _buildOptionGrid(
+                children: [
+                  _OptionCard(
+                    label: 'Sticky',
+                    icon: Icons.straighten,
+                    subtitle: '1/4 inch | 0.5 cm',
+                    isSelected: _stretch == Stretch.sticky,
+                    onTap: () {
+                      setState(() => _stretch = Stretch.sticky);
+                      _nextStep();
+                    },
                   ),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('Sticky (¼" | 0.5cm)'),
-                      selected: _stretch == Stretch.sticky,
-                      onSelected: (val) {
-                        if (val) setState(() => _stretch = Stretch.sticky);
-                      },
-                    ),
-                    ChoiceChip(
-                      label: const Text('Tacky (½-¾" | 1.0-2.0cm)'),
-                      selected: _stretch == Stretch.tacky,
-                      onSelected: (val) {
-                        if (val) setState(() => _stretch = Stretch.tacky);
-                      },
-                    ),
-                    ChoiceChip(
-                      label: const Text('Stretchy (1"+ | 2.5cm+)'),
-                      selected: _stretch == Stretch.stretchy,
-                      onSelected: (val) {
-                        if (val) setState(() => _stretch = Stretch.stretchy);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Color:',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  _OptionCard(
+                    label: 'Tacky',
+                    icon: Icons.straighten,
+                    subtitle: '1/2 - 3/4 inch | 1.0 - 2.0 cm',
+                    isSelected: _stretch == Stretch.tacky,
+                    onTap: () {
+                      setState(() => _stretch = Stretch.tacky);
+                      _nextStep();
+                    },
                   ),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('Cloudy'),
-                      selected: _colorSelection == 'cloudy',
-                      onSelected: (val) {
-                        if (val) setState(() => _colorSelection = 'cloudy');
-                      },
-                    ),
-                    ChoiceChip(
-                      label: const Text('Clear'),
-                      selected: _colorSelection == 'clear',
-                      onSelected: (val) {
-                        if (val) setState(() => _colorSelection = 'clear');
-                      },
-                    ),
-                    ChoiceChip(
-                      label: const Text('Cloudy / Clear'),
-                      selected: _colorSelection == 'cloudy_clear',
-                      onSelected: (val) {
-                        if (val) {
-                          setState(() => _colorSelection = 'cloudy_clear');
-                        }
-                      },
-                    ),
-                    ChoiceChip(
-                      label: const Text('Yellow'),
-                      selected: _colorSelection == 'yellow',
-                      onSelected: (val) {
-                        if (val) setState(() => _colorSelection = 'yellow');
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'Consistency:',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  _OptionCard(
+                    label: 'Stretchy',
+                    icon: Icons.straighten,
+                    subtitle: '1+ inch | 2.5+ cm',
+                    isSelected: _stretch == Stretch.stretchy,
+                    onTap: () {
+                      setState(() => _stretch = Stretch.stretchy);
+                      _nextStep();
+                    },
                   ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+      case WizardStep.mucusColor:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Mucus Color',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    FilterChip(
-                      label: const Text('Gummy (gluey)'),
-                      selected: _isGummy,
-                      onSelected: (val) => setState(() => _isGummy = val),
-                    ),
-                    FilterChip(
-                      label: const Text('Pasty (creamy)'),
-                      selected: _isPasty,
-                      onSelected: (val) => setState(() => _isPasty = val),
-                    ),
-                  ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'What color was the mucus observed during this check?',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: _nextStep,
-                    iconAlignment: IconAlignment.end,
-                    icon: const Icon(Icons.arrow_forward, size: 18),
-                    label: const Text('Continue'),
+              ),
+              const SizedBox(height: 14),
+              _buildOptionGrid(
+                children: [
+                  _OptionCard(
+                    label: 'Cloudy',
+                    icon: Icons.cloud_outlined,
+                    subtitle: 'Off-white or cloudy appearance',
+                    isSelected: _colorSelection == 'cloudy',
+                    onTap: () {
+                      setState(() => _colorSelection = 'cloudy');
+                      _nextStep();
+                    },
                   ),
+                  _OptionCard(
+                    label: 'Clear',
+                    icon: Icons.water_drop_outlined,
+                    subtitle: 'Transparent or clear appearance',
+                    isSelected: _colorSelection == 'clear',
+                    onTap: () {
+                      setState(() => _colorSelection = 'clear');
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Cloudy / Clear',
+                    icon: Icons.bubble_chart_outlined,
+                    subtitle: 'Mix of cloudy and clear mucus',
+                    isSelected: _colorSelection == 'cloudy_clear',
+                    onTap: () {
+                      setState(() => _colorSelection = 'cloudy_clear');
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Yellow',
+                    icon: Icons.wb_sunny_outlined,
+                    subtitle: 'Yellowish tint observed',
+                    isSelected: _colorSelection == 'yellow',
+                    onTap: () {
+                      setState(() => _colorSelection = 'yellow');
+                      _nextStep();
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+      case WizardStep.mucusConsistency:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Mucus Consistency',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Select the consistency of the mucus observed during this check:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _buildOptionGrid(
+                children: [
+                  _OptionCard(
+                    label: 'Gummy (Gluey)',
+                    icon: Icons.bubble_chart_outlined,
+                    subtitle: 'Rubber-like or gluey texture',
+                    isSelected: _isGummy && !_isPasty,
+                    onTap: () {
+                      setState(() {
+                        _isGummy = true;
+                        _isPasty = false;
+                        _hasSelectedConsistency = true;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Pasty (Creamy)',
+                    icon: Icons.format_paint_outlined,
+                    subtitle: 'Creamy or pasty texture',
+                    isSelected: _isPasty && !_isGummy,
+                    onTap: () {
+                      setState(() {
+                        _isGummy = false;
+                        _isPasty = true;
+                        _hasSelectedConsistency = true;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Gummy & Pasty',
+                    icon: Icons.layers_outlined,
+                    subtitle: 'Combination of gummy and pasty',
+                    isSelected: _isGummy && _isPasty,
+                    onTap: () {
+                      setState(() {
+                        _isGummy = true;
+                        _isPasty = true;
+                        _hasSelectedConsistency = true;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Neither',
+                    icon: Icons.check_circle_outline,
+                    subtitle: 'Neither gummy nor pasty',
+                    isSelected:
+                        !_isGummy && !_isPasty && _hasSelectedConsistency,
+                    onTap: () {
+                      setState(() {
+                        _isGummy = false;
+                        _isPasty = false;
+                        _hasSelectedConsistency = true;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                ],
+              ),
             ],
           ),
         );
@@ -2675,7 +2784,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                         style: const TextStyle(fontSize: 12),
                       ),
                       Text(
-                        'Mucus: ${hasMucus ? "${_stretch.label}, $_colorSelection" : "None"}',
+                        'Mucus: ${hasMucus ? "${_stretch?.label ?? 'Sticky'}, ${_colorSelection ?? 'cloudy'}" : "None"}',
                         style: const TextStyle(fontSize: 12),
                       ),
                     ],
@@ -2732,7 +2841,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
       }
 
       if (_hasMucus ?? false) {
-        stretch = _stretch;
+        stretch = _stretch ?? Stretch.sticky;
 
         // Color mapping
         if (_colorSelection == 'cloudy') {
