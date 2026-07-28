@@ -1686,279 +1686,577 @@ class AddObservationDialog extends StatefulWidget {
 
 class _AddObservationDialogState extends State<AddObservationDialog> {
   late DateTime _selectedDate;
-  Bleeding _bleeding = Bleeding.none;
-  String _bleedingColor = '';
+  late TimeOfDay _selectedTime;
+
+  // Bleeding
+  bool _hasBleeding = false;
+  Bleeding _bleedingFlow = Bleeding.light;
+  String _bleedingColor = 'R'; // 'R' (Red default), 'B' (Brown), 'Black'
+
+  // Sensation
   Sensation _sensation = Sensation.dry;
-  Stretch _stretch = Stretch.none;
-  final List<MucusColor> _colors = [];
-  final List<Consistency> _consistencies = [];
-  double _painLevel = 0.0;
+  bool _hasLubrication = false;
+
+  // Mucus Observation
+  bool _hasMucus = false;
+  Stretch _stretch = Stretch.sticky;
+  String _colorSelection =
+      'cloudy'; // 'cloudy', 'clear', 'cloudy_clear', 'yellow'
+  bool _isGummy = false;
+  bool _isPasty = false;
+
+  // Pain
+  bool _hasPain = false;
   final List<String> _painTypes = [];
+  double _painLevel = 3.0;
+
+  // Comments
   final _commentController = TextEditingController();
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedDate = widget.defaultDate;
+    final now = DateTime.now();
+    _selectedDate = DateTime(
+      widget.defaultDate.year,
+      widget.defaultDate.month,
+      widget.defaultDate.day,
+    );
+    _selectedTime = TimeOfDay(hour: now.hour, minute: now.minute);
   }
+
+  DateTime get _combinedDateTime {
+    return DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+  }
+
+  bool get _isHeavyOrModerateBleeding =>
+      _hasBleeding &&
+      (_bleedingFlow == Bleeding.heavy || _bleedingFlow == Bleeding.moderate);
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return AlertDialog(
-      title: const Text(
-        'Add Daily Log',
-        style: TextStyle(fontWeight: FontWeight.bold),
+      title: Row(
+        children: [
+          Icon(Icons.edit_note_rounded, color: theme.colorScheme.primary),
+          const SizedBox(width: 8),
+          const Text(
+            'Log Observation',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ],
       ),
       scrollable: true,
       content: SizedBox(
-        width: 400,
+        width: 440,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Date Selection
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text(
-                'Date of Observation',
-                style: TextStyle(fontWeight: FontWeight.bold),
+            // Date & Time Selection Box
+            Container(
+              padding: const EdgeInsets.all(12.0),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.4,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: theme.colorScheme.outlineVariant.withValues(
+                    alpha: 0.5,
+                  ),
+                ),
               ),
-              subtitle: Text(
-                DateFormat('EEEE, MMM dd, yyyy').format(_selectedDate),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Date & Time Recorded',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          DateFormat(
+                            'EEE, MMM dd, yyyy • h:mm a',
+                          ).format(_combinedDateTime),
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.calendar_month),
+                    tooltip: 'Change Date',
+                    onPressed: () async {
+                      final pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: _selectedDate,
+                        firstDate:
+                            widget.cycle?.startDate ??
+                            DateTime.now().subtract(const Duration(days: 730)),
+                        lastDate: DateTime.now().add(const Duration(days: 1)),
+                      );
+                      if (pickedDate != null) {
+                        setState(() => _selectedDate = pickedDate);
+                      }
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.access_time),
+                    tooltip: 'Change Time',
+                    onPressed: () async {
+                      final pickedTime = await showTimePicker(
+                        context: context,
+                        initialTime: _selectedTime,
+                      );
+                      if (pickedTime != null) {
+                        setState(() => _selectedTime = pickedTime);
+                      }
+                    },
+                  ),
+                ],
               ),
-              trailing: const Icon(Icons.edit_calendar),
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _selectedDate,
-                  firstDate:
-                      widget.cycle?.startDate ??
-                      DateTime.now().subtract(const Duration(days: 730)),
-                  lastDate: DateTime.now(),
-                );
-                if (picked != null) {
-                  setState(() {
-                    _selectedDate = picked;
-                  });
-                }
+            ),
+            const SizedBox(height: 16),
+
+            // SECTION 1: BLEEDING
+            Text(
+              '1. Bleeding or Spotting',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text('Was there any bleeding today?'),
+            const SizedBox(height: 6),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment<bool>(value: false, label: Text('No')),
+                ButtonSegment<bool>(value: true, label: Text('Yes')),
+              ],
+              selected: {_hasBleeding},
+              onSelectionChanged: (val) {
+                setState(() => _hasBleeding = val.first);
               },
             ),
-            const Divider(),
-
-            // 1. Bleeding Selection
-            const Text(
-              'Bleeding or Spotting',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: Bleeding.values.map((b) {
-                if (b == Bleeding.none) return const SizedBox();
-                final isSelected = _bleeding == b;
-                return ChoiceChip(
-                  label: Text(b.label),
-                  selected: isSelected,
-                  onSelected: (val) {
-                    setState(() {
-                      _bleeding = val ? b : Bleeding.none;
-                      if (_bleeding == Bleeding.none) {
-                        _bleedingColor = '';
-                      } else if (_bleedingColor.isEmpty) {
-                        _bleedingColor = 'R'; // Default to red
-                      }
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-            if (_bleeding != Bleeding.none) ...[
-              const SizedBox(height: 8),
-              Row(
+            if (_hasBleeding) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Flow Amount:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
                 children: [
-                  const Text('Blood Color: '),
                   ChoiceChip(
-                    label: const Text('Red'),
-                    selected: _bleedingColor == 'R',
-                    onSelected: (val) =>
-                        setState(() => _bleedingColor = val ? 'R' : ''),
+                    label: const Text('Heavy'),
+                    selected: _bleedingFlow == Bleeding.heavy,
+                    onSelected: (val) {
+                      if (val) setState(() => _bleedingFlow = Bleeding.heavy);
+                    },
                   ),
-                  const SizedBox(width: 8),
                   ChoiceChip(
-                    label: const Text('Brown/Black'),
+                    label: const Text('Moderate'),
+                    selected: _bleedingFlow == Bleeding.moderate,
+                    onSelected: (val) {
+                      if (val) {
+                        setState(() => _bleedingFlow = Bleeding.moderate);
+                      }
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Light'),
+                    selected: _bleedingFlow == Bleeding.light,
+                    onSelected: (val) {
+                      if (val) setState(() => _bleedingFlow = Bleeding.light);
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Very Light (Spotting)'),
+                    selected:
+                        _bleedingFlow == Bleeding.veryLight ||
+                        _bleedingFlow == Bleeding.spotting,
+                    onSelected: (val) {
+                      if (val) {
+                        setState(() => _bleedingFlow = Bleeding.veryLight);
+                      }
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Color:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Red (default)'),
+                    selected: _bleedingColor == 'R',
+                    onSelected: (val) {
+                      if (val) setState(() => _bleedingColor = 'R');
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Brown'),
                     selected: _bleedingColor == 'B',
-                    onSelected: (val) =>
-                        setState(() => _bleedingColor = val ? 'B' : ''),
+                    onSelected: (val) {
+                      if (val) setState(() => _bleedingColor = 'B');
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Black'),
+                    selected: _bleedingColor == 'Black',
+                    onSelected: (val) {
+                      if (val) setState(() => _bleedingColor = 'Black');
+                    },
                   ),
                 ],
               ),
             ],
-            const Divider(),
 
-            // 2. Sensation Selection
-            const Text(
-              'Sensation at Vulva',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<Sensation>(
-              initialValue: _sensation,
-              items: Sensation.values.map((s) {
-                return DropdownMenuItem(value: s, child: Text(s.label));
-              }).toList(),
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() {
-                    _sensation = val;
-                    // If lubricative, automatically check stretchy stretch & lubricative consistency
-                    if (_sensation == Sensation.shiny) {
-                      // default to no mucus, but shiny
-                    }
-                  });
-                }
-              },
-            ),
-            const Divider(),
+            const Divider(height: 28),
 
-            // 3. Mucus Stretch (Show if user checks mucus presence or damp/wet/shiny sensation)
-            const Text(
-              'Mucus Stretch (Finger Test)',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<Stretch>(
-              initialValue: _stretch,
-              items: Stretch.values.map((s) {
-                return DropdownMenuItem(value: s, child: Text(s.label));
-              }).toList(),
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() {
-                    _stretch = val;
-                  });
-                }
-              },
-            ),
-            const Divider(),
-
-            // 4. Color & Consistency (Show only if stretch is not none)
-            if (_stretch != Stretch.none) ...[
-              const Text(
-                'Mucus Color',
-                style: TextStyle(fontWeight: FontWeight.bold),
+            // IF HEAVY OR MODERATE BLEEDING -> SKIP SENSATION & MUCUS
+            if (_isHeavyOrModerateBleeding)
+              Container(
+                padding: const EdgeInsets.all(12.0),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer.withValues(
+                    alpha: 0.2,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      color: theme.colorScheme.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Heavy/Moderate bleeding logged — sensation and mucus observations are skipped.',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+              // SECTION 2: SENSATION
+              Text(
+                '2. Sensation at Vulva',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
+              const SizedBox(height: 6),
+              const Text('Select your sensation:'),
+              const SizedBox(height: 6),
               Wrap(
-                spacing: 8,
-                children: MucusColor.values.map((c) {
-                  final isSelected = _colors.contains(c);
-                  return FilterChip(
-                    label: Text(c.label),
-                    selected: isSelected,
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Dry'),
+                    selected: _sensation == Sensation.dry,
                     onSelected: (val) {
-                      setState(() {
-                        if (val) {
-                          _colors.add(c);
-                        } else {
-                          _colors.remove(c);
-                        }
-                      });
+                      if (val) {
+                        setState(() {
+                          _sensation = Sensation.dry;
+                          _hasLubrication = false;
+                        });
+                      }
                     },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Mucus Consistency/Texture',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Wrap(
-                spacing: 8,
-                children: Consistency.values.map((c) {
-                  final isSelected = _consistencies.contains(c);
-                  return FilterChip(
-                    label: Text(c.label),
-                    selected: isSelected,
+                  ),
+                  ChoiceChip(
+                    label: const Text('Damp'),
+                    selected: _sensation == Sensation.damp,
                     onSelected: (val) {
-                      setState(() {
-                        if (val) {
-                          _consistencies.add(c);
-                        } else {
-                          _consistencies.remove(c);
-                        }
-                      });
+                      if (val) setState(() => _sensation = Sensation.damp);
                     },
-                  );
-                }).toList(),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Wet'),
+                    selected: _sensation == Sensation.wet,
+                    onSelected: (val) {
+                      if (val) setState(() => _sensation = Sensation.wet);
+                    },
+                  ),
+                  ChoiceChip(
+                    label: const Text('Shiny'),
+                    selected: _sensation == Sensation.shiny,
+                    onSelected: (val) {
+                      if (val) setState(() => _sensation = Sensation.shiny);
+                    },
+                  ),
+                ],
               ),
-              const Divider(),
+              if (_sensation != Sensation.dry) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Text('Was there lubrication? '),
+                    const SizedBox(width: 8),
+                    FilterChip(
+                      label: const Text('Lubricative Feel'),
+                      selected: _hasLubrication,
+                      onSelected: (val) {
+                        setState(() => _hasLubrication = val);
+                      },
+                    ),
+                  ],
+                ),
+              ],
+
+              const Divider(height: 28),
+
+              // SECTION 3: MUCUS OBSERVATION
+              Text(
+                '3. Mucus Observation',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text('Was there any mucus present?'),
+              const SizedBox(height: 6),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment<bool>(value: false, label: Text('No')),
+                  ButtonSegment<bool>(value: true, label: Text('Yes')),
+                ],
+                selected: {_hasMucus},
+                onSelectionChanged: (val) {
+                  setState(() => _hasMucus = val.first);
+                },
+              ),
+              if (_hasMucus) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Finger Test Stretch:',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Sticky (¼" | 0.5cm)'),
+                      selected: _stretch == Stretch.sticky,
+                      onSelected: (val) {
+                        if (val) setState(() => _stretch = Stretch.sticky);
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Tacky (½-¾" | 1.0-2.0cm)'),
+                      selected: _stretch == Stretch.tacky,
+                      onSelected: (val) {
+                        if (val) setState(() => _stretch = Stretch.tacky);
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Stretchy (1"+ | 2.5cm+)'),
+                      selected: _stretch == Stretch.stretchy,
+                      onSelected: (val) {
+                        if (val) setState(() => _stretch = Stretch.stretchy);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Color:',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Cloudy'),
+                      selected: _colorSelection == 'cloudy',
+                      onSelected: (val) {
+                        if (val) setState(() => _colorSelection = 'cloudy');
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Clear'),
+                      selected: _colorSelection == 'clear',
+                      onSelected: (val) {
+                        if (val) setState(() => _colorSelection = 'clear');
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Cloudy / Clear'),
+                      selected: _colorSelection == 'cloudy_clear',
+                      onSelected: (val) {
+                        if (val) {
+                          setState(() => _colorSelection = 'cloudy_clear');
+                        }
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Yellow'),
+                      selected: _colorSelection == 'yellow',
+                      onSelected: (val) {
+                        if (val) setState(() => _colorSelection = 'yellow');
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Consistency:',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    FilterChip(
+                      label: const Text('Gummy (gluey)'),
+                      selected: _isGummy,
+                      onSelected: (val) => setState(() => _isGummy = val),
+                    ),
+                    FilterChip(
+                      label: const Text('Pasty (creamy)'),
+                      selected: _isPasty,
+                      onSelected: (val) => setState(() => _isPasty = val),
+                    ),
+                  ],
+                ),
+              ],
             ],
 
-            // 5. Pain Tracker
-            const Text(
-              'Pain/Symptoms',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            const Divider(height: 28),
+
+            // SECTION 4: PAIN TRACKER
+            Text(
+              '4. Pain or Cramps',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: ['Cramps', 'Ovulation Pain', 'Headache', 'Backache'].map((
-                p,
-              ) {
-                final isSelected = _painTypes.contains(p);
-                return FilterChip(
-                  label: Text(p),
-                  selected: isSelected,
-                  onSelected: (val) {
-                    setState(() {
-                      if (val) {
-                        _painTypes.add(p);
-                        if (_painLevel == 0) {
-                          _painLevel =
-                              3.0; // Give a default pain level if they checked a pain type
-                        }
-                      } else {
-                        _painTypes.remove(p);
-                        if (_painTypes.isEmpty) _painLevel = 0.0;
-                      }
-                    });
-                  },
-                );
-              }).toList(),
+            const SizedBox(height: 6),
+            const Text('Do you have any pain?'),
+            const SizedBox(height: 6),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment<bool>(value: false, label: Text('No')),
+                ButtonSegment<bool>(value: true, label: Text('Yes')),
+              ],
+              selected: {_hasPain},
+              onSelectionChanged: (val) {
+                setState(() => _hasPain = val.first);
+              },
             ),
-            if (_painTypes.isNotEmpty) ...[
+            if (_hasPain) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Location / Type:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children:
+                    [
+                      'Cramps',
+                      'Ovulation Pain',
+                      'Backache',
+                      'Headache',
+                      'Pelvic Pain',
+                    ].map((p) {
+                      final isSelected = _painTypes.contains(p);
+                      return FilterChip(
+                        label: Text(p),
+                        selected: isSelected,
+                        onSelected: (val) {
+                          setState(() {
+                            if (val) {
+                              _painTypes.add(p);
+                            } else {
+                              _painTypes.remove(p);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Text('Pain Intensity: '),
+                  const Text('Severity: '),
                   Expanded(
                     child: Slider(
                       value: _painLevel,
-                      min: 0.0,
+                      min: 1.0,
                       max: 10.0,
-                      divisions: 10,
-                      label: _painLevel.toInt().toString(),
-                      onChanged: (val) {
-                        setState(() => _painLevel = val);
-                      },
+                      divisions: 9,
+                      label: '${_painLevel.toInt()}/10',
+                      onChanged: (val) => setState(() => _painLevel = val),
                     ),
                   ),
-                  Text('${_painLevel.toInt()}/10'),
+                  Text(
+                    '${_painLevel.toInt()}/10',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ],
               ),
             ],
-            const Divider(),
 
-            // 6. Comments
-            const Text(
-              'Comments/Notes',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            const Divider(height: 28),
+
+            // SECTION 5: COMMENTS
+            Text(
+              '5. Comments / Notes',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _commentController,
               decoration: const InputDecoration(
-                hintText:
-                    'Enter notes about symptoms, intercourse, dry feel, etc.',
+                hintText: 'Add extra details...',
                 border: OutlineInputBorder(),
               ),
               maxLines: 2,
@@ -1971,15 +2269,19 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
           onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        FilledButton(
+        FilledButton.icon(
           onPressed: _isSaving ? null : _saveLog,
-          child: _isSaving
+          icon: _isSaving
               ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
-              : const Text('Save Log'),
+              : const Icon(Icons.check),
+          label: const Text('Save Log'),
         ),
       ],
     );
@@ -1987,18 +2289,60 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
 
   Future<void> _saveLog() async {
     setState(() => _isSaving = true);
+
+    // Compute bleeding enum
+    final Bleeding bleeding = _hasBleeding ? _bleedingFlow : Bleeding.none;
+    final String bleedingColorStr = _hasBleeding ? _bleedingColor : '';
+
+    // Compute sensation, stretch, colors, consistencies
+    Sensation sensation = Sensation.dry;
+    Stretch stretch = Stretch.none;
+    final List<MucusColor> colors = [];
+    final List<Consistency> consistencies = [];
+
+    if (!_isHeavyOrModerateBleeding) {
+      sensation = _sensation;
+
+      if (_hasLubrication && sensation != Sensation.dry) {
+        consistencies.add(Consistency.lubricative);
+      }
+
+      if (_hasMucus) {
+        stretch = _stretch;
+
+        // Color mapping
+        if (_colorSelection == 'cloudy') {
+          colors.add(MucusColor.cloudy);
+        } else if (_colorSelection == 'clear') {
+          colors.add(MucusColor.clear);
+        } else if (_colorSelection == 'cloudy_clear') {
+          colors.add(MucusColor.cloudy);
+          colors.add(MucusColor.clear);
+        } else if (_colorSelection == 'yellow') {
+          colors.add(MucusColor.yellow);
+        }
+
+        // Consistency mapping
+        if (_isGummy) consistencies.add(Consistency.gummy);
+        if (_isPasty) consistencies.add(Consistency.pasty);
+      }
+    }
+
+    final double painLevel = _hasPain ? _painLevel : 0.0;
+    final List<String> painTypes = _hasPain ? _painTypes : [];
+
     try {
       await Services.db.saveObservation(
         cycleId: widget.cycle?.id,
-        date: _selectedDate,
-        sensation: _sensation,
-        stretch: _stretch,
-        colors: _colors,
-        consistencies: _consistencies,
-        bleeding: _bleeding,
-        bleedingColor: _bleedingColor,
-        painLevel: _painLevel,
-        painTypes: _painTypes,
+        date: _combinedDateTime,
+        sensation: sensation,
+        stretch: stretch,
+        colors: colors,
+        consistencies: consistencies,
+        bleeding: bleeding,
+        bleedingColor: bleedingColorStr,
+        painLevel: painLevel,
+        painTypes: painTypes,
         comment: _commentController.text,
       );
       if (mounted) Navigator.of(context).pop();
@@ -2009,7 +2353,9 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         ).showSnackBar(SnackBar(content: Text('Error saving observation: $e')));
       }
     } finally {
-      setState(() => _isSaving = false);
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 }
