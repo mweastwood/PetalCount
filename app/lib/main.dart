@@ -1680,6 +1680,7 @@ enum WizardStep {
   mucusColor('Mucus Color'),
   mucusConsistency('Consistency'),
   pain('Pain'),
+  painDetails('Pain Details'),
   comments('Comments & Save');
 
   final String title;
@@ -1776,6 +1777,9 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
       }
     }
     steps.add(WizardStep.pain);
+    if (_hasPain == true) {
+      steps.add(WizardStep.painDetails);
+    }
     steps.add(WizardStep.comments);
     return steps;
   }
@@ -2003,6 +2007,13 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       label: const Text('Back'),
                     ),
                   const Spacer(),
+                  if (step == WizardStep.painDetails)
+                    FilledButton.icon(
+                      onPressed: _nextStep,
+                      iconAlignment: IconAlignment.end,
+                      icon: const Icon(Icons.arrow_forward, size: 18),
+                      label: const Text('Continue'),
+                    ),
                   if (isLastStep)
                     FilledButton.icon(
                       onPressed: _isSaving ? null : _saveLog,
@@ -2631,91 +2642,105 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                   _OptionCard(
                     label: 'Yes (Log Pain)',
                     icon: Icons.healing,
-                    subtitle: 'Cramps, backache, etc.',
+                    subtitle: 'Cramps, abdominal pain, etc.',
                     isSelected: _hasPain == true,
                     onTap: () {
                       setState(() {
                         _hasPain = true;
                       });
+                      _nextStep();
                     },
                   ),
                 ],
               ),
-              if (_hasPain == true) ...[
-                const SizedBox(height: 16),
-                Text(
-                  'Location / Type:',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+            ],
+          ),
+        );
+
+      case WizardStep.painDetails:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Pain Location & Severity',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Select pain location and severity rating:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Location / Type:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children:
+                    [
+                      'Cramps',
+                      'Abdominal Pain (Left)',
+                      'Abdominal Pain (Right)',
+                      'Abdominal Pain (General)',
+                      'Ovulation Pain',
+                      'Backache',
+                      'Headache',
+                      'Pelvic Pain',
+                    ].map((p) {
+                      final isSelected = _painTypes.contains(p);
+                      return FilterChip(
+                        label: Text(p),
+                        selected: isSelected,
+                        onSelected: (val) {
+                          setState(() {
+                            if (val) {
+                              _painTypes.add(p);
+                            } else {
+                              _painTypes.remove(p);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Text(
+                    'Severity Rating:',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children:
-                      [
-                        'Cramps',
-                        'Ovulation Pain',
-                        'Backache',
-                        'Headache',
-                        'Pelvic Pain',
-                      ].map((p) {
-                        final isSelected = _painTypes.contains(p);
-                        return FilterChip(
-                          label: Text(p),
-                          selected: isSelected,
-                          onSelected: (val) {
-                            setState(() {
-                              if (val) {
-                                _painTypes.add(p);
-                              } else {
-                                _painTypes.remove(p);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Text(
-                      'Severity:',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  Expanded(
+                    child: Slider(
+                      value: _painLevel,
+                      min: 1.0,
+                      max: 10.0,
+                      divisions: 9,
+                      label: '${_painLevel.toInt()}/10',
+                      onChanged: (val) => setState(() => _painLevel = val),
                     ),
-                    Expanded(
-                      child: Slider(
-                        value: _painLevel,
-                        min: 1.0,
-                        max: 10.0,
-                        divisions: 9,
-                        label: '${_painLevel.toInt()}/10',
-                        onChanged: (val) => setState(() => _painLevel = val),
-                      ),
-                    ),
-                    Text(
-                      '${_painLevel.toInt()}/10',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: _nextStep,
-                    iconAlignment: IconAlignment.end,
-                    icon: const Icon(Icons.arrow_forward, size: 18),
-                    label: const Text('Continue'),
                   ),
-                ),
-              ],
+                  Text(
+                    '${_painLevel.toInt()}/10',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         );
