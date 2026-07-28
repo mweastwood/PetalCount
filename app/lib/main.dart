@@ -2018,10 +2018,20 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
   Widget _buildOptionGrid({
     required List<Widget> children,
     double spacing = 10,
+    double targetMinItemWidth = 180.0,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final itemWidth = (constraints.maxWidth - spacing) / 2;
+        final availableWidth = constraints.maxWidth;
+        int crossAxisCount = (availableWidth / (targetMinItemWidth + spacing))
+            .floor();
+        if (crossAxisCount < 1) crossAxisCount = 1;
+        if (crossAxisCount > children.length) crossAxisCount = children.length;
+
+        final itemWidth =
+            (availableWidth - (spacing * (crossAxisCount - 1))) /
+            crossAxisCount;
+
         return Wrap(
           spacing: spacing,
           runSpacing: spacing,
@@ -2050,7 +2060,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Select your flow level today:',
+                'What bleeding or flow did you observe at this check?',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -2143,7 +2153,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Select the blood color observed during flow:',
+                'Select the blood color observed during this check:',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -2200,7 +2210,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Select your primary sensation felt throughout the day:',
+                'Select the sensation felt at the vulva during this check:',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -2307,7 +2317,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Was there any mucus present during checks?',
+                'Was there any mucus present during this check?',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -2330,7 +2340,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                   _OptionCard(
                     label: 'Yes (Mucus)',
                     icon: Icons.science_outlined,
-                    subtitle: 'Mucus observed during checks',
+                    subtitle: 'Mucus observed during this check',
                     isSelected: _hasMucus,
                     onTap: () {
                       setState(() {
@@ -2471,7 +2481,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Do you have any physical pain or cramps to log?',
+                'Are you experiencing any physical pain or cramps right now?',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
