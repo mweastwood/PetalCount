@@ -1758,13 +1758,15 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
     _selectedDate = DateTime(
       widget.defaultDate.year,
       widget.defaultDate.month,
       widget.defaultDate.day,
     );
-    _selectedTime = TimeOfDay(hour: now.hour, minute: now.minute);
+    _selectedTime = TimeOfDay(
+      hour: widget.defaultDate.hour,
+      minute: widget.defaultDate.minute,
+    );
   }
 
   DateTime get _combinedDateTime {
