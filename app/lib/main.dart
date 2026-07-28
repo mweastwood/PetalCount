@@ -1670,6 +1670,18 @@ class _CycleChartScreenState extends State<CycleChartScreen> {
 // 4. ADD OBSERVATION DIALOG
 // ==========================================
 
+enum WizardStep {
+  dateTime('Date & Time'),
+  bleeding('Bleeding'),
+  sensation('Sensation'),
+  mucus('Mucus'),
+  pain('Pain'),
+  comments('Comments & Save');
+
+  final String title;
+  const WizardStep(this.title);
+}
+
 class AddObservationDialog extends StatefulWidget {
   final Cycle? cycle;
   final DateTime defaultDate;
@@ -1685,13 +1697,15 @@ class AddObservationDialog extends StatefulWidget {
 }
 
 class _AddObservationDialogState extends State<AddObservationDialog> {
+  int _currentStepIndex = 0;
+
   late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
 
   // Bleeding
   bool _hasBleeding = false;
   Bleeding _bleedingFlow = Bleeding.light;
-  String _bleedingColor = 'R'; // 'R' (Red default), 'B' (Brown), 'Black'
+  String _bleedingColor = 'R'; // 'R' (Red), 'B' (Brown), 'Black'
 
   // Sensation
   Sensation _sensation = Sensation.dry;
@@ -1740,250 +1754,500 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
       _hasBleeding &&
       (_bleedingFlow == Bleeding.heavy || _bleedingFlow == Bleeding.moderate);
 
+  List<WizardStep> get _activeSteps {
+    final steps = [WizardStep.dateTime, WizardStep.bleeding];
+    if (!_isHeavyOrModerateBleeding) {
+      steps.add(WizardStep.sensation);
+      steps.add(WizardStep.mucus);
+    }
+    steps.add(WizardStep.pain);
+    steps.add(WizardStep.comments);
+    return steps;
+  }
+
+  WizardStep get _currentStep {
+    final active = _activeSteps;
+    if (_currentStepIndex >= active.length) {
+      return active.last;
+    }
+    return active[_currentStepIndex];
+  }
+
+  void _nextStep() {
+    final active = _activeSteps;
+    if (_currentStepIndex < active.length - 1) {
+      setState(() {
+        _currentStepIndex++;
+      });
+    }
+  }
+
+  void _prevStep() {
+    if (_currentStepIndex > 0) {
+      setState(() {
+        _currentStepIndex--;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final activeSteps = _activeSteps;
+    // Clamp current step index
+    if (_currentStepIndex >= activeSteps.length) {
+      _currentStepIndex = activeSteps.length - 1;
+    }
+    final step = _currentStep;
+    final isLastStep = _currentStepIndex == activeSteps.length - 1;
 
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(Icons.edit_note_rounded, color: theme.colorScheme.primary),
-          const SizedBox(width: 8),
-          const Text(
-            'Log Observation',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-      scrollable: true,
-      content: SizedBox(
-        width: 440,
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: SizedBox(
+        width: 500,
+        height: 540,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Date & Time Selection Box
+            // WIZARD HEADER
             Container(
-              padding: const EdgeInsets.all(12.0),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.4,
+                  alpha: 0.3,
                 ),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: theme.colorScheme.outlineVariant.withValues(
-                    alpha: 0.5,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.auto_awesome_rounded,
+                            color: theme.colorScheme.primary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Log Observation',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        'Step ${_currentStepIndex + 1} of ${activeSteps.length}',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Linear Progress Bar
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: (_currentStepIndex + 1) / activeSteps.length,
+                      minHeight: 6,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // STEP CONTENT AREA
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 16.0,
+                ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: KeyedSubtree(
+                    key: ValueKey<WizardStep>(step),
+                    child: _buildStepContent(context, step),
+                  ),
+                ),
+              ),
+            ),
+
+            // WIZARD FOOTER NAVIGATION
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: theme.colorScheme.outlineVariant.withValues(
+                      alpha: 0.5,
+                    ),
                   ),
                 ),
               ),
               child: Row(
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Date & Time Recorded',
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                  if (_currentStepIndex > 0)
+                    OutlinedButton.icon(
+                      onPressed: _prevStep,
+                      icon: const Icon(Icons.arrow_back, size: 18),
+                      label: const Text('Back'),
+                    )
+                  else
+                    TextButton(
+                      onPressed: _isSaving
+                          ? null
+                          : () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                  const Spacer(),
+                  if (!isLastStep)
+                    FilledButton.icon(
+                      onPressed: _nextStep,
+                      iconAlignment: IconAlignment.end,
+                      icon: const Icon(Icons.arrow_forward, size: 18),
+                      label: const Text('Next'),
+                    )
+                  else
+                    FilledButton.icon(
+                      onPressed: _isSaving ? null : _saveLog,
+                      icon: _isSaving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.check, size: 18),
+                      label: const Text('Save Log'),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStepContent(BuildContext context, WizardStep step) {
+    final theme = Theme.of(context);
+
+    switch (step) {
+      case WizardStep.dateTime:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'When was this observation made?',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'By default, current date and time are recorded. Tap below if you would like to change them.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Card(
+                elevation: 0,
+                color: theme.colorScheme.primaryContainer.withValues(
+                  alpha: 0.25,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.event_note,
+                            color: theme.colorScheme.primary,
+                            size: 28,
                           ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Date Recorded',
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                Text(
+                                  DateFormat(
+                                    'EEEE, MMMM dd, yyyy',
+                                  ).format(_selectedDate),
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          OutlinedButton(
+                            onPressed: () async {
+                              final pickedDate = await showDatePicker(
+                                context: context,
+                                initialDate: _selectedDate,
+                                firstDate:
+                                    widget.cycle?.startDate ??
+                                    DateTime.now().subtract(
+                                      const Duration(days: 730),
+                                    ),
+                                lastDate: DateTime.now().add(
+                                  const Duration(days: 1),
+                                ),
+                              );
+                              if (pickedDate != null) {
+                                setState(() => _selectedDate = pickedDate);
+                              }
+                            },
+                            child: const Text('Change'),
+                          ),
+                        ],
+                      ),
+                      const Divider(height: 24),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule,
+                            color: theme.colorScheme.primary,
+                            size: 28,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Time Recorded',
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                Text(
+                                  _selectedTime.format(context),
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          OutlinedButton(
+                            onPressed: () async {
+                              final pickedTime = await showTimePicker(
+                                context: context,
+                                initialTime: _selectedTime,
+                              );
+                              if (pickedTime != null) {
+                                setState(() => _selectedTime = pickedTime);
+                              }
+                            },
+                            child: const Text('Change'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+
+      case WizardStep.bleeding:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Was there any bleeding today?',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment<bool>(
+                    value: false,
+                    label: Text('No Bleeding'),
+                    icon: Icon(Icons.check_circle_outline),
+                  ),
+                  ButtonSegment<bool>(
+                    value: true,
+                    label: Text('Yes (Bleeding / Spotting)'),
+                    icon: Icon(Icons.water_drop_outlined),
+                  ),
+                ],
+                selected: {_hasBleeding},
+                onSelectionChanged: (val) {
+                  setState(() => _hasBleeding = val.first);
+                },
+              ),
+              if (_hasBleeding) ...[
+                const SizedBox(height: 20),
+                Text(
+                  'Flow Amount:',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Heavy'),
+                      selected: _bleedingFlow == Bleeding.heavy,
+                      onSelected: (val) {
+                        if (val) setState(() => _bleedingFlow = Bleeding.heavy);
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Moderate'),
+                      selected: _bleedingFlow == Bleeding.moderate,
+                      onSelected: (val) {
+                        if (val) {
+                          setState(() => _bleedingFlow = Bleeding.moderate);
+                        }
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Light'),
+                      selected: _bleedingFlow == Bleeding.light,
+                      onSelected: (val) {
+                        if (val) setState(() => _bleedingFlow = Bleeding.light);
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Very Light (Spotting)'),
+                      selected:
+                          _bleedingFlow == Bleeding.veryLight ||
+                          _bleedingFlow == Bleeding.spotting,
+                      onSelected: (val) {
+                        if (val) {
+                          setState(() => _bleedingFlow = Bleeding.veryLight);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Blood Color:',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Red (default)'),
+                      selected: _bleedingColor == 'R',
+                      onSelected: (val) {
+                        if (val) setState(() => _bleedingColor = 'R');
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Brown'),
+                      selected: _bleedingColor == 'B',
+                      onSelected: (val) {
+                        if (val) setState(() => _bleedingColor = 'B');
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('Black'),
+                      selected: _bleedingColor == 'Black',
+                      onSelected: (val) {
+                        if (val) setState(() => _bleedingColor = 'Black');
+                      },
+                    ),
+                  ],
+                ),
+                if (_isHeavyOrModerateBleeding) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12.0),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer.withValues(
+                        alpha: 0.25,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          color: theme.colorScheme.primary,
+                          size: 20,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          DateFormat(
-                            'EEE, MMM dd, yyyy • h:mm a',
-                          ).format(_combinedDateTime),
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Heavy/Moderate bleeding skips sensation and mucus questions.',
+                            style: TextStyle(fontSize: 12),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.calendar_month),
-                    tooltip: 'Change Date',
-                    onPressed: () async {
-                      final pickedDate = await showDatePicker(
-                        context: context,
-                        initialDate: _selectedDate,
-                        firstDate:
-                            widget.cycle?.startDate ??
-                            DateTime.now().subtract(const Duration(days: 730)),
-                        lastDate: DateTime.now().add(const Duration(days: 1)),
-                      );
-                      if (pickedDate != null) {
-                        setState(() => _selectedDate = pickedDate);
-                      }
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.access_time),
-                    tooltip: 'Change Time',
-                    onPressed: () async {
-                      final pickedTime = await showTimePicker(
-                        context: context,
-                        initialTime: _selectedTime,
-                      );
-                      if (pickedTime != null) {
-                        setState(() => _selectedTime = pickedTime);
-                      }
-                    },
-                  ),
                 ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // SECTION 1: BLEEDING
-            Text(
-              '1. Bleeding or Spotting',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text('Was there any bleeding today?'),
-            const SizedBox(height: 6),
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment<bool>(value: false, label: Text('No')),
-                ButtonSegment<bool>(value: true, label: Text('Yes')),
               ],
-              selected: {_hasBleeding},
-              onSelectionChanged: (val) {
-                setState(() => _hasBleeding = val.first);
-              },
-            ),
-            if (_hasBleeding) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Flow Amount:',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  ChoiceChip(
-                    label: const Text('Heavy'),
-                    selected: _bleedingFlow == Bleeding.heavy,
-                    onSelected: (val) {
-                      if (val) setState(() => _bleedingFlow = Bleeding.heavy);
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text('Moderate'),
-                    selected: _bleedingFlow == Bleeding.moderate,
-                    onSelected: (val) {
-                      if (val) {
-                        setState(() => _bleedingFlow = Bleeding.moderate);
-                      }
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text('Light'),
-                    selected: _bleedingFlow == Bleeding.light,
-                    onSelected: (val) {
-                      if (val) setState(() => _bleedingFlow = Bleeding.light);
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text('Very Light (Spotting)'),
-                    selected:
-                        _bleedingFlow == Bleeding.veryLight ||
-                        _bleedingFlow == Bleeding.spotting,
-                    onSelected: (val) {
-                      if (val) {
-                        setState(() => _bleedingFlow = Bleeding.veryLight);
-                      }
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Color:',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                children: [
-                  ChoiceChip(
-                    label: const Text('Red (default)'),
-                    selected: _bleedingColor == 'R',
-                    onSelected: (val) {
-                      if (val) setState(() => _bleedingColor = 'R');
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text('Brown'),
-                    selected: _bleedingColor == 'B',
-                    onSelected: (val) {
-                      if (val) setState(() => _bleedingColor = 'B');
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text('Black'),
-                    selected: _bleedingColor == 'Black',
-                    onSelected: (val) {
-                      if (val) setState(() => _bleedingColor = 'Black');
-                    },
-                  ),
-                ],
-              ),
             ],
+          ),
+        );
 
-            const Divider(height: 28),
-
-            // IF HEAVY OR MODERATE BLEEDING -> SKIP SENSATION & MUCUS
-            if (_isHeavyOrModerateBleeding)
-              Container(
-                padding: const EdgeInsets.all(12.0),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer.withValues(
-                    alpha: 0.2,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: theme.colorScheme.primary,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Heavy/Moderate bleeding logged — sensation and mucus observations are skipped.',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else ...[
-              // SECTION 2: SENSATION
+      case WizardStep.sensation:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text(
-                '2. Sensation at Vulva',
+                'Sensation at Vulva',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 6),
-              const Text('Select your sensation:'),
-              const SizedBox(height: 6),
+              Text(
+                'Select the primary sensation felt throughout the day:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
               Wrap(
-                spacing: 6,
-                runSpacing: 6,
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   ChoiceChip(
+                    avatar: const Icon(Icons.wb_sunny_outlined, size: 16),
                     label: const Text('Dry'),
                     selected: _sensation == Sensation.dry,
                     onSelected: (val) {
@@ -1996,6 +2260,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     },
                   ),
                   ChoiceChip(
+                    avatar: const Icon(Icons.water_drop_outlined, size: 16),
                     label: const Text('Damp'),
                     selected: _sensation == Sensation.damp,
                     onSelected: (val) {
@@ -2003,6 +2268,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     },
                   ),
                   ChoiceChip(
+                    avatar: const Icon(Icons.opacity, size: 16),
                     label: const Text('Wet'),
                     selected: _sensation == Sensation.wet,
                     onSelected: (val) {
@@ -2010,6 +2276,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     },
                   ),
                   ChoiceChip(
+                    avatar: const Icon(Icons.auto_awesome, size: 16),
                     label: const Text('Shiny'),
                     selected: _sensation == Sensation.shiny,
                     onSelected: (val) {
@@ -2019,38 +2286,81 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                 ],
               ),
               if (_sensation != Sensation.dry) ...[
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Text('Was there lubrication? '),
-                    const SizedBox(width: 8),
-                    FilterChip(
-                      label: const Text('Lubricative Feel'),
-                      selected: _hasLubrication,
-                      onSelected: (val) {
-                        setState(() => _hasLubrication = val);
-                      },
+                const SizedBox(height: 24),
+                Card(
+                  elevation: 0,
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Lubrication',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Was there a smooth, slippery or lubricative feel?',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: _hasLubrication,
+                          onChanged: (val) {
+                            setState(() => _hasLubrication = val);
+                          },
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ],
+            ],
+          ),
+        );
 
-              const Divider(height: 28),
-
-              // SECTION 3: MUCUS OBSERVATION
+      case WizardStep.mucus:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text(
-                '3. Mucus Observation',
+                'Mucus Observation',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 6),
-              const Text('Was there any mucus present?'),
-              const SizedBox(height: 6),
+              Text(
+                'Was there any mucus present during checks?',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
               SegmentedButton<bool>(
                 segments: const [
-                  ButtonSegment<bool>(value: false, label: Text('No')),
-                  ButtonSegment<bool>(value: true, label: Text('Yes')),
+                  ButtonSegment<bool>(
+                    value: false,
+                    label: Text('No Mucus'),
+                    icon: Icon(Icons.block),
+                  ),
+                  ButtonSegment<bool>(
+                    value: true,
+                    label: Text('Yes (Mucus Present)'),
+                    icon: Icon(Icons.science_outlined),
+                  ),
                 ],
                 selected: {_hasMucus},
                 onSelectionChanged: (val) {
@@ -2058,17 +2368,17 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                 },
               ),
               if (_hasMucus) ...[
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Text(
                   'Finger Test Stretch:',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     ChoiceChip(
                       label: const Text('Sticky (¼" | 0.5cm)'),
@@ -2093,17 +2403,17 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Text(
                   'Color:',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
                     ChoiceChip(
                       label: const Text('Cloudy'),
@@ -2137,11 +2447,11 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
                 Text(
                   'Consistency:',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -2162,129 +2472,201 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                 ),
               ],
             ],
+          ),
+        );
 
-            const Divider(height: 28),
-
-            // SECTION 4: PAIN TRACKER
-            Text(
-              '4. Pain or Cramps',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text('Do you have any pain?'),
-            const SizedBox(height: 6),
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment<bool>(value: false, label: Text('No')),
-                ButtonSegment<bool>(value: true, label: Text('Yes')),
-              ],
-              selected: {_hasPain},
-              onSelectionChanged: (val) {
-                setState(() => _hasPain = val.first);
-              },
-            ),
-            if (_hasPain) ...[
-              const SizedBox(height: 12),
+      case WizardStep.pain:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Text(
-                'Location / Type:',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+                'Pain or Symptoms',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children:
-                    [
-                      'Cramps',
-                      'Ovulation Pain',
-                      'Backache',
-                      'Headache',
-                      'Pelvic Pain',
-                    ].map((p) {
-                      final isSelected = _painTypes.contains(p);
-                      return FilterChip(
-                        label: Text(p),
-                        selected: isSelected,
-                        onSelected: (val) {
-                          setState(() {
-                            if (val) {
-                              _painTypes.add(p);
-                            } else {
-                              _painTypes.remove(p);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
+              Text(
+                'Do you have any physical pain or cramps to log?',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Text('Severity: '),
-                  Expanded(
-                    child: Slider(
-                      value: _painLevel,
-                      min: 1.0,
-                      max: 10.0,
-                      divisions: 9,
-                      label: '${_painLevel.toInt()}/10',
-                      onChanged: (val) => setState(() => _painLevel = val),
-                    ),
+              const SizedBox(height: 12),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment<bool>(
+                    value: false,
+                    label: Text('No Pain'),
+                    icon: Icon(Icons.sentiment_satisfied_alt),
                   ),
-                  Text(
-                    '${_painLevel.toInt()}/10',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ButtonSegment<bool>(
+                    value: true,
+                    label: Text('Yes (Log Pain)'),
+                    icon: Icon(Icons.healing),
                   ),
                 ],
+                selected: {_hasPain},
+                onSelectionChanged: (val) {
+                  setState(() => _hasPain = val.first);
+                },
+              ),
+              if (_hasPain) ...[
+                const SizedBox(height: 20),
+                Text(
+                  'Location / Type:',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children:
+                      [
+                        'Cramps',
+                        'Ovulation Pain',
+                        'Backache',
+                        'Headache',
+                        'Pelvic Pain',
+                      ].map((p) {
+                        final isSelected = _painTypes.contains(p);
+                        return FilterChip(
+                          label: Text(p),
+                          selected: isSelected,
+                          onSelected: (val) {
+                            setState(() {
+                              if (val) {
+                                _painTypes.add(p);
+                              } else {
+                                _painTypes.remove(p);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Text(
+                      'Severity:',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Expanded(
+                      child: Slider(
+                        value: _painLevel,
+                        min: 1.0,
+                        max: 10.0,
+                        divisions: 9,
+                        label: '${_painLevel.toInt()}/10',
+                        onChanged: (val) => setState(() => _painLevel = val),
+                      ),
+                    ),
+                    Text(
+                      '${_painLevel.toInt()}/10',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        );
+
+      case WizardStep.comments:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Summary & Additional Notes',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Summary Badge Box
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.4,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.fact_check_outlined,
+                          size: 18,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Observation Summary:',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Date: ${DateFormat('MMM dd, yyyy • h:mm a').format(_combinedDateTime)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    Text(
+                      'Bleeding: ${_hasBleeding ? "${_bleedingFlow.label} ($_bleedingColor)" : "None"}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    if (!_isHeavyOrModerateBleeding) ...[
+                      Text(
+                        'Sensation: ${_sensation.label}${_hasLubrication ? " (Lubricative)" : ""}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      Text(
+                        'Mucus: ${_hasMucus ? "${_stretch.label}, $_colorSelection" : "None"}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                    Text(
+                      'Pain: ${_hasPain ? "${_painTypes.join(', ')} (${_painLevel.toInt()}/10)" : "None"}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Comments / Notes (Optional):',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _commentController,
+                decoration: const InputDecoration(
+                  hintText: 'Add extra details or observations...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
               ),
             ],
-
-            const Divider(height: 28),
-
-            // SECTION 5: COMMENTS
-            Text(
-              '5. Comments / Notes',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _commentController,
-              decoration: const InputDecoration(
-                hintText: 'Add extra details...',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 2,
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton.icon(
-          onPressed: _isSaving ? null : _saveLog,
-          icon: _isSaving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Icon(Icons.check),
-          label: const Text('Save Log'),
-        ),
-      ],
-    );
+          ),
+        );
+    }
   }
 
   Future<void> _saveLog() async {
