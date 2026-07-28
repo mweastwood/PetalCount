@@ -1674,6 +1674,7 @@ enum WizardStep {
   bleedingFlow('Bleeding'),
   bleedingColor('Blood Color'),
   sensation('Sensation'),
+  lubrication('Lubrication'),
   mucus('Mucus'),
   pain('Pain'),
   comments('Comments & Save');
@@ -1761,6 +1762,9 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
     }
     if (!_isHeavyOrModerateBleeding) {
       steps.add(WizardStep.sensation);
+      if (_sensation != Sensation.dry) {
+        steps.add(WizardStep.lubrication);
+      }
       steps.add(WizardStep.mucus);
     }
     steps.add(WizardStep.pain);
@@ -2162,7 +2166,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
               _buildOptionGrid(
                 children: [
                   _OptionCard(
-                    label: 'Red (default)',
+                    label: 'Red',
                     icon: Icons.water_drop,
                     subtitle: 'Bright red or normal blood',
                     isSelected: _bleedingColor == 'R',
@@ -2238,6 +2242,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     isSelected: _sensation == Sensation.damp,
                     onTap: () {
                       setState(() => _sensation = Sensation.damp);
+                      _nextStep();
                     },
                   ),
                   _OptionCard(
@@ -2247,6 +2252,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     isSelected: _sensation == Sensation.wet,
                     onTap: () {
                       setState(() => _sensation = Sensation.wet);
+                      _nextStep();
                     },
                   ),
                   _OptionCard(
@@ -2256,50 +2262,58 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     isSelected: _sensation == Sensation.shiny,
                     onTap: () {
                       setState(() => _sensation = Sensation.shiny);
+                      _nextStep();
                     },
                   ),
                 ],
               ),
-              if (_sensation != Sensation.dry) ...[
-                const SizedBox(height: 14),
-                Card(
-                  elevation: 0,
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.5,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Was there a lubricative (slippery) feel?',
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        Switch(
-                          value: _hasLubrication,
-                          onChanged: (val) {
-                            setState(() => _hasLubrication = val);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
+            ],
+          ),
+        );
+
+      case WizardStep.lubrication:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Lubricative Sensation',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: _nextStep,
-                    iconAlignment: IconAlignment.end,
-                    icon: const Icon(Icons.arrow_forward, size: 18),
-                    label: const Text('Continue'),
-                  ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Was there a smooth, slippery, or lubricative feel during this check?',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
-              ],
+              ),
+              const SizedBox(height: 14),
+              _buildOptionGrid(
+                children: [
+                  _OptionCard(
+                    label: 'No Lubrication',
+                    icon: Icons.block,
+                    subtitle: 'No lubricative or slippery feel',
+                    isSelected: !_hasLubrication,
+                    onTap: () {
+                      setState(() => _hasLubrication = false);
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Yes (Lubricative Feel)',
+                    icon: Icons.auto_awesome,
+                    subtitle: 'Smooth, slippery, or lubricative feel',
+                    isSelected: _hasLubrication,
+                    onTap: () {
+                      setState(() => _hasLubrication = true);
+                      _nextStep();
+                    },
+                  ),
+                ],
+              ),
             ],
           ),
         );
