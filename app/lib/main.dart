@@ -1671,7 +1671,6 @@ class _CycleChartScreenState extends State<CycleChartScreen> {
 // ==========================================
 
 enum WizardStep {
-  dateTime('Date & Time'),
   bleeding('Bleeding'),
   sensation('Sensation'),
   mucus('Mucus'),
@@ -1755,7 +1754,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
       (_bleedingFlow == Bleeding.heavy || _bleedingFlow == Bleeding.moderate);
 
   List<WizardStep> get _activeSteps {
-    final steps = [WizardStep.dateTime, WizardStep.bleeding];
+    final steps = [WizardStep.bleeding];
     if (!_isHeavyOrModerateBleeding) {
       steps.add(WizardStep.sensation);
       steps.add(WizardStep.mucus);
@@ -1808,12 +1807,12 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         height: 540,
         child: Column(
           children: [
-            // WIZARD HEADER
+            // WIZARD HEADER WITH PERSISTENT DATE/TIME BAR
             Container(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+              padding: const EdgeInsets.fromLTRB(20, 14, 16, 10),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.3,
+                  alpha: 0.35,
                 ),
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(20),
@@ -1849,13 +1848,101 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 8),
+
+                  // Persistent Date & Time Bar
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant.withValues(
+                          alpha: 0.6,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.event_note,
+                          size: 16,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            DateFormat(
+                              'EEE, MMM dd, yyyy • h:mm a',
+                            ).format(_combinedDateTime),
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: Icon(
+                            Icons.edit_calendar,
+                            size: 18,
+                            color: theme.colorScheme.primary,
+                          ),
+                          tooltip: 'Change Date',
+                          onPressed: () async {
+                            final pickedDate = await showDatePicker(
+                              context: context,
+                              initialDate: _selectedDate,
+                              firstDate:
+                                  widget.cycle?.startDate ??
+                                  DateTime.now().subtract(
+                                    const Duration(days: 730),
+                                  ),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 1),
+                              ),
+                            );
+                            if (pickedDate != null) {
+                              setState(() => _selectedDate = pickedDate);
+                            }
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: Icon(
+                            Icons.access_time,
+                            size: 18,
+                            color: theme.colorScheme.primary,
+                          ),
+                          tooltip: 'Change Time',
+                          onPressed: () async {
+                            final pickedTime = await showTimePicker(
+                              context: context,
+                              initialTime: _selectedTime,
+                            );
+                            if (pickedTime != null) {
+                              setState(() => _selectedTime = pickedTime);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 10),
+
                   // Linear Progress Bar
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: (_currentStepIndex + 1) / activeSteps.length,
-                      minHeight: 6,
+                      minHeight: 5,
                     ),
                   ),
                 ],
@@ -1942,141 +2029,6 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
     final theme = Theme.of(context);
 
     switch (step) {
-      case WizardStep.dateTime:
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'When was this observation made?',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'By default, current date and time are recorded. Tap below if you would like to change them.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Card(
-                elevation: 0,
-                color: theme.colorScheme.primaryContainer.withValues(
-                  alpha: 0.25,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.event_note,
-                            color: theme.colorScheme.primary,
-                            size: 28,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Date Recorded',
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                Text(
-                                  DateFormat(
-                                    'EEEE, MMMM dd, yyyy',
-                                  ).format(_selectedDate),
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          OutlinedButton(
-                            onPressed: () async {
-                              final pickedDate = await showDatePicker(
-                                context: context,
-                                initialDate: _selectedDate,
-                                firstDate:
-                                    widget.cycle?.startDate ??
-                                    DateTime.now().subtract(
-                                      const Duration(days: 730),
-                                    ),
-                                lastDate: DateTime.now().add(
-                                  const Duration(days: 1),
-                                ),
-                              );
-                              if (pickedDate != null) {
-                                setState(() => _selectedDate = pickedDate);
-                              }
-                            },
-                            child: const Text('Change'),
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 24),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.schedule,
-                            color: theme.colorScheme.primary,
-                            size: 28,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Time Recorded',
-                                  style: theme.textTheme.labelMedium?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                                Text(
-                                  _selectedTime.format(context),
-                                  style: theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          OutlinedButton(
-                            onPressed: () async {
-                              final pickedTime = await showTimePicker(
-                                context: context,
-                                initialTime: _selectedTime,
-                              );
-                              if (pickedTime != null) {
-                                setState(() => _selectedTime = pickedTime);
-                              }
-                            },
-                            child: const Text('Change'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-
       case WizardStep.bleeding:
         return SingleChildScrollView(
           child: Column(
