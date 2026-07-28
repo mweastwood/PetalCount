@@ -1670,6 +1670,23 @@ class _CycleChartScreenState extends State<CycleChartScreen> {
 // 4. ADD OBSERVATION DIALOG
 // ==========================================
 
+enum WizardStep {
+  bleedingFlow('Bleeding'),
+  bleedingColor('Blood Color'),
+  sensation('Sensation'),
+  lubrication('Lubrication'),
+  mucus('Mucus'),
+  mucusStretch('Stretch'),
+  mucusColor('Mucus Color'),
+  mucusConsistency('Consistency'),
+  pain('Pain'),
+  painDetails('Pain Details'),
+  comments('Comments & Save');
+
+  final String title;
+  const WizardStep(this.title);
+}
+
 class AddObservationDialog extends StatefulWidget {
   final Cycle? cycle;
   final DateTime defaultDate;
@@ -1685,320 +1702,1278 @@ class AddObservationDialog extends StatefulWidget {
 }
 
 class _AddObservationDialogState extends State<AddObservationDialog> {
+  int _currentStepIndex = 0;
+
   late DateTime _selectedDate;
-  Bleeding _bleeding = Bleeding.none;
-  String _bleedingColor = '';
-  Sensation _sensation = Sensation.dry;
-  Stretch _stretch = Stretch.none;
-  final List<MucusColor> _colors = [];
-  final List<Consistency> _consistencies = [];
-  double _painLevel = 0.0;
+  late TimeOfDay _selectedTime;
+
+  // Bleeding (nullable so no option is pre-selected)
+  bool? _hasBleeding;
+  Bleeding? _bleedingFlow;
+  String? _bleedingColor;
+
+  // Sensation (nullable so no option is pre-selected)
+  Sensation? _sensation;
+  bool? _hasLubrication;
+
+  // Mucus Observation (nullable so no option is pre-selected)
+  bool? _hasMucus;
+  Stretch? _stretch;
+  String? _colorSelection; // 'cloudy', 'clear', 'cloudy_clear', 'yellow'
+  bool _isGummy = false;
+  bool _isPasty = false;
+  bool _hasSelectedConsistency = false;
+
+  // Pain (nullable so no option is pre-selected)
+  bool? _hasPain;
   final List<String> _painTypes = [];
+  bool _abdominalLeft = false;
+  bool _abdominalRight = false;
+  double _painLevel = 3.0;
+
+  List<String> get _formattedPainTypes {
+    final list = <String>[];
+    for (final p in _painTypes) {
+      if (p == 'Abdominal Pain') {
+        if (_abdominalLeft && _abdominalRight) {
+          list.add('Abdominal Pain (Left & Right)');
+        } else if (_abdominalLeft) {
+          list.add('Abdominal Pain (Left)');
+        } else if (_abdominalRight) {
+          list.add('Abdominal Pain (Right)');
+        } else {
+          list.add('Abdominal Pain');
+        }
+      } else {
+        list.add(p);
+      }
+    }
+    return list;
+  }
+
+  // Comments
   final _commentController = TextEditingController();
   bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedDate = widget.defaultDate;
+    _selectedDate = DateTime(
+      widget.defaultDate.year,
+      widget.defaultDate.month,
+      widget.defaultDate.day,
+    );
+    _selectedTime = TimeOfDay(
+      hour: widget.defaultDate.hour,
+      minute: widget.defaultDate.minute,
+    );
+  }
+
+  DateTime get _combinedDateTime {
+    return DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+  }
+
+  bool get _isHeavyOrModerateBleeding =>
+      _hasBleeding == true &&
+      (_bleedingFlow == Bleeding.heavy || _bleedingFlow == Bleeding.moderate);
+
+  List<WizardStep> get _activeSteps {
+    final steps = [WizardStep.bleedingFlow];
+    if (_hasBleeding == true) {
+      steps.add(WizardStep.bleedingColor);
+    }
+    if (!_isHeavyOrModerateBleeding) {
+      steps.add(WizardStep.sensation);
+      if (_sensation != null && _sensation != Sensation.dry) {
+        steps.add(WizardStep.lubrication);
+      }
+      steps.add(WizardStep.mucus);
+      if (_hasMucus == true) {
+        steps.add(WizardStep.mucusStretch);
+        steps.add(WizardStep.mucusColor);
+        steps.add(WizardStep.mucusConsistency);
+      }
+    }
+    steps.add(WizardStep.pain);
+    if (_hasPain == true) {
+      steps.add(WizardStep.painDetails);
+    }
+    steps.add(WizardStep.comments);
+    return steps;
+  }
+
+  WizardStep get _currentStep {
+    final active = _activeSteps;
+    if (_currentStepIndex >= active.length) {
+      return active.last;
+    }
+    return active[_currentStepIndex];
+  }
+
+  void _nextStep() {
+    final active = _activeSteps;
+    if (_currentStepIndex < active.length - 1) {
+      setState(() {
+        _currentStepIndex++;
+      });
+    }
+  }
+
+  void _prevStep() {
+    if (_currentStepIndex > 0) {
+      setState(() {
+        _currentStepIndex--;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text(
-        'Add Daily Log',
-        style: TextStyle(fontWeight: FontWeight.bold),
-      ),
-      scrollable: true,
-      content: SizedBox(
-        width: 400,
+    final theme = Theme.of(context);
+    final activeSteps = _activeSteps;
+    if (_currentStepIndex >= activeSteps.length) {
+      _currentStepIndex = activeSteps.length - 1;
+    }
+    final step = _currentStep;
+    final isLastStep = _currentStepIndex == activeSteps.length - 1;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        width: 500,
+        height: 540,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Date Selection
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text(
-                'Date of Observation',
-                style: TextStyle(fontWeight: FontWeight.bold),
+            // WIZARD HEADER WITH PERSISTENT DATE/TIME BAR & TOP-RIGHT CLOSE BUTTON
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 12, 12, 10),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.35,
+                ),
               ),
-              subtitle: Text(
-                DateFormat('EEEE, MMM dd, yyyy').format(_selectedDate),
-              ),
-              trailing: const Icon(Icons.edit_calendar),
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _selectedDate,
-                  firstDate:
-                      widget.cycle?.startDate ??
-                      DateTime.now().subtract(const Duration(days: 730)),
-                  lastDate: DateTime.now(),
-                );
-                if (picked != null) {
-                  setState(() {
-                    _selectedDate = picked;
-                  });
-                }
-              },
-            ),
-            const Divider(),
-
-            // 1. Bleeding Selection
-            const Text(
-              'Bleeding or Spotting',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: Bleeding.values.map((b) {
-                if (b == Bleeding.none) return const SizedBox();
-                final isSelected = _bleeding == b;
-                return ChoiceChip(
-                  label: Text(b.label),
-                  selected: isSelected,
-                  onSelected: (val) {
-                    setState(() {
-                      _bleeding = val ? b : Bleeding.none;
-                      if (_bleeding == Bleeding.none) {
-                        _bleedingColor = '';
-                      } else if (_bleedingColor.isEmpty) {
-                        _bleedingColor = 'R'; // Default to red
-                      }
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-            if (_bleeding != Bleeding.none) ...[
-              const SizedBox(height: 8),
-              Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Blood Color: '),
-                  ChoiceChip(
-                    label: const Text('Red'),
-                    selected: _bleedingColor == 'R',
-                    onSelected: (val) =>
-                        setState(() => _bleedingColor = val ? 'R' : ''),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.auto_awesome_rounded,
+                        color: theme.colorScheme.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Log Observation',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        'Step ${_currentStepIndex + 1} of ${activeSteps.length}',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        tooltip: 'Close',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  ChoiceChip(
-                    label: const Text('Brown/Black'),
-                    selected: _bleedingColor == 'B',
-                    onSelected: (val) =>
-                        setState(() => _bleedingColor = val ? 'B' : ''),
-                  ),
-                ],
-              ),
-            ],
-            const Divider(),
+                  const SizedBox(height: 6),
 
-            // 2. Sensation Selection
-            const Text(
-              'Sensation at Vulva',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<Sensation>(
-              initialValue: _sensation,
-              items: Sensation.values.map((s) {
-                return DropdownMenuItem(value: s, child: Text(s.label));
-              }).toList(),
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() {
-                    _sensation = val;
-                    // If lubricative, automatically check stretchy stretch & lubricative consistency
-                    if (_sensation == Sensation.shiny) {
-                      // default to no mucus, but shiny
-                    }
-                  });
-                }
-              },
-            ),
-            const Divider(),
-
-            // 3. Mucus Stretch (Show if user checks mucus presence or damp/wet/shiny sensation)
-            const Text(
-              'Mucus Stretch (Finger Test)',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<Stretch>(
-              initialValue: _stretch,
-              items: Stretch.values.map((s) {
-                return DropdownMenuItem(value: s, child: Text(s.label));
-              }).toList(),
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() {
-                    _stretch = val;
-                  });
-                }
-              },
-            ),
-            const Divider(),
-
-            // 4. Color & Consistency (Show only if stretch is not none)
-            if (_stretch != Stretch.none) ...[
-              const Text(
-                'Mucus Color',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Wrap(
-                spacing: 8,
-                children: MucusColor.values.map((c) {
-                  final isSelected = _colors.contains(c);
-                  return FilterChip(
-                    label: Text(c.label),
-                    selected: isSelected,
-                    onSelected: (val) {
-                      setState(() {
-                        if (val) {
-                          _colors.add(c);
-                        } else {
-                          _colors.remove(c);
-                        }
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Mucus Consistency/Texture',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Wrap(
-                spacing: 8,
-                children: Consistency.values.map((c) {
-                  final isSelected = _consistencies.contains(c);
-                  return FilterChip(
-                    label: Text(c.label),
-                    selected: isSelected,
-                    onSelected: (val) {
-                      setState(() {
-                        if (val) {
-                          _consistencies.add(c);
-                        } else {
-                          _consistencies.remove(c);
-                        }
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              const Divider(),
-            ],
-
-            // 5. Pain Tracker
-            const Text(
-              'Pain/Symptoms',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: ['Cramps', 'Ovulation Pain', 'Headache', 'Backache'].map((
-                p,
-              ) {
-                final isSelected = _painTypes.contains(p);
-                return FilterChip(
-                  label: Text(p),
-                  selected: isSelected,
-                  onSelected: (val) {
-                    setState(() {
-                      if (val) {
-                        _painTypes.add(p);
-                        if (_painLevel == 0) {
-                          _painLevel =
-                              3.0; // Give a default pain level if they checked a pain type
-                        }
-                      } else {
-                        _painTypes.remove(p);
-                        if (_painTypes.isEmpty) _painLevel = 0.0;
-                      }
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-            if (_painTypes.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Text('Pain Intensity: '),
-                  Expanded(
-                    child: Slider(
-                      value: _painLevel,
-                      min: 0.0,
-                      max: 10.0,
-                      divisions: 10,
-                      label: _painLevel.toInt().toString(),
-                      onChanged: (val) {
-                        setState(() => _painLevel = val);
-                      },
+                  // Persistent Date & Time Bar
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant.withValues(
+                          alpha: 0.6,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.event_note,
+                          size: 16,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            DateFormat(
+                              'EEE, MMM dd, yyyy • h:mm a',
+                            ).format(_combinedDateTime),
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: Icon(
+                            Icons.edit_calendar,
+                            size: 18,
+                            color: theme.colorScheme.primary,
+                          ),
+                          tooltip: 'Change Date',
+                          onPressed: () async {
+                            final pickedDate = await showDatePicker(
+                              context: context,
+                              initialDate: _selectedDate,
+                              firstDate:
+                                  widget.cycle?.startDate ??
+                                  DateTime.now().subtract(
+                                    const Duration(days: 730),
+                                  ),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 1),
+                              ),
+                            );
+                            if (pickedDate != null) {
+                              setState(() => _selectedDate = pickedDate);
+                            }
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: Icon(
+                            Icons.access_time,
+                            size: 18,
+                            color: theme.colorScheme.primary,
+                          ),
+                          tooltip: 'Change Time',
+                          onPressed: () async {
+                            final pickedTime = await showTimePicker(
+                              context: context,
+                              initialTime: _selectedTime,
+                            );
+                            if (pickedTime != null) {
+                              setState(() => _selectedTime = pickedTime);
+                            }
+                          },
+                        ),
+                      ],
                     ),
                   ),
-                  Text('${_painLevel.toInt()}/10'),
+                  const SizedBox(height: 10),
+
+                  // Linear Progress Bar
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: (_currentStepIndex + 1) / activeSteps.length,
+                      minHeight: 5,
+                    ),
+                  ),
                 ],
               ),
-            ],
-            const Divider(),
-
-            // 6. Comments
-            const Text(
-              'Comments/Notes',
-              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _commentController,
-              decoration: const InputDecoration(
-                hintText:
-                    'Enter notes about symptoms, intercourse, dry feel, etc.',
-                border: OutlineInputBorder(),
+
+            // STEP CONTENT AREA
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24.0,
+                  vertical: 16.0,
+                ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: KeyedSubtree(
+                    key: ValueKey<WizardStep>(step),
+                    child: _buildStepContent(context, step),
+                  ),
+                ),
               ),
-              maxLines: 2,
+            ),
+
+            // WIZARD FOOTER NAVIGATION
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(
+                    color: theme.colorScheme.outlineVariant.withValues(
+                      alpha: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  if (_currentStepIndex > 0)
+                    OutlinedButton.icon(
+                      onPressed: _prevStep,
+                      icon: const Icon(Icons.arrow_back, size: 18),
+                      label: const Text('Back'),
+                    ),
+                  const Spacer(),
+                  if (step == WizardStep.painDetails)
+                    FilledButton.icon(
+                      onPressed: _nextStep,
+                      iconAlignment: IconAlignment.end,
+                      icon: const Icon(Icons.arrow_forward, size: 18),
+                      label: const Text('Continue'),
+                    ),
+                  if (isLastStep)
+                    FilledButton.icon(
+                      onPressed: _isSaving ? null : _saveLog,
+                      icon: _isSaving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.check, size: 18),
+                      label: const Text('Save Log'),
+                    ),
+                ],
+              ),
             ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _isSaving ? null : _saveLog,
-          child: _isSaving
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Save Log'),
-        ),
-      ],
     );
+  }
+
+  Widget _buildOptionGrid({
+    required List<Widget> children,
+    double spacing = 10,
+    double targetMinItemWidth = 180.0,
+    List<int> fullWidthIndexes = const [],
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        int crossAxisCount = (availableWidth / (targetMinItemWidth + spacing))
+            .floor();
+        if (crossAxisCount < 1) crossAxisCount = 1;
+
+        final itemWidth =
+            (availableWidth - (spacing * (crossAxisCount - 1))) /
+            crossAxisCount;
+
+        final gridChildren = <Widget>[];
+        for (int i = 0; i < children.length; i++) {
+          final isFullWidth = fullWidthIndexes.contains(i);
+          final width = isFullWidth ? availableWidth : itemWidth;
+          gridChildren.add(SizedBox(width: width, child: children[i]));
+        }
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: gridChildren,
+        );
+      },
+    );
+  }
+
+  Widget _buildStepContent(BuildContext context, WizardStep step) {
+    final theme = Theme.of(context);
+
+    switch (step) {
+      case WizardStep.bleedingFlow:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Bleeding or Menstrual Flow',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'What bleeding or flow did you observe at this check?',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _buildOptionGrid(
+                fullWidthIndexes: const [0],
+                children: [
+                  _OptionCard(
+                    label: 'No Bleeding',
+                    icon: Icons.check_circle_outline,
+                    subtitle: 'No menstrual flow or spotting observed',
+                    isSelected: _hasBleeding == false,
+                    onTap: () {
+                      setState(() {
+                        _hasBleeding = false;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Spotting',
+                    icon: Icons.water_drop_outlined,
+                    subtitle: 'Very light spotting or trace bleeding',
+                    isSelected:
+                        _hasBleeding == true &&
+                        _bleedingFlow == Bleeding.spotting,
+                    onTap: () {
+                      setState(() {
+                        _hasBleeding = true;
+                        _bleedingFlow = Bleeding.spotting;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Light',
+                    icon: Icons.water_drop,
+                    subtitle: 'Light menstrual flow',
+                    isSelected:
+                        _hasBleeding == true && _bleedingFlow == Bleeding.light,
+                    onTap: () {
+                      setState(() {
+                        _hasBleeding = true;
+                        _bleedingFlow = Bleeding.light;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Moderate',
+                    icon: Icons.water_drop,
+                    subtitle: 'Moderate menstrual flow',
+                    isSelected:
+                        _hasBleeding == true &&
+                        _bleedingFlow == Bleeding.moderate,
+                    onTap: () {
+                      setState(() {
+                        _hasBleeding = true;
+                        _bleedingFlow = Bleeding.moderate;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Heavy',
+                    icon: Icons.opacity,
+                    subtitle: 'Heavy menstrual flow',
+                    isSelected:
+                        _hasBleeding == true && _bleedingFlow == Bleeding.heavy,
+                    onTap: () {
+                      setState(() {
+                        _hasBleeding = true;
+                        _bleedingFlow = Bleeding.heavy;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+      case WizardStep.bleedingColor:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'What color is the blood?',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Select the blood color observed during this check:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _buildOptionGrid(
+                fullWidthIndexes: const [0],
+                children: [
+                  _OptionCard(
+                    label: 'Red',
+                    icon: Icons.water_drop,
+                    subtitle: 'Bright red or normal blood',
+                    isSelected: _bleedingColor == 'R',
+                    onTap: () {
+                      setState(() => _bleedingColor = 'R');
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Brown',
+                    icon: Icons.water_drop_outlined,
+                    subtitle: 'Dark brown or oxidized blood',
+                    isSelected: _bleedingColor == 'B',
+                    onTap: () {
+                      setState(() => _bleedingColor = 'B');
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Black',
+                    icon: Icons.water_drop_sharp,
+                    subtitle: 'Very dark or black blood',
+                    isSelected: _bleedingColor == 'Black',
+                    onTap: () {
+                      setState(() => _bleedingColor = 'Black');
+                      _nextStep();
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+      case WizardStep.sensation:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Sensation at Vulva',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Select the sensation felt at the vulva during this check:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _buildOptionGrid(
+                children: [
+                  _OptionCard(
+                    label: 'Dry',
+                    icon: Icons.wb_sunny_outlined,
+                    subtitle: 'No moisture or sensation felt',
+                    isSelected: _sensation == Sensation.dry,
+                    onTap: () {
+                      setState(() {
+                        _sensation = Sensation.dry;
+                        _hasLubrication = false;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Damp',
+                    icon: Icons.water_drop_outlined,
+                    subtitle: 'Slight moisture felt',
+                    isSelected: _sensation == Sensation.damp,
+                    onTap: () {
+                      setState(() => _sensation = Sensation.damp);
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Wet',
+                    icon: Icons.opacity,
+                    subtitle: 'Noticeable wet sensation',
+                    isSelected: _sensation == Sensation.wet,
+                    onTap: () {
+                      setState(() => _sensation = Sensation.wet);
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Shiny',
+                    icon: Icons.auto_awesome,
+                    subtitle: 'Glistening or shiny appearance',
+                    isSelected: _sensation == Sensation.shiny,
+                    onTap: () {
+                      setState(() => _sensation = Sensation.shiny);
+                      _nextStep();
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+      case WizardStep.lubrication:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Lubricative Sensation',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Was there a smooth, slippery, or lubricative feel during this check?',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _buildOptionGrid(
+                children: [
+                  _OptionCard(
+                    label: 'No Lubrication',
+                    icon: Icons.block,
+                    subtitle: 'No lubricative or slippery feel',
+                    isSelected: _hasLubrication == false,
+                    onTap: () {
+                      setState(() => _hasLubrication = false);
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Yes Lubrication',
+                    icon: Icons.auto_awesome,
+                    subtitle: 'Smooth, slippery, or lubricative feel',
+                    isSelected: _hasLubrication == true,
+                    onTap: () {
+                      setState(() => _hasLubrication = true);
+                      _nextStep();
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+      case WizardStep.mucus:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Mucus Observation',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Was there any mucus present during this check?',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _buildOptionGrid(
+                children: [
+                  _OptionCard(
+                    label: 'No Mucus',
+                    icon: Icons.block,
+                    subtitle: 'No mucus observed on tissue/fingers',
+                    isSelected: _hasMucus == false,
+                    onTap: () {
+                      setState(() {
+                        _hasMucus = false;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Yes Mucus',
+                    icon: Icons.science_outlined,
+                    subtitle: 'Mucus observed during this check',
+                    isSelected: _hasMucus == true,
+                    onTap: () {
+                      setState(() {
+                        _hasMucus = true;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+      case WizardStep.mucusStretch:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Finger Test Stretch',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'How far does the mucus stretch between your fingers during this check?',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FractionallySizedBox(
+                    widthFactor: 0.5,
+                    child: _OptionCard(
+                      label: 'Sticky',
+                      icon: Icons.straighten,
+                      subtitle: '1/4" | 0.5 cm',
+                      isSelected: _stretch == Stretch.sticky,
+                      onTap: () {
+                        setState(() => _stretch = Stretch.sticky);
+                        _nextStep();
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  FractionallySizedBox(
+                    widthFactor: 0.75,
+                    child: _OptionCard(
+                      label: 'Tacky',
+                      icon: Icons.straighten,
+                      subtitle: '1/2 - 3/4" | 1.0 - 2.0 cm',
+                      isSelected: _stretch == Stretch.tacky,
+                      onTap: () {
+                        setState(() => _stretch = Stretch.tacky);
+                        _nextStep();
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  FractionallySizedBox(
+                    widthFactor: 1.0,
+                    child: _OptionCard(
+                      label: 'Stretchy',
+                      icon: Icons.straighten,
+                      subtitle: '1"+ | 2.5+ cm',
+                      isSelected: _stretch == Stretch.stretchy,
+                      onTap: () {
+                        setState(() => _stretch = Stretch.stretchy);
+                        _nextStep();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+      case WizardStep.mucusColor:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Mucus Color',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'What color was the mucus observed during this check?',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _buildOptionGrid(
+                children: [
+                  _OptionCard(
+                    label: 'Cloudy',
+                    icon: Icons.cloud_outlined,
+                    subtitle: 'Off-white or cloudy appearance',
+                    isSelected: _colorSelection == 'cloudy',
+                    onTap: () {
+                      setState(() => _colorSelection = 'cloudy');
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Clear',
+                    icon: Icons.water_drop_outlined,
+                    subtitle: 'Transparent or clear appearance',
+                    isSelected: _colorSelection == 'clear',
+                    onTap: () {
+                      setState(() => _colorSelection = 'clear');
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Cloudy / Clear',
+                    icon: Icons.bubble_chart_outlined,
+                    subtitle: 'Mix of cloudy and clear mucus',
+                    isSelected: _colorSelection == 'cloudy_clear',
+                    onTap: () {
+                      setState(() => _colorSelection = 'cloudy_clear');
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Yellow',
+                    icon: Icons.wb_sunny_outlined,
+                    subtitle: 'Yellowish tint observed',
+                    isSelected: _colorSelection == 'yellow',
+                    onTap: () {
+                      setState(() => _colorSelection = 'yellow');
+                      _nextStep();
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+      case WizardStep.mucusConsistency:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Mucus Consistency',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Select the consistency of the mucus observed during this check:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _buildOptionGrid(
+                fullWidthIndexes: const [0],
+                children: [
+                  _OptionCard(
+                    label: 'Neither',
+                    icon: Icons.check_circle_outline,
+                    subtitle: 'Neither gummy nor pasty (normal)',
+                    isSelected:
+                        !_isGummy && !_isPasty && _hasSelectedConsistency,
+                    onTap: () {
+                      setState(() {
+                        _isGummy = false;
+                        _isPasty = false;
+                        _hasSelectedConsistency = true;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Gummy (Gluey)',
+                    icon: Icons.bubble_chart_outlined,
+                    subtitle: 'Rubber-like or gluey texture',
+                    isSelected: _isGummy && !_isPasty,
+                    onTap: () {
+                      setState(() {
+                        _isGummy = true;
+                        _isPasty = false;
+                        _hasSelectedConsistency = true;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Pasty (Creamy)',
+                    icon: Icons.format_paint_outlined,
+                    subtitle: 'Creamy or pasty texture',
+                    isSelected: _isPasty && !_isGummy,
+                    onTap: () {
+                      setState(() {
+                        _isGummy = false;
+                        _isPasty = true;
+                        _hasSelectedConsistency = true;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+      case WizardStep.pain:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Pain or Symptoms',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Are you experiencing any physical pain or cramps right now?',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _buildOptionGrid(
+                children: [
+                  _OptionCard(
+                    label: 'No Pain',
+                    icon: Icons.sentiment_satisfied_alt,
+                    subtitle: 'No discomfort experienced',
+                    isSelected: _hasPain == false,
+                    onTap: () {
+                      setState(() {
+                        _hasPain = false;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Yes (Log Pain)',
+                    icon: Icons.healing,
+                    subtitle: 'Cramps, abdominal pain, etc.',
+                    isSelected: _hasPain == true,
+                    onTap: () {
+                      setState(() {
+                        _hasPain = true;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+      case WizardStep.painDetails:
+        final isAbdominalSelected = _painTypes.contains('Abdominal Pain');
+
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Pain Location & Severity',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Select pain location and severity rating:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Location / Type:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children:
+                    [
+                      'Cramps',
+                      'Abdominal Pain',
+                      'Backache',
+                      'Headache',
+                      'Pelvic Pain',
+                    ].map((p) {
+                      final isSelected = _painTypes.contains(p);
+                      return FilterChip(
+                        showCheckmark: false,
+                        label: Text(p),
+                        selected: isSelected,
+                        onSelected: (val) {
+                          setState(() {
+                            if (val) {
+                              _painTypes.add(p);
+                            } else {
+                              _painTypes.remove(p);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+              ),
+              if (isAbdominalSelected) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.4,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.5,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Abdominal Side (Optional):',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      FilterChip(
+                        showCheckmark: false,
+                        label: const Text('Left'),
+                        selected: _abdominalLeft,
+                        onSelected: (val) {
+                          setState(() => _abdominalLeft = val);
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      FilterChip(
+                        showCheckmark: false,
+                        label: const Text('Right'),
+                        selected: _abdominalRight,
+                        onSelected: (val) {
+                          setState(() => _abdominalRight = val);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Text(
+                    'Severity Rating:',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Expanded(
+                    child: Slider(
+                      value: _painLevel,
+                      min: 1.0,
+                      max: 10.0,
+                      divisions: 9,
+                      label: '${_painLevel.toInt()}/10',
+                      onChanged: (val) => setState(() => _painLevel = val),
+                    ),
+                  ),
+                  Text(
+                    '${_painLevel.toInt()}/10',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+      case WizardStep.comments:
+        final hasBleeding = _hasBleeding ?? false;
+        final flowLabel = _bleedingFlow != null
+            ? _bleedingFlow!.label
+            : 'Light';
+        final colorLabel = _bleedingColor ?? 'R';
+        final hasMucus = _hasMucus ?? false;
+        final hasPain = _hasPain ?? false;
+        final hasLubrication = _hasLubrication ?? false;
+
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Summary & Additional Notes',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Summary Badge Box
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.4,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.fact_check_outlined,
+                          size: 18,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Observation Summary:',
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Date: ${DateFormat('MMM dd, yyyy • h:mm a').format(_combinedDateTime)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    Text(
+                      'Bleeding: ${hasBleeding ? "$flowLabel ($colorLabel)" : "None"}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    if (!_isHeavyOrModerateBleeding) ...[
+                      Text(
+                        'Sensation: ${_sensation?.label ?? "Dry"}${hasLubrication ? " (Lubricative)" : ""}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      Text(
+                        'Mucus: ${hasMucus ? "${_stretch?.label ?? 'Sticky'}, ${_colorSelection ?? 'cloudy'}" : "None"}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                    Text(
+                      'Pain: ${hasPain ? "${_formattedPainTypes.isNotEmpty ? _formattedPainTypes.join(', ') : 'Logged'} (${_painLevel.toInt()}/10)" : "None"}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Comments / Notes (Optional):',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _commentController,
+                decoration: const InputDecoration(
+                  hintText: 'Add extra details or observations...',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+        );
+    }
   }
 
   Future<void> _saveLog() async {
     setState(() => _isSaving = true);
+
+    final bool hasBleeding = _hasBleeding ?? false;
+    // Compute bleeding enum
+    final Bleeding bleeding = hasBleeding
+        ? (_bleedingFlow ?? Bleeding.light)
+        : Bleeding.none;
+    final String bleedingColorStr = hasBleeding ? (_bleedingColor ?? 'R') : '';
+
+    // Compute sensation, stretch, colors, consistencies
+    Sensation sensation = Sensation.dry;
+    Stretch stretch = Stretch.none;
+    final List<MucusColor> colors = [];
+    final List<Consistency> consistencies = [];
+
+    if (!_isHeavyOrModerateBleeding) {
+      sensation = _sensation ?? Sensation.dry;
+
+      if ((_hasLubrication ?? false) && sensation != Sensation.dry) {
+        consistencies.add(Consistency.lubricative);
+      }
+
+      if (_hasMucus ?? false) {
+        stretch = _stretch ?? Stretch.sticky;
+
+        // Color mapping
+        if (_colorSelection == 'cloudy') {
+          colors.add(MucusColor.cloudy);
+        } else if (_colorSelection == 'clear') {
+          colors.add(MucusColor.clear);
+        } else if (_colorSelection == 'cloudy_clear') {
+          colors.add(MucusColor.cloudy);
+          colors.add(MucusColor.clear);
+        } else if (_colorSelection == 'yellow') {
+          colors.add(MucusColor.yellow);
+        }
+
+        // Consistency mapping
+        if (_isGummy) consistencies.add(Consistency.gummy);
+        if (_isPasty) consistencies.add(Consistency.pasty);
+      }
+    }
+
+    final bool hasPain = _hasPain ?? false;
+    final double painLevel = hasPain ? _painLevel : 0.0;
+    final List<String> painTypes = hasPain ? _formattedPainTypes : [];
+
     try {
       await Services.db.saveObservation(
         cycleId: widget.cycle?.id,
-        date: _selectedDate,
-        sensation: _sensation,
-        stretch: _stretch,
-        colors: _colors,
-        consistencies: _consistencies,
-        bleeding: _bleeding,
-        bleedingColor: _bleedingColor,
-        painLevel: _painLevel,
-        painTypes: _painTypes,
+        date: _combinedDateTime,
+        sensation: sensation,
+        stretch: stretch,
+        colors: colors,
+        consistencies: consistencies,
+        bleeding: bleeding,
+        bleedingColor: bleedingColorStr,
+        painLevel: painLevel,
+        painTypes: painTypes,
         comment: _commentController.text,
       );
       if (mounted) Navigator.of(context).pop();
@@ -2009,8 +2984,117 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         ).showSnackBar(SnackBar(content: Text('Error saving observation: $e')));
       }
     } finally {
-      setState(() => _isSaving = false);
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
+  }
+}
+
+class _OptionCard extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final String? subtitle;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _OptionCard({
+    required this.label,
+    this.icon,
+    this.subtitle,
+    this.isSelected = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Material(
+      color: isSelected
+          ? colorScheme.primaryContainer
+          : colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected
+                  ? colorScheme.primary
+                  : colorScheme.outlineVariant.withValues(alpha: 0.5),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  if (icon != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? colorScheme.primary
+                            : colorScheme.surface,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        icon,
+                        size: 18,
+                        color: isSelected
+                            ? colorScheme.onPrimary
+                            : colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isSelected
+                            ? colorScheme.onPrimaryContainer
+                            : colorScheme.onSurface,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (isSelected)
+                    Icon(
+                      Icons.check_circle_rounded,
+                      color: colorScheme.primary,
+                      size: 18,
+                    ),
+                ],
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitle!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: 11,
+                    color: isSelected
+                        ? colorScheme.onPrimaryContainer.withValues(alpha: 0.85)
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
