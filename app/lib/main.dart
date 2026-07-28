@@ -1793,7 +1793,6 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final activeSteps = _activeSteps;
-    // Clamp current step index
     if (_currentStepIndex >= activeSteps.length) {
       _currentStepIndex = activeSteps.length - 1;
     }
@@ -1802,53 +1801,54 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      clipBehavior: Clip.antiAlias,
       child: SizedBox(
         width: 500,
         height: 540,
         child: Column(
           children: [
-            // WIZARD HEADER WITH PERSISTENT DATE/TIME BAR
+            // WIZARD HEADER WITH PERSISTENT DATE/TIME BAR & TOP-RIGHT CLOSE BUTTON
             Container(
-              padding: const EdgeInsets.fromLTRB(20, 14, 16, 10),
+              padding: const EdgeInsets.fromLTRB(20, 12, 12, 10),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest.withValues(
                   alpha: 0.35,
-                ),
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(20),
                 ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.auto_awesome_rounded,
-                            color: theme.colorScheme.primary,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Log Observation',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                      Icon(
+                        Icons.auto_awesome_rounded,
+                        color: theme.colorScheme.primary,
+                        size: 20,
                       ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Log Observation',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
                       Text(
                         'Step ${_currentStepIndex + 1} of ${activeSteps.length}',
                         style: theme.textTheme.labelMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        tooltip: 'Close',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
 
                   // Persistent Date & Time Bar
                   Container(
@@ -1985,23 +1985,9 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       onPressed: _prevStep,
                       icon: const Icon(Icons.arrow_back, size: 18),
                       label: const Text('Back'),
-                    )
-                  else
-                    TextButton(
-                      onPressed: _isSaving
-                          ? null
-                          : () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
                     ),
                   const Spacer(),
-                  if (!isLastStep)
-                    FilledButton.icon(
-                      onPressed: _nextStep,
-                      iconAlignment: IconAlignment.end,
-                      icon: const Icon(Icons.arrow_forward, size: 18),
-                      label: const Text('Next'),
-                    )
-                  else
+                  if (isLastStep)
                     FilledButton.icon(
                       onPressed: _isSaving ? null : _saveLog,
                       icon: _isSaving
@@ -2040,29 +2026,35 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 12),
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment<bool>(
-                    value: false,
-                    label: Text('No Bleeding'),
-                    icon: Icon(Icons.check_circle_outline),
-                  ),
-                  ButtonSegment<bool>(
-                    value: true,
-                    label: Text('Yes (Bleeding / Spotting)'),
-                    icon: Icon(Icons.water_drop_outlined),
-                  ),
-                ],
-                selected: {_hasBleeding},
-                onSelectionChanged: (val) {
-                  setState(() => _hasBleeding = val.first);
+              const SizedBox(height: 14),
+              _OptionCard(
+                label: 'No Bleeding',
+                icon: Icons.check_circle_outline,
+                subtitle: 'No menstrual flow or spotting observed',
+                isSelected: !_hasBleeding,
+                onTap: () {
+                  setState(() {
+                    _hasBleeding = false;
+                  });
+                  _nextStep();
+                },
+              ),
+              const SizedBox(height: 10),
+              _OptionCard(
+                label: 'Yes (Bleeding or Spotting)',
+                icon: Icons.water_drop_outlined,
+                subtitle: 'Menstrual flow, light bleeding, or spotting',
+                isSelected: _hasBleeding,
+                onTap: () {
+                  setState(() {
+                    _hasBleeding = true;
+                  });
                 },
               ),
               if (_hasBleeding) ...[
                 const SizedBox(height: 20),
                 Text(
-                  'Flow Amount:',
+                  'Select Flow Amount:',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -2076,7 +2068,10 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       label: const Text('Heavy'),
                       selected: _bleedingFlow == Bleeding.heavy,
                       onSelected: (val) {
-                        if (val) setState(() => _bleedingFlow = Bleeding.heavy);
+                        if (val) {
+                          setState(() => _bleedingFlow = Bleeding.heavy);
+                          _nextStep();
+                        }
                       },
                     ),
                     ChoiceChip(
@@ -2085,6 +2080,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       onSelected: (val) {
                         if (val) {
                           setState(() => _bleedingFlow = Bleeding.moderate);
+                          _nextStep();
                         }
                       },
                     ),
@@ -2092,7 +2088,10 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       label: const Text('Light'),
                       selected: _bleedingFlow == Bleeding.light,
                       onSelected: (val) {
-                        if (val) setState(() => _bleedingFlow = Bleeding.light);
+                        if (val) {
+                          setState(() => _bleedingFlow = Bleeding.light);
+                          _nextStep();
+                        }
                       },
                     ),
                     ChoiceChip(
@@ -2103,12 +2102,13 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       onSelected: (val) {
                         if (val) {
                           setState(() => _bleedingFlow = Bleeding.veryLight);
+                          _nextStep();
                         }
                       },
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 Text(
                   'Blood Color:',
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -2142,34 +2142,6 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     ),
                   ],
                 ),
-                if (_isHeavyOrModerateBleeding) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12.0),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withValues(
-                        alpha: 0.25,
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          color: theme.colorScheme.primary,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'Heavy/Moderate bleeding skips sensation and mucus questions.',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
               ],
             ],
           ),
@@ -2188,83 +2160,72 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Select the primary sensation felt throughout the day:',
+                'Select your primary sensation felt throughout the day:',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ChoiceChip(
-                    avatar: const Icon(Icons.wb_sunny_outlined, size: 16),
-                    label: const Text('Dry'),
-                    selected: _sensation == Sensation.dry,
-                    onSelected: (val) {
-                      if (val) {
-                        setState(() {
-                          _sensation = Sensation.dry;
-                          _hasLubrication = false;
-                        });
-                      }
-                    },
-                  ),
-                  ChoiceChip(
-                    avatar: const Icon(Icons.water_drop_outlined, size: 16),
-                    label: const Text('Damp'),
-                    selected: _sensation == Sensation.damp,
-                    onSelected: (val) {
-                      if (val) setState(() => _sensation = Sensation.damp);
-                    },
-                  ),
-                  ChoiceChip(
-                    avatar: const Icon(Icons.opacity, size: 16),
-                    label: const Text('Wet'),
-                    selected: _sensation == Sensation.wet,
-                    onSelected: (val) {
-                      if (val) setState(() => _sensation = Sensation.wet);
-                    },
-                  ),
-                  ChoiceChip(
-                    avatar: const Icon(Icons.auto_awesome, size: 16),
-                    label: const Text('Shiny'),
-                    selected: _sensation == Sensation.shiny,
-                    onSelected: (val) {
-                      if (val) setState(() => _sensation = Sensation.shiny);
-                    },
-                  ),
-                ],
+              const SizedBox(height: 14),
+              _OptionCard(
+                label: 'Dry',
+                icon: Icons.wb_sunny_outlined,
+                subtitle: 'No moisture or sensation felt',
+                isSelected: _sensation == Sensation.dry,
+                onTap: () {
+                  setState(() {
+                    _sensation = Sensation.dry;
+                    _hasLubrication = false;
+                  });
+                  _nextStep();
+                },
+              ),
+              const SizedBox(height: 8),
+              _OptionCard(
+                label: 'Damp',
+                icon: Icons.water_drop_outlined,
+                subtitle: 'Slight moisture felt',
+                isSelected: _sensation == Sensation.damp,
+                onTap: () {
+                  setState(() => _sensation = Sensation.damp);
+                },
+              ),
+              const SizedBox(height: 8),
+              _OptionCard(
+                label: 'Wet',
+                icon: Icons.opacity,
+                subtitle: 'Noticeable wet sensation',
+                isSelected: _sensation == Sensation.wet,
+                onTap: () {
+                  setState(() => _sensation = Sensation.wet);
+                },
+              ),
+              const SizedBox(height: 8),
+              _OptionCard(
+                label: 'Shiny',
+                icon: Icons.auto_awesome,
+                subtitle: 'Glistening or shiny appearance',
+                isSelected: _sensation == Sensation.shiny,
+                onTap: () {
+                  setState(() => _sensation = Sensation.shiny);
+                },
               ),
               if (_sensation != Sensation.dry) ...[
-                const SizedBox(height: 24),
+                const SizedBox(height: 14),
                 Card(
                   elevation: 0,
                   color: theme.colorScheme.surfaceContainerHighest.withValues(
                     alpha: 0.5,
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(14.0),
+                    padding: const EdgeInsets.all(12.0),
                     child: Row(
                       children: [
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Lubrication',
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'Was there a smooth, slippery or lubricative feel?',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            'Was there a lubricative (slippery) feel?',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                         Switch(
@@ -2275,6 +2236,16 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                         ),
                       ],
                     ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: _nextStep,
+                    iconAlignment: IconAlignment.end,
+                    icon: const Icon(Icons.arrow_forward, size: 18),
+                    label: const Text('Continue'),
                   ),
                 ),
               ],
@@ -2300,23 +2271,29 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 12),
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment<bool>(
-                    value: false,
-                    label: Text('No Mucus'),
-                    icon: Icon(Icons.block),
-                  ),
-                  ButtonSegment<bool>(
-                    value: true,
-                    label: Text('Yes (Mucus Present)'),
-                    icon: Icon(Icons.science_outlined),
-                  ),
-                ],
-                selected: {_hasMucus},
-                onSelectionChanged: (val) {
-                  setState(() => _hasMucus = val.first);
+              const SizedBox(height: 14),
+              _OptionCard(
+                label: 'No Mucus',
+                icon: Icons.block,
+                subtitle: 'No mucus observed on tissue or fingers',
+                isSelected: !_hasMucus,
+                onTap: () {
+                  setState(() {
+                    _hasMucus = false;
+                  });
+                  _nextStep();
+                },
+              ),
+              const SizedBox(height: 10),
+              _OptionCard(
+                label: 'Yes (Mucus Present)',
+                icon: Icons.science_outlined,
+                subtitle: 'Mucus observed during checks',
+                isSelected: _hasMucus,
+                onTap: () {
+                  setState(() {
+                    _hasMucus = true;
+                  });
                 },
               ),
               if (_hasMucus) ...[
@@ -2355,7 +2332,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 Text(
                   'Color:',
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -2399,7 +2376,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 Text(
                   'Consistency:',
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -2421,6 +2398,16 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       onSelected: (val) => setState(() => _isPasty = val),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: _nextStep,
+                    iconAlignment: IconAlignment.end,
+                    icon: const Icon(Icons.arrow_forward, size: 18),
+                    label: const Text('Continue'),
+                  ),
                 ),
               ],
             ],
@@ -2445,27 +2432,33 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 12),
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment<bool>(
-                    value: false,
-                    label: Text('No Pain'),
-                    icon: Icon(Icons.sentiment_satisfied_alt),
-                  ),
-                  ButtonSegment<bool>(
-                    value: true,
-                    label: Text('Yes (Log Pain)'),
-                    icon: Icon(Icons.healing),
-                  ),
-                ],
-                selected: {_hasPain},
-                onSelectionChanged: (val) {
-                  setState(() => _hasPain = val.first);
+              const SizedBox(height: 14),
+              _OptionCard(
+                label: 'No Pain',
+                icon: Icons.sentiment_satisfied_alt,
+                subtitle: 'No pain or discomfort experienced',
+                isSelected: !_hasPain,
+                onTap: () {
+                  setState(() {
+                    _hasPain = false;
+                  });
+                  _nextStep();
+                },
+              ),
+              const SizedBox(height: 10),
+              _OptionCard(
+                label: 'Yes (Log Pain)',
+                icon: Icons.healing,
+                subtitle: 'Cramps, ovulation pain, backache, etc.',
+                isSelected: _hasPain,
+                onTap: () {
+                  setState(() {
+                    _hasPain = true;
+                  });
                 },
               ),
               if (_hasPain) ...[
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 Text(
                   'Location / Type:',
                   style: theme.textTheme.bodyMedium?.copyWith(
@@ -2500,7 +2493,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                         );
                       }).toList(),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 Row(
                   children: [
                     Text(
@@ -2527,6 +2520,16 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: _nextStep,
+                    iconAlignment: IconAlignment.end,
+                    icon: const Icon(Icons.arrow_forward, size: 18),
+                    label: const Text('Continue'),
+                  ),
                 ),
               ],
             ],
@@ -2691,6 +2694,110 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         setState(() => _isSaving = false);
       }
     }
+  }
+}
+
+class _OptionCard extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final String? subtitle;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _OptionCard({
+    required this.label,
+    this.icon,
+    this.subtitle,
+    this.isSelected = false,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Material(
+      color: isSelected
+          ? colorScheme.primaryContainer
+          : colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected
+                  ? colorScheme.primary
+                  : colorScheme.outlineVariant.withValues(alpha: 0.5),
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              if (icon != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? colorScheme.primary
+                        : colorScheme.surface,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: isSelected
+                        ? colorScheme.onPrimary
+                        : colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 14),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isSelected
+                            ? colorScheme.onPrimaryContainer
+                            : colorScheme.onSurface,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: isSelected
+                              ? colorScheme.onPrimaryContainer.withValues(
+                                  alpha: 0.8,
+                                )
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (isSelected)
+                Icon(
+                  Icons.check_circle_rounded,
+                  color: colorScheme.primary,
+                  size: 20,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
