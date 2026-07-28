@@ -2182,6 +2182,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
               ),
               const SizedBox(height: 14),
               _buildOptionGrid(
+                fullWidthIndexes: const [0],
                 children: [
                   _OptionCard(
                     label: 'Red',
@@ -2406,37 +2407,49 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                 ),
               ),
               const SizedBox(height: 14),
-              _buildOptionGrid(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _OptionCard(
-                    label: 'Sticky',
-                    icon: Icons.straighten,
-                    subtitle: '1/4 inch | 0.5 cm',
-                    isSelected: _stretch == Stretch.sticky,
-                    onTap: () {
-                      setState(() => _stretch = Stretch.sticky);
-                      _nextStep();
-                    },
+                  FractionallySizedBox(
+                    widthFactor: 0.5,
+                    child: _OptionCard(
+                      label: 'Sticky',
+                      icon: Icons.straighten,
+                      subtitle: '1/4" | 0.5 cm',
+                      isSelected: _stretch == Stretch.sticky,
+                      onTap: () {
+                        setState(() => _stretch = Stretch.sticky);
+                        _nextStep();
+                      },
+                    ),
                   ),
-                  _OptionCard(
-                    label: 'Tacky',
-                    icon: Icons.straighten,
-                    subtitle: '1/2 - 3/4 inch | 1.0 - 2.0 cm',
-                    isSelected: _stretch == Stretch.tacky,
-                    onTap: () {
-                      setState(() => _stretch = Stretch.tacky);
-                      _nextStep();
-                    },
+                  const SizedBox(height: 10),
+                  FractionallySizedBox(
+                    widthFactor: 0.75,
+                    child: _OptionCard(
+                      label: 'Tacky',
+                      icon: Icons.straighten,
+                      subtitle: '1/2 - 3/4" | 1.0 - 2.0 cm',
+                      isSelected: _stretch == Stretch.tacky,
+                      onTap: () {
+                        setState(() => _stretch = Stretch.tacky);
+                        _nextStep();
+                      },
+                    ),
                   ),
-                  _OptionCard(
-                    label: 'Stretchy',
-                    icon: Icons.straighten,
-                    subtitle: '1+ inch | 2.5+ cm',
-                    isSelected: _stretch == Stretch.stretchy,
-                    onTap: () {
-                      setState(() => _stretch = Stretch.stretchy);
-                      _nextStep();
-                    },
+                  const SizedBox(height: 10),
+                  FractionallySizedBox(
+                    widthFactor: 1.0,
+                    child: _OptionCard(
+                      label: 'Stretchy',
+                      icon: Icons.straighten,
+                      subtitle: '1"+ | 2.5+ cm',
+                      isSelected: _stretch == Stretch.stretchy,
+                      onTap: () {
+                        setState(() => _stretch = Stretch.stretchy);
+                        _nextStep();
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -2531,7 +2544,23 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
               ),
               const SizedBox(height: 14),
               _buildOptionGrid(
+                fullWidthIndexes: const [0],
                 children: [
+                  _OptionCard(
+                    label: 'Neither',
+                    icon: Icons.check_circle_outline,
+                    subtitle: 'Neither gummy nor pasty (normal)',
+                    isSelected:
+                        !_isGummy && !_isPasty && _hasSelectedConsistency,
+                    onTap: () {
+                      setState(() {
+                        _isGummy = false;
+                        _isPasty = false;
+                        _hasSelectedConsistency = true;
+                      });
+                      _nextStep();
+                    },
+                  ),
                   _OptionCard(
                     label: 'Gummy (Gluey)',
                     icon: Icons.bubble_chart_outlined,
@@ -2555,35 +2584,6 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       setState(() {
                         _isGummy = false;
                         _isPasty = true;
-                        _hasSelectedConsistency = true;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Gummy & Pasty',
-                    icon: Icons.layers_outlined,
-                    subtitle: 'Combination of gummy and pasty',
-                    isSelected: _isGummy && _isPasty,
-                    onTap: () {
-                      setState(() {
-                        _isGummy = true;
-                        _isPasty = true;
-                        _hasSelectedConsistency = true;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Neither',
-                    icon: Icons.check_circle_outline,
-                    subtitle: 'Neither gummy nor pasty',
-                    isSelected:
-                        !_isGummy && !_isPasty && _hasSelectedConsistency,
-                    onTap: () {
-                      setState(() {
-                        _isGummy = false;
-                        _isPasty = false;
                         _hasSelectedConsistency = true;
                       });
                       _nextStep();
