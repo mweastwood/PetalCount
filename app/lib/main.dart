@@ -1671,7 +1671,8 @@ class _CycleChartScreenState extends State<CycleChartScreen> {
 // ==========================================
 
 enum WizardStep {
-  bleeding('Bleeding'),
+  bleedingFlow('Bleeding'),
+  bleedingColor('Blood Color'),
   sensation('Sensation'),
   mucus('Mucus'),
   pain('Pain'),
@@ -1754,7 +1755,10 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
       (_bleedingFlow == Bleeding.heavy || _bleedingFlow == Bleeding.moderate);
 
   List<WizardStep> get _activeSteps {
-    final steps = [WizardStep.bleeding];
+    final steps = [WizardStep.bleedingFlow];
+    if (_hasBleeding) {
+      steps.add(WizardStep.bleedingColor);
+    }
     if (!_isHeavyOrModerateBleeding) {
       steps.add(WizardStep.sensation);
       steps.add(WizardStep.mucus);
@@ -2015,18 +2019,25 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
     final theme = Theme.of(context);
 
     switch (step) {
-      case WizardStep.bleeding:
+      case WizardStep.bleedingFlow:
         return SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Was there any bleeding today?',
+                'Bleeding or Menstrual Flow',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 6),
+              Text(
+                'Select your flow level today:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
               _OptionCard(
                 label: 'No Bleeding',
                 icon: Icons.check_circle_outline,
@@ -2039,110 +2050,117 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                   _nextStep();
                 },
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               _OptionCard(
-                label: 'Yes (Bleeding or Spotting)',
+                label: 'Spotting',
                 icon: Icons.water_drop_outlined,
-                subtitle: 'Menstrual flow, light bleeding, or spotting',
-                isSelected: _hasBleeding,
+                subtitle: 'Very light spotting or trace bleeding',
+                isSelected: _hasBleeding && _bleedingFlow == Bleeding.spotting,
                 onTap: () {
                   setState(() {
                     _hasBleeding = true;
+                    _bleedingFlow = Bleeding.spotting;
                   });
+                  _nextStep();
                 },
               ),
-              if (_hasBleeding) ...[
-                const SizedBox(height: 20),
-                Text(
-                  'Select Flow Amount:',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              const SizedBox(height: 8),
+              _OptionCard(
+                label: 'Light',
+                icon: Icons.water_drop,
+                subtitle: 'Light menstrual flow',
+                isSelected: _hasBleeding && _bleedingFlow == Bleeding.light,
+                onTap: () {
+                  setState(() {
+                    _hasBleeding = true;
+                    _bleedingFlow = Bleeding.light;
+                  });
+                  _nextStep();
+                },
+              ),
+              const SizedBox(height: 8),
+              _OptionCard(
+                label: 'Moderate',
+                icon: Icons.water_drop,
+                subtitle: 'Moderate menstrual flow',
+                isSelected: _hasBleeding && _bleedingFlow == Bleeding.moderate,
+                onTap: () {
+                  setState(() {
+                    _hasBleeding = true;
+                    _bleedingFlow = Bleeding.moderate;
+                  });
+                  _nextStep();
+                },
+              ),
+              const SizedBox(height: 8),
+              _OptionCard(
+                label: 'Heavy',
+                icon: Icons.opacity,
+                subtitle: 'Heavy menstrual flow',
+                isSelected: _hasBleeding && _bleedingFlow == Bleeding.heavy,
+                onTap: () {
+                  setState(() {
+                    _hasBleeding = true;
+                    _bleedingFlow = Bleeding.heavy;
+                  });
+                  _nextStep();
+                },
+              ),
+            ],
+          ),
+        );
+
+      case WizardStep.bleedingColor:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'What color is the blood?',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('Heavy'),
-                      selected: _bleedingFlow == Bleeding.heavy,
-                      onSelected: (val) {
-                        if (val) {
-                          setState(() => _bleedingFlow = Bleeding.heavy);
-                          _nextStep();
-                        }
-                      },
-                    ),
-                    ChoiceChip(
-                      label: const Text('Moderate'),
-                      selected: _bleedingFlow == Bleeding.moderate,
-                      onSelected: (val) {
-                        if (val) {
-                          setState(() => _bleedingFlow = Bleeding.moderate);
-                          _nextStep();
-                        }
-                      },
-                    ),
-                    ChoiceChip(
-                      label: const Text('Light'),
-                      selected: _bleedingFlow == Bleeding.light,
-                      onSelected: (val) {
-                        if (val) {
-                          setState(() => _bleedingFlow = Bleeding.light);
-                          _nextStep();
-                        }
-                      },
-                    ),
-                    ChoiceChip(
-                      label: const Text('Very Light (Spotting)'),
-                      selected:
-                          _bleedingFlow == Bleeding.veryLight ||
-                          _bleedingFlow == Bleeding.spotting,
-                      onSelected: (val) {
-                        if (val) {
-                          setState(() => _bleedingFlow = Bleeding.veryLight);
-                          _nextStep();
-                        }
-                      },
-                    ),
-                  ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Select the blood color observed during flow:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
-                const SizedBox(height: 14),
-                Text(
-                  'Blood Color:',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('Red (default)'),
-                      selected: _bleedingColor == 'R',
-                      onSelected: (val) {
-                        if (val) setState(() => _bleedingColor = 'R');
-                      },
-                    ),
-                    ChoiceChip(
-                      label: const Text('Brown'),
-                      selected: _bleedingColor == 'B',
-                      onSelected: (val) {
-                        if (val) setState(() => _bleedingColor = 'B');
-                      },
-                    ),
-                    ChoiceChip(
-                      label: const Text('Black'),
-                      selected: _bleedingColor == 'Black',
-                      onSelected: (val) {
-                        if (val) setState(() => _bleedingColor = 'Black');
-                      },
-                    ),
-                  ],
-                ),
-              ],
+              ),
+              const SizedBox(height: 14),
+              _OptionCard(
+                label: 'Red (default)',
+                icon: Icons.water_drop,
+                subtitle: 'Bright red or normal menstrual blood',
+                isSelected: _bleedingColor == 'R',
+                onTap: () {
+                  setState(() => _bleedingColor = 'R');
+                  _nextStep();
+                },
+              ),
+              const SizedBox(height: 10),
+              _OptionCard(
+                label: 'Brown',
+                icon: Icons.water_drop_outlined,
+                subtitle: 'Dark brown or oxidized blood',
+                isSelected: _bleedingColor == 'B',
+                onTap: () {
+                  setState(() => _bleedingColor = 'B');
+                  _nextStep();
+                },
+              ),
+              const SizedBox(height: 10),
+              _OptionCard(
+                label: 'Black',
+                icon: Icons.water_drop_sharp,
+                subtitle: 'Very dark or black blood',
+                isSelected: _bleedingColor == 'Black',
+                onTap: () {
+                  setState(() => _bleedingColor = 'Black');
+                  _nextStep();
+                },
+              ),
             ],
           ),
         );
