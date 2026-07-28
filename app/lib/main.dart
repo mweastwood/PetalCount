@@ -1703,25 +1703,25 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
   late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
 
-  // Bleeding
-  bool _hasBleeding = false;
-  Bleeding _bleedingFlow = Bleeding.light;
-  String _bleedingColor = 'R'; // 'R' (Red), 'B' (Brown), 'Black'
+  // Bleeding (nullable so no option is pre-selected)
+  bool? _hasBleeding;
+  Bleeding? _bleedingFlow;
+  String? _bleedingColor;
 
-  // Sensation
-  Sensation _sensation = Sensation.dry;
-  bool _hasLubrication = false;
+  // Sensation (nullable so no option is pre-selected)
+  Sensation? _sensation;
+  bool? _hasLubrication;
 
-  // Mucus Observation
-  bool _hasMucus = false;
+  // Mucus Observation (nullable so no option is pre-selected)
+  bool? _hasMucus;
   Stretch _stretch = Stretch.sticky;
   String _colorSelection =
       'cloudy'; // 'cloudy', 'clear', 'cloudy_clear', 'yellow'
   bool _isGummy = false;
   bool _isPasty = false;
 
-  // Pain
-  bool _hasPain = false;
+  // Pain (nullable so no option is pre-selected)
+  bool? _hasPain;
   final List<String> _painTypes = [];
   double _painLevel = 3.0;
 
@@ -1752,17 +1752,17 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
   }
 
   bool get _isHeavyOrModerateBleeding =>
-      _hasBleeding &&
+      _hasBleeding == true &&
       (_bleedingFlow == Bleeding.heavy || _bleedingFlow == Bleeding.moderate);
 
   List<WizardStep> get _activeSteps {
     final steps = [WizardStep.bleedingFlow];
-    if (_hasBleeding) {
+    if (_hasBleeding == true) {
       steps.add(WizardStep.bleedingColor);
     }
     if (!_isHeavyOrModerateBleeding) {
       steps.add(WizardStep.sensation);
-      if (_sensation != Sensation.dry) {
+      if (_sensation != null && _sensation != Sensation.dry) {
         steps.add(WizardStep.lubrication);
       }
       steps.add(WizardStep.mucus);
@@ -2076,7 +2076,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     label: 'No Bleeding',
                     icon: Icons.check_circle_outline,
                     subtitle: 'No menstrual flow or spotting observed',
-                    isSelected: !_hasBleeding,
+                    isSelected: _hasBleeding == false,
                     onTap: () {
                       setState(() {
                         _hasBleeding = false;
@@ -2089,7 +2089,8 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     icon: Icons.water_drop_outlined,
                     subtitle: 'Very light spotting or trace bleeding',
                     isSelected:
-                        _hasBleeding && _bleedingFlow == Bleeding.spotting,
+                        _hasBleeding == true &&
+                        _bleedingFlow == Bleeding.spotting,
                     onTap: () {
                       setState(() {
                         _hasBleeding = true;
@@ -2102,7 +2103,8 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     label: 'Light',
                     icon: Icons.water_drop,
                     subtitle: 'Light menstrual flow',
-                    isSelected: _hasBleeding && _bleedingFlow == Bleeding.light,
+                    isSelected:
+                        _hasBleeding == true && _bleedingFlow == Bleeding.light,
                     onTap: () {
                       setState(() {
                         _hasBleeding = true;
@@ -2116,7 +2118,8 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     icon: Icons.water_drop,
                     subtitle: 'Moderate menstrual flow',
                     isSelected:
-                        _hasBleeding && _bleedingFlow == Bleeding.moderate,
+                        _hasBleeding == true &&
+                        _bleedingFlow == Bleeding.moderate,
                     onTap: () {
                       setState(() {
                         _hasBleeding = true;
@@ -2129,7 +2132,8 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     label: 'Heavy',
                     icon: Icons.opacity,
                     subtitle: 'Heavy menstrual flow',
-                    isSelected: _hasBleeding && _bleedingFlow == Bleeding.heavy,
+                    isSelected:
+                        _hasBleeding == true && _bleedingFlow == Bleeding.heavy,
                     onTap: () {
                       setState(() {
                         _hasBleeding = true;
@@ -2296,17 +2300,17 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     label: 'No Lubrication',
                     icon: Icons.block,
                     subtitle: 'No lubricative or slippery feel',
-                    isSelected: !_hasLubrication,
+                    isSelected: _hasLubrication == false,
                     onTap: () {
                       setState(() => _hasLubrication = false);
                       _nextStep();
                     },
                   ),
                   _OptionCard(
-                    label: 'Yes (Lubricative Feel)',
+                    label: 'Yes Lubrication',
                     icon: Icons.auto_awesome,
                     subtitle: 'Smooth, slippery, or lubricative feel',
-                    isSelected: _hasLubrication,
+                    isSelected: _hasLubrication == true,
                     onTap: () {
                       setState(() => _hasLubrication = true);
                       _nextStep();
@@ -2343,7 +2347,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     label: 'No Mucus',
                     icon: Icons.block,
                     subtitle: 'No mucus observed on tissue/fingers',
-                    isSelected: !_hasMucus,
+                    isSelected: _hasMucus == false,
                     onTap: () {
                       setState(() {
                         _hasMucus = false;
@@ -2355,7 +2359,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     label: 'Yes (Mucus)',
                     icon: Icons.science_outlined,
                     subtitle: 'Mucus observed during this check',
-                    isSelected: _hasMucus,
+                    isSelected: _hasMucus == true,
                     onTap: () {
                       setState(() {
                         _hasMucus = true;
@@ -2364,7 +2368,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                   ),
                 ],
               ),
-              if (_hasMucus) ...[
+              if (_hasMucus == true) ...[
                 const SizedBox(height: 16),
                 Text(
                   'Finger Test Stretch:',
@@ -2507,7 +2511,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     label: 'No Pain',
                     icon: Icons.sentiment_satisfied_alt,
                     subtitle: 'No discomfort experienced',
-                    isSelected: !_hasPain,
+                    isSelected: _hasPain == false,
                     onTap: () {
                       setState(() {
                         _hasPain = false;
@@ -2519,7 +2523,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     label: 'Yes (Log Pain)',
                     icon: Icons.healing,
                     subtitle: 'Cramps, backache, etc.',
-                    isSelected: _hasPain,
+                    isSelected: _hasPain == true,
                     onTap: () {
                       setState(() {
                         _hasPain = true;
@@ -2528,7 +2532,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                   ),
                 ],
               ),
-              if (_hasPain) ...[
+              if (_hasPain == true) ...[
                 const SizedBox(height: 16),
                 Text(
                   'Location / Type:',
@@ -2608,6 +2612,15 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         );
 
       case WizardStep.comments:
+        final hasBleeding = _hasBleeding ?? false;
+        final flowLabel = _bleedingFlow != null
+            ? _bleedingFlow!.label
+            : 'Light';
+        final colorLabel = _bleedingColor ?? 'R';
+        final hasMucus = _hasMucus ?? false;
+        final hasPain = _hasPain ?? false;
+        final hasLubrication = _hasLubrication ?? false;
+
         return SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2653,21 +2666,21 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       style: const TextStyle(fontSize: 12),
                     ),
                     Text(
-                      'Bleeding: ${_hasBleeding ? "${_bleedingFlow.label} ($_bleedingColor)" : "None"}',
+                      'Bleeding: ${hasBleeding ? "$flowLabel ($colorLabel)" : "None"}',
                       style: const TextStyle(fontSize: 12),
                     ),
                     if (!_isHeavyOrModerateBleeding) ...[
                       Text(
-                        'Sensation: ${_sensation.label}${_hasLubrication ? " (Lubricative)" : ""}',
+                        'Sensation: ${_sensation?.label ?? "Dry"}${hasLubrication ? " (Lubricative)" : ""}',
                         style: const TextStyle(fontSize: 12),
                       ),
                       Text(
-                        'Mucus: ${_hasMucus ? "${_stretch.label}, $_colorSelection" : "None"}',
+                        'Mucus: ${hasMucus ? "${_stretch.label}, $_colorSelection" : "None"}',
                         style: const TextStyle(fontSize: 12),
                       ),
                     ],
                     Text(
-                      'Pain: ${_hasPain ? "${_painTypes.join(', ')} (${_painLevel.toInt()}/10)" : "None"}',
+                      'Pain: ${hasPain ? "${_painTypes.isNotEmpty ? _painTypes.join(', ') : 'Logged'} (${_painLevel.toInt()}/10)" : "None"}',
                       style: const TextStyle(fontSize: 12),
                     ),
                   ],
@@ -2698,9 +2711,12 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
   Future<void> _saveLog() async {
     setState(() => _isSaving = true);
 
+    final bool hasBleeding = _hasBleeding ?? false;
     // Compute bleeding enum
-    final Bleeding bleeding = _hasBleeding ? _bleedingFlow : Bleeding.none;
-    final String bleedingColorStr = _hasBleeding ? _bleedingColor : '';
+    final Bleeding bleeding = hasBleeding
+        ? (_bleedingFlow ?? Bleeding.light)
+        : Bleeding.none;
+    final String bleedingColorStr = hasBleeding ? (_bleedingColor ?? 'R') : '';
 
     // Compute sensation, stretch, colors, consistencies
     Sensation sensation = Sensation.dry;
@@ -2709,13 +2725,13 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
     final List<Consistency> consistencies = [];
 
     if (!_isHeavyOrModerateBleeding) {
-      sensation = _sensation;
+      sensation = _sensation ?? Sensation.dry;
 
-      if (_hasLubrication && sensation != Sensation.dry) {
+      if ((_hasLubrication ?? false) && sensation != Sensation.dry) {
         consistencies.add(Consistency.lubricative);
       }
 
-      if (_hasMucus) {
+      if (_hasMucus ?? false) {
         stretch = _stretch;
 
         // Color mapping
@@ -2736,8 +2752,9 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
       }
     }
 
-    final double painLevel = _hasPain ? _painLevel : 0.0;
-    final List<String> painTypes = _hasPain ? _painTypes : [];
+    final bool hasPain = _hasPain ?? false;
+    final double painLevel = hasPain ? _painLevel : 0.0;
+    final List<String> painTypes = hasPain ? _painTypes : [];
 
     try {
       await Services.db.saveObservation(
