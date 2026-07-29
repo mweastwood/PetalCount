@@ -2,6 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../logic/logic.dart';
 
+enum ObservationCategory {
+  full('Log Single Observation'),
+  mucus('Log Mucus Observation'),
+  bleeding('Log Bleeding'),
+  intercourse('Log Intercourse'),
+  pain('Log Pain');
+
+  final String dialogTitle;
+  const ObservationCategory(this.dialogTitle);
+}
+
 enum WizardStep {
   bleedingFlow('Bleeding'),
   bleedingColor('Blood Color'),
@@ -11,6 +22,7 @@ enum WizardStep {
   mucusStretch('Stretch'),
   mucusColor('Mucus Color'),
   mucusConsistency('Consistency'),
+  intercourse('Intercourse'),
   pain('Pain'),
   painDetails('Pain Details'),
   comments('Comments & Save');
@@ -22,11 +34,13 @@ enum WizardStep {
 class AddObservationDialog extends StatefulWidget {
   final Cycle? cycle;
   final DateTime defaultDate;
+  final ObservationCategory category;
 
   const AddObservationDialog({
     super.key,
     this.cycle,
     required this.defaultDate,
+    this.category = ObservationCategory.full,
   });
 
   @override
@@ -83,6 +97,9 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
     return list;
   }
 
+  // Intercourse (nullable so no option is pre-selected)
+  bool? _hasIntercourse;
+
   // Comments
   final _commentController = TextEditingController();
   bool _isSaving = false;
@@ -99,6 +116,14 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
       hour: widget.defaultDate.hour,
       minute: widget.defaultDate.minute,
     );
+
+    if (widget.category == ObservationCategory.intercourse) {
+      _hasIntercourse = true;
+    } else if (widget.category == ObservationCategory.bleeding) {
+      _hasBleeding = true;
+    } else if (widget.category == ObservationCategory.pain) {
+      _hasPain = true;
+    }
   }
 
   DateTime get _combinedDateTime {
@@ -116,6 +141,38 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
       (_bleedingFlow == Bleeding.heavy || _bleedingFlow == Bleeding.moderate);
 
   List<WizardStep> get _activeSteps {
+    if (widget.category == ObservationCategory.bleeding) {
+      final steps = [WizardStep.bleedingFlow];
+      if (_hasBleeding == true) {
+        steps.add(WizardStep.bleedingColor);
+      }
+      steps.add(WizardStep.comments);
+      return steps;
+    }
+
+    if (widget.category == ObservationCategory.mucus) {
+      final steps = <WizardStep>[WizardStep.sensation];
+      if (_sensation != null && _sensation != Sensation.dry) {
+        steps.add(WizardStep.lubrication);
+      }
+      steps.add(WizardStep.mucus);
+      if (_hasMucus == true) {
+        steps.add(WizardStep.mucusStretch);
+        steps.add(WizardStep.mucusColor);
+        steps.add(WizardStep.mucusConsistency);
+      }
+      steps.add(WizardStep.comments);
+      return steps;
+    }
+
+    if (widget.category == ObservationCategory.intercourse) {
+      return [WizardStep.comments];
+    }
+
+    if (widget.category == ObservationCategory.pain) {
+      return [WizardStep.painDetails, WizardStep.comments];
+    }
+
     final steps = [WizardStep.bleedingFlow];
     if (_hasBleeding == true) {
       steps.add(WizardStep.bleedingColor);
@@ -214,7 +271,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Log Single Observation',
+                    widget.category.dialogTitle,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
@@ -338,6 +395,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       step != WizardStep.mucusStretch &&
                       step != WizardStep.mucusColor &&
                       step != WizardStep.mucusConsistency &&
+                      step != WizardStep.intercourse &&
                       step != WizardStep.pain &&
                       step != WizardStep.painDetails)
                     TextButton(
@@ -438,41 +496,48 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
 
     switch (step) {
       case WizardStep.bleedingFlow:
+        final showNoBleeding = widget.category != ObservationCategory.bleeding;
+
         return SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Are you experiencing bleeding at this point in time?',
+                showNoBleeding
+                    ? 'Are you experiencing bleeding at this point in time?'
+                    : 'Select Bleeding Flow Level',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
-                'Select "No Bleeding" or choose the bleeding flow level observed right now:',
+                showNoBleeding
+                    ? 'Select "No Bleeding" or choose the bleeding flow level observed right now:'
+                    : 'Choose the bleeding flow level observed right now:',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 14),
               _buildOptionGrid(
-                fullWidthIndexes: const [0],
+                fullWidthIndexes: showNoBleeding ? const [0] : null,
                 children: [
-                  _OptionCard(
-                    label: 'No Bleeding',
-                    icon: Icons.block,
-                    subtitle: 'No bleeding present',
-                    isSelected: _hasBleeding == false,
-                    onTap: () {
-                      setState(() {
-                        _hasBleeding = false;
-                        _bleedingFlow = Bleeding.none;
-                        _bleedingColor = null;
-                      });
-                      _nextStep();
-                    },
-                  ),
+                  if (showNoBleeding)
+                    _OptionCard(
+                      label: 'No Bleeding',
+                      icon: Icons.block,
+                      subtitle: 'No bleeding present',
+                      isSelected: _hasBleeding == false,
+                      onTap: () {
+                        setState(() {
+                          _hasBleeding = false;
+                          _bleedingFlow = Bleeding.none;
+                          _bleedingColor = null;
+                        });
+                        _nextStep();
+                      },
+                    ),
                   _OptionCard(
                     label: 'Heavy (H)',
                     icon: Icons.water_drop,
@@ -869,20 +934,21 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 'Select the observed color of the mucus:',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               _buildOptionGrid(
+                childAspectRatio: 2.1,
                 children: [
                   _OptionCard(
-                    label: 'Cloudy / Off-White (C)',
+                    label: 'Cloudy (C)',
                     icon: Icons.cloud_outlined,
-                    subtitle: 'Opaque or cloudy appearance',
+                    subtitle: 'Opaque / off-white',
                     isSelected: _colorSelection == 'cloudy',
                     onTap: () {
                       setState(() {
@@ -894,7 +960,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                   _OptionCard(
                     label: 'Clear (K)',
                     icon: Icons.water_drop_outlined,
-                    subtitle: 'Transparent, egg-white appearance',
+                    subtitle: 'Transparent egg-white',
                     isSelected: _colorSelection == 'clear',
                     onTap: () {
                       setState(() {
@@ -904,9 +970,9 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                     },
                   ),
                   _OptionCard(
-                    label: 'Cloudy / Clear (C/K)',
+                    label: 'Cloudy/Clear (C/K)',
                     icon: Icons.wb_cloudy_outlined,
-                    subtitle: 'Mix of clear and cloudy parts',
+                    subtitle: 'Mix of clear & cloudy',
                     isSelected: _colorSelection == 'cloudy_clear',
                     onTap: () {
                       setState(() {
@@ -918,11 +984,35 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                   _OptionCard(
                     label: 'Yellow (Y)',
                     icon: Icons.circle_outlined,
-                    subtitle: 'Yellowish tinge observed',
+                    subtitle: 'Yellowish tinge',
                     isSelected: _colorSelection == 'yellow',
                     onTap: () {
                       setState(() {
                         _colorSelection = 'yellow';
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Red (R)',
+                    icon: Icons.water_drop,
+                    subtitle: 'Red-tinged / bleeding',
+                    isSelected: _colorSelection == 'red',
+                    onTap: () {
+                      setState(() {
+                        _colorSelection = 'red';
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'Black/Brown (B)',
+                    icon: Icons.circle,
+                    subtitle: 'Brown or blackish',
+                    isSelected: _colorSelection == 'brown',
+                    onTap: () {
+                      setState(() {
+                        _colorSelection = 'brown';
                       });
                       _nextStep();
                     },
@@ -994,6 +1084,57 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                         _isGummy = false;
                         _isPasty = true;
                         _hasSelectedConsistency = true;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+
+      case WizardStep.intercourse:
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Log Intercourse / Intimacy',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Record whether intercourse occurred at this observation time:',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _buildOptionGrid(
+                children: [
+                  _OptionCard(
+                    label: 'Intercourse (I)',
+                    icon: Icons.favorite,
+                    subtitle: 'Intercourse occurred',
+                    isSelected: _hasIntercourse == true,
+                    onTap: () {
+                      setState(() {
+                        _hasIntercourse = true;
+                      });
+                      _nextStep();
+                    },
+                  ),
+                  _OptionCard(
+                    label: 'No Intercourse',
+                    icon: Icons.do_not_disturb_alt,
+                    subtitle: 'No intercourse recorded',
+                    isSelected: _hasIntercourse == false,
+                    onTap: () {
+                      setState(() {
+                        _hasIntercourse = false;
                       });
                       _nextStep();
                     },
@@ -1192,6 +1333,20 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         );
 
       case WizardStep.comments:
+        final cat = widget.category;
+        final showBleeding =
+            cat == ObservationCategory.full ||
+            cat == ObservationCategory.bleeding;
+        final showMucus =
+            (cat == ObservationCategory.full ||
+                cat == ObservationCategory.mucus) &&
+            !_isHeavyOrModerateBleeding;
+        final showPain =
+            cat == ObservationCategory.full || cat == ObservationCategory.pain;
+        final showIntercourse =
+            cat == ObservationCategory.full ||
+            cat == ObservationCategory.intercourse;
+
         final hasBleeding = _hasBleeding ?? false;
         final flowLabel = _bleedingFlow != null
             ? _bleedingFlow!.label
@@ -1245,11 +1400,12 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       'Date: ${DateFormat('MMM dd, yyyy • h:mm a').format(_combinedDateTime)}',
                       style: const TextStyle(fontSize: 12),
                     ),
-                    Text(
-                      'Bleeding: ${hasBleeding ? "$flowLabel ($colorLabel)" : "None"}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    if (!_isHeavyOrModerateBleeding) ...[
+                    if (showBleeding)
+                      Text(
+                        'Bleeding: ${hasBleeding ? "$flowLabel ($colorLabel)" : "None"}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    if (showMucus) ...[
                       Text(
                         'Sensation: ${_sensation?.label ?? "Dry"}${hasLubrication ? " (Lubricative)" : ""}',
                         style: const TextStyle(fontSize: 12),
@@ -1259,10 +1415,16 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                         style: const TextStyle(fontSize: 12),
                       ),
                     ],
-                    Text(
-                      'Pain: ${hasPain ? "${_formattedPainTypes.isNotEmpty ? _formattedPainTypes.join(', ') : 'Logged'} (${_painLevel.toInt()}/10)" : "None"}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
+                    if (showPain)
+                      Text(
+                        'Pain: ${hasPain ? "${_formattedPainTypes.isNotEmpty ? _formattedPainTypes.join(', ') : 'Logged'} (${_painLevel.toInt()}/10)" : "None"}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    if (showIntercourse && _hasIntercourse != null)
+                      Text(
+                        'Intercourse: ${_hasIntercourse == true ? "Yes (I)" : "No"}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
                   ],
                 ),
               ),
@@ -1324,6 +1486,10 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
           colors.add(MucusColor.clear);
         } else if (_colorSelection == 'yellow') {
           colors.add(MucusColor.yellow);
+        } else if (_colorSelection == 'red') {
+          colors.add(MucusColor.red);
+        } else if (_colorSelection == 'brown') {
+          colors.add(MucusColor.brown);
         }
 
         // Consistency mapping
@@ -1335,6 +1501,15 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
     final bool hasPain = _hasPain ?? false;
     final double painLevel = hasPain ? _painLevel : 0.0;
     final List<String> painTypes = hasPain ? _formattedPainTypes : [];
+
+    String commentText = _commentController.text.trim();
+    if (_hasIntercourse == true) {
+      if (commentText.isEmpty) {
+        commentText = 'Intercourse (I)';
+      } else if (!commentText.contains('Intercourse')) {
+        commentText = 'Intercourse (I) • $commentText';
+      }
+    }
 
     try {
       await Services.db.saveObservation(
@@ -1348,7 +1523,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         bleedingColor: bleedingColorStr,
         painLevel: painLevel,
         painTypes: painTypes,
-        comment: _commentController.text,
+        comment: commentText,
       );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
@@ -1394,7 +1569,7 @@ class _OptionCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
@@ -1412,7 +1587,7 @@ class _OptionCard extends StatelessWidget {
                 children: [
                   if (icon != null) ...[
                     Container(
-                      padding: const EdgeInsets.all(6),
+                      padding: const EdgeInsets.all(5),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? colorScheme.primary
@@ -1421,19 +1596,20 @@ class _OptionCard extends StatelessWidget {
                       ),
                       child: Icon(
                         icon,
-                        size: 18,
+                        size: 16,
                         color: isSelected
                             ? colorScheme.onPrimary
                             : colorScheme.primary,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                   ],
                   Expanded(
                     child: Text(
                       label,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.bold,
+                        fontSize: 13,
                         color: isSelected
                             ? colorScheme.onPrimaryContainer
                             : colorScheme.onSurface,
@@ -1446,12 +1622,12 @@ class _OptionCard extends StatelessWidget {
                     Icon(
                       Icons.check_circle_rounded,
                       color: colorScheme.primary,
-                      size: 18,
+                      size: 16,
                     ),
                 ],
               ),
               if (subtitle != null) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   subtitle!,
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -1460,7 +1636,7 @@ class _OptionCard extends StatelessWidget {
                         ? colorScheme.onPrimaryContainer.withValues(alpha: 0.85)
                         : colorScheme.onSurfaceVariant,
                   ),
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],

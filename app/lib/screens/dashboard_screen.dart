@@ -34,6 +34,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   late final Stream<List<Cycle>> _cyclesStream;
   ViewMode _viewMode = ViewMode.timeline;
+  bool _isSpeedDialOpen = false;
 
   @override
   void initState() {
@@ -41,12 +42,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _cyclesStream = Services.db.streamCycles();
   }
 
-  void _showAddObservationDialog(BuildContext context, Cycle? cycle) {
+  void _toggleSpeedDial() {
+    setState(() {
+      _isSpeedDialOpen = !_isSpeedDialOpen;
+    });
+  }
+
+  void _closeSpeedDial() {
+    if (_isSpeedDialOpen) {
+      setState(() {
+        _isSpeedDialOpen = false;
+      });
+    }
+  }
+
+  void _showAddObservationDialogCategory(
+    BuildContext context,
+    Cycle? cycle,
+    ObservationCategory category,
+  ) {
+    _closeSpeedDial();
     showDialog(
       context: context,
-      builder: (context) =>
-          AddObservationDialog(cycle: cycle, defaultDate: DateTime.now()),
+      builder: (context) => AddObservationDialog(
+        cycle: cycle,
+        defaultDate: DateTime.now(),
+        category: category,
+      ),
     );
+  }
+
+  void _showAddObservationDialog(BuildContext context, Cycle? cycle) {
+    _showAddObservationDialogCategory(context, cycle, ObservationCategory.full);
   }
 
   void _showAddObservationDialogForDate(
@@ -773,11 +800,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
-          body: cycles.isEmpty
-              ? _buildNoCyclesView(context)
-              : (_viewMode == ViewMode.timeline
-                    ? _buildVerticalTimelineView(context, cycles)
-                    : _buildCreightonGridView(context, cycles)),
+          body: GestureDetector(
+            onTap: _isSpeedDialOpen ? _closeSpeedDial : null,
+            behavior: HitTestBehavior.opaque,
+            child: cycles.isEmpty
+                ? _buildNoCyclesView(context)
+                : (_viewMode == ViewMode.timeline
+                      ? _buildVerticalTimelineView(context, cycles)
+                      : _buildCreightonGridView(context, cycles)),
+          ),
           bottomNavigationBar: cycles.isEmpty
               ? null
               : NavigationBar(
@@ -800,16 +831,119 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ],
                 ),
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () => _showAddObservationDialog(
-              context,
-              cycles.isNotEmpty ? cycles.first : null,
-            ),
-            icon: const Icon(Icons.add),
-            label: const Text('Log Observation'),
+          floatingActionButton: _buildSpeedDialFab(
+            context,
+            cycles.isNotEmpty ? cycles.first : null,
           ),
         );
       },
+    );
+  }
+
+  Widget _buildSpeedDialFab(BuildContext context, Cycle? activeCycle) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (_isSpeedDialOpen) ...[
+          _buildSpeedDialOption(
+            context: context,
+            label: 'Log intercourse',
+            icon: Icons.favorite,
+            color: Colors.pink.shade400,
+            onTap: () => _showAddObservationDialogCategory(
+              context,
+              activeCycle,
+              ObservationCategory.intercourse,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSpeedDialOption(
+            context: context,
+            label: 'Log pain',
+            icon: Icons.healing,
+            color: Colors.orange.shade700,
+            onTap: () => _showAddObservationDialogCategory(
+              context,
+              activeCycle,
+              ObservationCategory.pain,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSpeedDialOption(
+            context: context,
+            label: 'Log bleeding',
+            icon: Icons.water_drop,
+            color: Colors.red.shade600,
+            onTap: () => _showAddObservationDialogCategory(
+              context,
+              activeCycle,
+              ObservationCategory.bleeding,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildSpeedDialOption(
+            context: context,
+            label: 'Log mucus',
+            icon: Icons.bubble_chart,
+            color: Colors.teal.shade600,
+            onTap: () => _showAddObservationDialogCategory(
+              context,
+              activeCycle,
+              ObservationCategory.mucus,
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+        FloatingActionButton(
+          key: const Key('fab_log_observation_toggle'),
+          tooltip: 'Log Observation',
+          onPressed: _toggleSpeedDial,
+          child: Icon(_isSpeedDialOpen ? Icons.close : Icons.add),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSpeedDialOption({
+    required BuildContext context,
+    required String label,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Material(
+          elevation: 4,
+          borderRadius: BorderRadius.circular(20),
+          color: theme.colorScheme.surfaceContainerHigh,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Text(
+                label,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        FloatingActionButton.small(
+          heroTag: label,
+          onPressed: onTap,
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          child: Icon(icon, size: 20),
+        ),
+      ],
     );
   }
 }

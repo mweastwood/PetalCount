@@ -30,8 +30,16 @@ void main() {
     // Verify that the Creighton grid shows the cycle entry
     expect(find.textContaining('Cycle starting'), findsOneWidget);
 
-    // Verify standard Log Observation button is present
-    expect(find.text('Log Observation'), findsOneWidget);
+    // Verify standard Log Observation speed dial toggle button (+) is present
+    expect(find.byIcon(Icons.add), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+
+    // Verify speed dial reveals the 4 options: Log mucus, Log bleeding, Log intercourse, Log pain
+    expect(find.text('Log mucus'), findsOneWidget);
+    expect(find.text('Log bleeding'), findsOneWidget);
+    expect(find.text('Log intercourse'), findsOneWidget);
+    expect(find.text('Log pain'), findsOneWidget);
 
     // Find the settings button and tap it
     final settingsBtn = find.byIcon(Icons.settings);
