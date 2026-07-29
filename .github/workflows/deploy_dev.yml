@@ -42,6 +42,20 @@ jobs:
         with:
           node-version: 20
 
+      - name: Configure Firebase with FlutterFire CLI
+        env:
+          FIREBASE_SERVICE_ACCOUNT_DEV: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_DEV }}
+        run: |
+          dart pub global activate flutterfire_cli
+          echo "$FIREBASE_SERVICE_ACCOUNT_DEV" > service-account.json
+          $HOME/.pub-cache/bin/flutterfire configure \
+            --project=petal-count-dev \
+            --service-account=service-account.json \
+            --out=lib/firebase_options_dev.dart \
+            --platforms=web,android,ios \
+            --yes
+          rm -f service-account.json
+
       - name: Deploy Firestore Rules
         continue-on-error: true
         env:
