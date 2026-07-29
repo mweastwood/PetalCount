@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:petal_count/models/observation.dart';
-import 'package:petal_count/services/database_service.dart';
+import 'package:petal_count/logic/logic.dart';
 
 void main() {
   late InMemoryDatabaseService db;

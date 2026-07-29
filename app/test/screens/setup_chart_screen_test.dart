@@ -3,8 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/main.dart';
-import 'package:petal_count/services/database_service.dart';
-import 'package:petal_count/services/services.dart';
+import 'package:petal_count/logic/logic.dart';
 
 class TestDatabaseService extends InMemoryDatabaseService {
   bool shouldFailCreateChart = false;
@@ -64,10 +63,10 @@ void main() {
 
     // Verify we are on ChartSelectionScreen
     expect(find.text('Select Chart'), findsOneWidget);
-    expect(find.text('Create New Shared Chart'), findsOneWidget);
+    expect(find.text('Create New Chart'), findsOneWidget);
 
-    // Tap "Create New Shared Chart"
-    await tester.tap(find.text('Create New Shared Chart'));
+    // Tap "Create New Chart"
+    await tester.tap(find.text('Create New Chart'));
 
     // Pump frames to handle the microtasks and transition
     await tester.pumpAndSettle();
@@ -86,8 +85,8 @@ void main() {
       testDb.emitUser(testDb.testUser);
       await tester.pumpAndSettle();
 
-      // Tap "Create New Shared Chart"
-      await tester.tap(find.text('Create New Shared Chart'));
+      // Tap "Create New Chart"
+      await tester.tap(find.text('Create New Chart'));
 
       // Let the loading state render
       await tester.pump();
@@ -105,7 +104,7 @@ void main() {
       expect(find.text('Select Chart'), findsOneWidget);
 
       // Verify loader is gone and button is visible again
-      expect(find.text('Create New Shared Chart'), findsOneWidget);
+      expect(find.text('Create New Chart'), findsOneWidget);
       expect(find.byType(CircularProgressIndicator), findsNothing);
 
       // Verify SnackBar with error message is displayed

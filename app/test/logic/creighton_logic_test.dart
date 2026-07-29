@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:petal_count/models/observation.dart';
-import 'package:petal_count/models/daily_entry.dart';
-import 'package:petal_count/services/creighton_logic.dart';
+import 'package:petal_count/logic/logic.dart';
 
 void main() {
   group('Creighton VDRS Code Generation', () {
