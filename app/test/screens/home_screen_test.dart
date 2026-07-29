@@ -21,6 +21,22 @@ void main() {
     await screenMatchesGolden(tester, 'dashboard_vertical_timeline_view');
   });
 
+  testGoldens('Dashboard renders Speed Dial expanded view correctly', (
+    tester,
+  ) async {
+    await tester.pumpWidgetBuilder(
+      const PetalCountApp(),
+      surfaceSize: const Size(400, 800),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap + FAB to expand speed dial options
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+
+    await screenMatchesGolden(tester, 'dashboard_speed_dial_open');
+  });
+
   testGoldens('Dashboard renders Creighton Grid view in Portrait correctly', (
     tester,
   ) async {

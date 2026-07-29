@@ -409,5 +409,139 @@ void main() {
         await tester.pumpAndSettle();
       },
     );
+
+    testWidgets('Category Mucus wizard flow only asks mucus questions', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AddObservationDialog(
+              defaultDate: DateTime(2026, 7, 27, 10, 30),
+              category: ObservationCategory.mucus,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Log Mucus Observation'), findsOneWidget);
+      expect(find.text('Sensation at Vulva'), findsOneWidget);
+
+      // Select Dry -> advances to Mucus Observation
+      await tester.tap(find.text('Dry'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mucus Observation'), findsOneWidget);
+
+      // Select No Mucus -> advances to Comments & Save
+      await tester.tap(find.text('No Mucus'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Summary & Additional Notes'), findsOneWidget);
+    });
+
+    testGoldens(
+      'Category Bleeding wizard flow skips No Bleeding option golden',
+      (tester) async {
+        await tester.pumpWidgetBuilder(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: AddObservationDialog(
+                  defaultDate: DateTime(2026, 7, 27, 10, 30),
+                  category: ObservationCategory.bleeding,
+                ),
+              ),
+            ),
+          ),
+          surfaceSize: const Size(600, 700),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Log Bleeding'), findsOneWidget);
+        expect(find.text('Select Bleeding Flow Level'), findsOneWidget);
+        expect(find.text('No Bleeding'), findsNothing);
+        await screenMatchesGolden(tester, 'wizard_category_bleeding_flow');
+
+        // Select Moderate (M) -> advances to Blood Color
+        await tester.tap(find.text('Moderate (M)'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Blood Color'), findsOneWidget);
+
+        // Select Red (R) -> advances to Comments & Save
+        await tester.tap(find.text('Red (R)'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Summary & Additional Notes'), findsOneWidget);
+        expect(find.textContaining('Moderate (R)'), findsOneWidget);
+      },
+    );
+
+    testGoldens(
+      'Category Intercourse wizard flow skips initial question and opens summary directly golden',
+      (tester) async {
+        await tester.pumpWidgetBuilder(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: AddObservationDialog(
+                  defaultDate: DateTime(2026, 7, 27, 10, 30),
+                  category: ObservationCategory.intercourse,
+                ),
+              ),
+            ),
+          ),
+          surfaceSize: const Size(600, 700),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Log Intercourse'), findsOneWidget);
+        expect(find.text('Summary & Additional Notes'), findsOneWidget);
+        expect(find.textContaining('Intercourse: Yes (I)'), findsOneWidget);
+        await screenMatchesGolden(
+          tester,
+          'wizard_category_intercourse_summary',
+        );
+
+        // Save
+        await tester.tap(find.text('Save Observation'));
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testGoldens(
+      'Category Pain wizard flow skips initial question and opens pain location directly golden',
+      (tester) async {
+        await tester.pumpWidgetBuilder(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: AddObservationDialog(
+                  defaultDate: DateTime(2026, 7, 27, 10, 30),
+                  category: ObservationCategory.pain,
+                ),
+              ),
+            ),
+          ),
+          surfaceSize: const Size(600, 700),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Log Pain'), findsOneWidget);
+        expect(find.text('Pain Location & Severity'), findsOneWidget);
+        await screenMatchesGolden(tester, 'wizard_category_pain_details');
+
+        // Select Cramps and tap Continue
+        await tester.tap(find.text('Cramps'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Continue'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Summary & Additional Notes'), findsOneWidget);
+        expect(find.textContaining('Cramps'), findsOneWidget);
+      },
+    );
   });
 }
