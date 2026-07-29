@@ -29,17 +29,17 @@
       "android": {
         "dev": {
           "projectId": "petal-count-dev",
-          "appId": "1:000000000000:android:0000000000000000000000",
+          "appId": "1:688587508865:android:f0b9e98405b0cc4a075180",
           "fileOutput": "android/app/src/dev/google-services.json"
         },
         "prod": {
           "projectId": "petal-count-prod",
-          "appId": "1:000000000000:android:0000000000000000000000",
+          "appId": "1:847947122489:android:144d8867e4c14281ef0ae8",
           "fileOutput": "android/app/src/prod/google-services.json"
         },
         "default": {
           "projectId": "petal-count-prod",
-          "appId": "1:000000000000:android:0000000000000000000000",
+          "appId": "1:847947122489:android:144d8867e4c14281ef0ae8",
           "fileOutput": "android/app/google-services.json"
         },
         "buildConfigurations": {
