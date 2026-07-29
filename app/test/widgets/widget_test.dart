@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/main.dart';
-import 'package:petal_count/services/services.dart';
+import 'package:petal_count/logic/logic.dart';
 
 void main() {
   setUp(() async {

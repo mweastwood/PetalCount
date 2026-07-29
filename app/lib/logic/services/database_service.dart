@@ -3,10 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import '../main.dart';
+import '../app_config.dart';
 import '../models/cycle.dart';
-import '../models/observation.dart';
 import '../models/daily_entry.dart';
+import '../models/observation.dart';
 import 'creighton_logic.dart';
 
 abstract class DatabaseService {

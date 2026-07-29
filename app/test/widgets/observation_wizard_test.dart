@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:golden_toolkit/golden_toolkit.dart';
-import 'package:petal_count/main.dart';
-import 'package:petal_count/services/services.dart';
+import 'package:petal_count/logic/logic.dart';
+import 'package:petal_count/widgets/widgets.dart';
 
 void main() {
   setUpAll(() async {
@@ -30,7 +30,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Bleeding or Menstrual Flow'), findsOneWidget);
+      expect(
+        find.text('Are you experiencing bleeding at this point in time?'),
+        findsOneWidget,
+      );
       await screenMatchesGolden(tester, 'wizard_step_1_bleeding_flow');
     });
 
@@ -41,11 +44,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Tap Spotting to trigger blood color step
-      await tester.tap(find.text('Spotting'));
+      // Tap Light (L) to trigger blood color step
+      await tester.tap(find.text('Light (L)'));
       await tester.pumpAndSettle();
 
-      expect(find.text('What color is the blood?'), findsOneWidget);
+      expect(find.text('Blood Color'), findsOneWidget);
       await screenMatchesGolden(tester, 'wizard_step_2_bleeding_color');
     });
 
@@ -138,7 +141,7 @@ void main() {
       await tester.tap(find.text('Yes Mucus'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Stretchy'));
+      await tester.tap(find.text('Stretchy (10)'));
       await tester.pumpAndSettle();
 
       expect(find.text('Mucus Color'), findsOneWidget);
@@ -161,10 +164,10 @@ void main() {
       await tester.tap(find.text('Yes Mucus'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Stretchy'));
+      await tester.tap(find.text('Stretchy (10)'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Clear'));
+      await tester.tap(find.text('Clear (K)'));
       await tester.pumpAndSettle();
 
       expect(find.text('Mucus Consistency'), findsOneWidget);
@@ -247,7 +250,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Summary & Additional Notes'), findsOneWidget);
-      expect(find.text('Save Log'), findsOneWidget);
+      expect(find.text('Save Observation'), findsOneWidget);
       await screenMatchesGolden(tester, 'wizard_step_11_comments_summary');
     });
   });
@@ -263,13 +266,13 @@ void main() {
       await tester.pumpAndSettle();
 
       // Select Heavy bleeding
-      await tester.tap(find.text('Heavy'));
+      await tester.tap(find.text('Heavy (H)'));
       await tester.pumpAndSettle();
 
       // Should skip sensation/lubrication/mucus and land directly on blood color
-      expect(find.text('What color is the blood?'), findsOneWidget);
+      expect(find.text('Blood Color'), findsOneWidget);
 
-      await tester.tap(find.text('Red'));
+      await tester.tap(find.text('Red (R)'));
       await tester.pumpAndSettle();
 
       // Should skip sensation/mucus and land on Pain
@@ -334,7 +337,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Back on Step 1
-      expect(find.text('Bleeding or Menstrual Flow'), findsOneWidget);
+      expect(
+        find.text('Are you experiencing bleeding at this point in time?'),
+        findsOneWidget,
+      );
     });
 
     testWidgets(
@@ -363,11 +369,11 @@ void main() {
         await tester.pumpAndSettle();
 
         // 5. Stretchy
-        await tester.tap(find.text('Stretchy'));
+        await tester.tap(find.text('Stretchy (10)'));
         await tester.pumpAndSettle();
 
         // 6. Clear
-        await tester.tap(find.text('Clear'));
+        await tester.tap(find.text('Clear (K)'));
         await tester.pumpAndSettle();
 
         // 7. Neither consistency
@@ -398,8 +404,8 @@ void main() {
           findsOneWidget,
         );
 
-        // Tap Save Log
-        await tester.tap(find.text('Save Log'));
+        // Tap Save Observation
+        await tester.tap(find.text('Save Observation'));
         await tester.pumpAndSettle();
       },
     );
