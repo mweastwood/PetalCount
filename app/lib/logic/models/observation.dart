@@ -73,6 +73,7 @@ class Observation {
   final List<String> painTypes; // e.g., ['Cramps', 'Ovulation Pain']
   final String comment;
   final String userId;
+  final bool isVdrsExplicit;
 
   Observation({
     required this.id,
@@ -87,13 +88,23 @@ class Observation {
     this.painTypes = const [],
     this.comment = '',
     required this.userId,
-  });
+    bool? isVdrsExplicit,
+  }) : isVdrsExplicit =
+           isVdrsExplicit ??
+           (bleeding != Bleeding.none ||
+               stretch != Stretch.none ||
+               colors.isNotEmpty ||
+               consistencies.isNotEmpty ||
+               sensation != Sensation.dry);
 
   bool get hasMucus => stretch != Stretch.none;
   bool get hasBleeding => bleeding != Bleeding.none;
 
   // Generates the standard VDRS code for this specific observation
   String get vdrsCode {
+    if (!isVdrsExplicit) {
+      return '';
+    }
     if (hasBleeding) {
       final bCode = bleeding.code;
       final colorSuffix = bleedingColor.isNotEmpty ? '-$bleedingColor' : '';
@@ -179,36 +190,53 @@ class Observation {
       'painTypes': painTypes,
       'comment': comment,
       'userId': userId,
+      'isVdrsExplicit': isVdrsExplicit,
     };
   }
 
   factory Observation.fromMap(Map<String, dynamic> map) {
+    final sensation = Sensation.values.firstWhere(
+      (e) => e.name == map['sensation'],
+      orElse: () => Sensation.dry,
+    );
+    final stretch = Stretch.values.firstWhere(
+      (e) => e.name == map['stretch'],
+      orElse: () => Stretch.none,
+    );
+    final colors = ((map['colors'] as List?) ?? [])
+        .map((item) => MucusColor.values.firstWhere((e) => e.name == item))
+        .toList();
+    final consistencies = ((map['consistencies'] as List?) ?? [])
+        .map((item) => Consistency.values.firstWhere((e) => e.name == item))
+        .toList();
+    final bleeding = Bleeding.values.firstWhere(
+      (e) => e.name == map['bleeding'],
+      orElse: () => Bleeding.none,
+    );
+
+    final explicitFromMap = map['isVdrsExplicit'] as bool?;
+    final isExplicit =
+        explicitFromMap ??
+        (bleeding != Bleeding.none ||
+            stretch != Stretch.none ||
+            colors.isNotEmpty ||
+            consistencies.isNotEmpty ||
+            sensation != Sensation.dry);
+
     return Observation(
       id: map['id'] ?? '',
       timestamp: (map['timestamp'] as Timestamp).toDate(),
-      sensation: Sensation.values.firstWhere(
-        (e) => e.name == map['sensation'],
-        orElse: () => Sensation.dry,
-      ),
-      stretch: Stretch.values.firstWhere(
-        (e) => e.name == map['stretch'],
-        orElse: () => Stretch.none,
-      ),
-      colors: ((map['colors'] as List?) ?? [])
-          .map((item) => MucusColor.values.firstWhere((e) => e.name == item))
-          .toList(),
-      consistencies: ((map['consistencies'] as List?) ?? [])
-          .map((item) => Consistency.values.firstWhere((e) => e.name == item))
-          .toList(),
-      bleeding: Bleeding.values.firstWhere(
-        (e) => e.name == map['bleeding'],
-        orElse: () => Bleeding.none,
-      ),
+      sensation: sensation,
+      stretch: stretch,
+      colors: colors,
+      consistencies: consistencies,
+      bleeding: bleeding,
       bleedingColor: map['bleedingColor'] ?? '',
       painLevel: (map['painLevel'] as num?)?.toDouble() ?? 0.0,
       painTypes: List<String>.from(map['painTypes'] ?? []),
       comment: map['comment'] ?? '',
       userId: map['userId'] ?? '',
+      isVdrsExplicit: isExplicit,
     );
   }
 }

@@ -73,4 +73,58 @@ void main() {
       expect(find.byType(InkWell), findsWidgets);
     },
   );
+
+  testWidgets(
+    'Vertical Timeline renders continuous connector line and logged observations cleanly',
+    (WidgetTester tester) async {
+      final now = DateTime.now();
+      final day1 = now.subtract(const Duration(days: 5));
+      final day2 = now.subtract(const Duration(days: 4));
+
+      // Save explicit observation for day 1 (Mucus)
+      await Services.db.saveObservation(
+        date: day1,
+        sensation: Sensation.damp,
+        stretch: Stretch.stretchy,
+        colors: [MucusColor.clear],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        bleedingColor: '',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Explicit mucus entry',
+        isVdrsExplicit: true,
+      );
+
+      // Save pain-only observation for day 2 (Non-explicit VDRS)
+      await Services.db.saveObservation(
+        date: day2,
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        bleedingColor: '',
+        painLevel: 6,
+        painTypes: ['Cramping'],
+        comment: 'Cramping only',
+        isVdrsExplicit: false,
+      );
+
+      await tester.pumpWidget(const PetalCountApp());
+      await tester.pumpAndSettle();
+
+      // Scroll up to view past observations
+      await tester.drag(find.byType(ListView), const Offset(0, 500));
+      await tester.pumpAndSettle();
+
+      // Verify Timeline ListView and Cards are rendered
+      expect(find.byType(ListView), findsOneWidget);
+      expect(find.textContaining('Explicit mucus entry'), findsOneWidget);
+      expect(find.textContaining('Cramping only'), findsOneWidget);
+
+      // Verify VDRS badge '10-K' is shown for explicit mucus observation
+      expect(find.text('10-K'), findsWidgets);
+    },
+  );
 }

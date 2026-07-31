@@ -45,6 +45,7 @@ abstract class DatabaseService {
     required double painLevel,
     required List<String> painTypes,
     required String comment,
+    bool? isVdrsExplicit,
   });
 
   Future<void> deleteObservation({
@@ -500,6 +501,7 @@ class FirebaseDatabaseService implements DatabaseService {
     required double painLevel,
     required List<String> painTypes,
     required String comment,
+    bool? isVdrsExplicit,
   }) async {
     final chartId = currentChartId;
     final user = currentUser;
@@ -620,6 +622,7 @@ class FirebaseDatabaseService implements DatabaseService {
       painTypes: painTypes,
       comment: comment,
       userId: user.uid,
+      isVdrsExplicit: isVdrsExplicit,
     );
 
     final currentEntries = Map<String, DailyEntry>.from(
@@ -1261,6 +1264,7 @@ class InMemoryDatabaseService implements DatabaseService {
     required double painLevel,
     required List<String> painTypes,
     required String comment,
+    bool? isVdrsExplicit,
   }) async {
     final chartId = _chartId;
     final user = _currentUser;
@@ -1354,6 +1358,7 @@ class InMemoryDatabaseService implements DatabaseService {
       painTypes: painTypes,
       comment: comment,
       userId: user.uid,
+      isVdrsExplicit: isVdrsExplicit,
     );
 
     final currentEntries = Map<String, DailyEntry>.from(

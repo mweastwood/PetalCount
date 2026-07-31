@@ -1531,6 +1531,13 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
       }
     }
 
+    final bool isVdrsExplicit =
+        _hasBleeding == true ||
+        _sensation != null ||
+        _hasMucus == true ||
+        widget.category == ObservationCategory.mucus ||
+        widget.category == ObservationCategory.bleeding;
+
     try {
       await Services.db.saveObservation(
         cycleId: widget.cycle?.id,
@@ -1544,6 +1551,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         painLevel: painLevel,
         painTypes: painTypes,
         comment: commentText,
+        isVdrsExplicit: isVdrsExplicit,
       );
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
