@@ -13,6 +13,7 @@ void main() {
         consistencies: [],
         bleeding: Bleeding.none,
         userId: 'test_user',
+        isVdrsExplicit: true,
       );
       expect(obs.vdrsCode, '0');
     });
