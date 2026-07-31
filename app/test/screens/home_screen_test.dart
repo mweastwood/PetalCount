@@ -46,8 +46,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Tap on "Creighton Grid" segment button to switch to grid view
-    await tester.tap(find.text('Creighton Grid'));
+    // Tap on "Chart" navigation tab to switch to chart view
+    await tester.tap(find.text('Chart'));
     await tester.pumpAndSettle();
 
     await screenMatchesGolden(tester, 'dashboard_creighton_grid_portrait');
@@ -62,8 +62,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Tap on "Creighton Grid" segment button to switch to grid view
-    await tester.tap(find.text('Creighton Grid'));
+    // Tap on "Chart" navigation tab to switch to chart view
+    await tester.tap(find.text('Chart'));
     await tester.pumpAndSettle();
 
     await screenMatchesGolden(tester, 'dashboard_creighton_grid_landscape');

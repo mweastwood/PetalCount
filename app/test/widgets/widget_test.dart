@@ -20,11 +20,11 @@ void main() {
     expect(find.text('Petal Count'), findsOneWidget);
 
     // Verify view mode switcher bottom navigation destinations are present
-    expect(find.text('Timeline'), findsOneWidget);
-    expect(find.text('Creighton Grid'), findsOneWidget);
+    expect(find.text('Observations'), findsOneWidget);
+    expect(find.text('Chart'), findsOneWidget);
 
-    // Tap on Creighton Grid to switch to grid view
-    await tester.tap(find.text('Creighton Grid'));
+    // Tap on Chart to switch to chart view
+    await tester.tap(find.text('Chart'));
     await tester.pumpAndSettle();
 
     // Verify that the Creighton grid shows the cycle entry
@@ -59,8 +59,8 @@ void main() {
       await tester.pumpWidget(const PetalCountApp());
       await tester.pumpAndSettle();
 
-      // Verify Timeline navigation tab is selected by default
-      expect(find.text('Timeline'), findsOneWidget);
+      // Verify Observations navigation tab is selected by default
+      expect(find.text('Observations'), findsOneWidget);
 
       // Verify "Today" entry is rendered
       expect(find.textContaining('Today'), findsOneWidget);
