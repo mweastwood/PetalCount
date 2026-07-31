@@ -475,7 +475,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Summary & Additional Notes'), findsOneWidget);
-        expect(find.textContaining('Moderate (R)'), findsOneWidget);
+        expect(find.textContaining('Moderate, Red'), findsOneWidget);
       },
     );
 
@@ -499,7 +499,7 @@ void main() {
 
         expect(find.text('Log Intercourse'), findsOneWidget);
         expect(find.text('Summary & Additional Notes'), findsOneWidget);
-        expect(find.textContaining('Intercourse: Yes (I)'), findsOneWidget);
+        expect(find.textContaining('Intercourse: Yes'), findsOneWidget);
         await screenMatchesGolden(
           tester,
           'wizard_category_intercourse_summary',

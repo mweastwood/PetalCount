@@ -358,36 +358,10 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
               // Step Content Area
               Expanded(child: _buildStepContent(context, step)),
 
-              const SizedBox(height: 16),
-              const Divider(height: 1),
-              const SizedBox(height: 12),
-
-              // Footer Navigation
-              Row(
-                children: [
-                  if (!isFirstStep)
-                    OutlinedButton.icon(
-                      onPressed: _previousStep,
-                      icon: const Icon(Icons.arrow_back, size: 16),
-                      label: const Text('Back'),
-                    ),
-                  if (step == WizardStep.painDetails) ...[
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: _nextStep,
-                      child: const Text('Continue'),
-                    ),
-                  ],
-                  const Spacer(),
-                  if (isLastStep)
-                    _isSaving
-                        ? const CircularProgressIndicator()
-                        : FilledButton.icon(
-                            onPressed: _saveLog,
-                            icon: const Icon(Icons.check),
-                            label: const Text('Save Observation'),
-                          )
-                  else if (step != WizardStep.bleedingFlow &&
+              if (!isFirstStep ||
+                  step == WizardStep.painDetails ||
+                  isLastStep ||
+                  (step != WizardStep.bleedingFlow &&
                       step != WizardStep.bleedingColor &&
                       step != WizardStep.sensation &&
                       step != WizardStep.lubrication &&
@@ -397,13 +371,51 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       step != WizardStep.mucusConsistency &&
                       step != WizardStep.intercourse &&
                       step != WizardStep.pain &&
-                      step != WizardStep.painDetails)
-                    TextButton(
-                      onPressed: _nextStep,
-                      child: const Text('Skip / Next'),
-                    ),
-                ],
-              ),
+                      step != WizardStep.painDetails)) ...[
+                const SizedBox(height: 12),
+                // Footer Navigation
+                Row(
+                  children: [
+                    if (!isFirstStep)
+                      OutlinedButton.icon(
+                        onPressed: _previousStep,
+                        icon: const Icon(Icons.arrow_back, size: 16),
+                        label: const Text('Back'),
+                      ),
+                    if (step == WizardStep.painDetails) ...[
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: _nextStep,
+                        child: const Text('Continue'),
+                      ),
+                    ],
+                    const Spacer(),
+                    if (isLastStep)
+                      _isSaving
+                          ? const CircularProgressIndicator()
+                          : FilledButton.icon(
+                              onPressed: _saveLog,
+                              icon: const Icon(Icons.check),
+                              label: const Text('Save Observation'),
+                            )
+                    else if (step != WizardStep.bleedingFlow &&
+                        step != WizardStep.bleedingColor &&
+                        step != WizardStep.sensation &&
+                        step != WizardStep.lubrication &&
+                        step != WizardStep.mucus &&
+                        step != WizardStep.mucusStretch &&
+                        step != WizardStep.mucusColor &&
+                        step != WizardStep.mucusConsistency &&
+                        step != WizardStep.intercourse &&
+                        step != WizardStep.pain &&
+                        step != WizardStep.painDetails)
+                      TextButton(
+                        onPressed: _nextStep,
+                        child: const Text('Skip / Next'),
+                      ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -1351,101 +1363,109 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         final flowLabel = _bleedingFlow != null
             ? _bleedingFlow!.label
             : 'Light';
-        final colorLabel = _bleedingColor ?? 'R';
+
+        String bleedingColorName = '';
+        if (_bleedingColor == 'R') bleedingColorName = 'Red';
+        if (_bleedingColor == 'B') bleedingColorName = 'Brown';
+        if (_bleedingColor == 'K') bleedingColorName = 'Black';
+
         final hasMucus = _hasMucus ?? false;
         final hasPain = _hasPain ?? false;
         final hasLubrication = _hasLubrication ?? false;
 
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Summary & Additional Notes',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Summary & Additional Notes',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(height: 12),
-              // Summary Badge Box
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.4,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
+            ),
+            const SizedBox(height: 12),
+            // Summary Badge Box
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.4,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.fact_check_outlined,
-                          size: 18,
-                          color: theme.colorScheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Observation Summary:',
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Date: ${DateFormat('MMM dd, yyyy • h:mm a').format(_combinedDateTime)}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    if (showBleeding)
-                      Text(
-                        'Bleeding: ${hasBleeding ? "$flowLabel ($colorLabel)" : "None"}',
-                        style: const TextStyle(fontSize: 12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.fact_check_outlined,
+                        size: 18,
+                        color: theme.colorScheme.primary,
                       ),
-                    if (showMucus) ...[
+                      const SizedBox(width: 8),
                       Text(
-                        'Sensation: ${_sensation?.label ?? "Dry"}${hasLubrication ? " (Lubricative)" : ""}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      Text(
-                        'Mucus: ${hasMucus ? "${_stretch?.label ?? 'Sticky'}, ${_colorSelection ?? 'cloudy'}" : "None"}',
-                        style: const TextStyle(fontSize: 12),
+                        'Observation Summary:',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
-                    if (showPain)
-                      Text(
-                        'Pain: ${hasPain ? "${_formattedPainTypes.isNotEmpty ? _formattedPainTypes.join(', ') : 'Logged'} (${_painLevel.toInt()}/10)" : "None"}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    if (showIntercourse && _hasIntercourse != null)
-                      Text(
-                        'Intercourse: ${_hasIntercourse == true ? "Yes (I)" : "No"}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Date: ${DateFormat('MMM dd, yyyy • h:mm a').format(_combinedDateTime)}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  if (showBleeding)
+                    Text(
+                      'Bleeding: ${hasBleeding ? "$flowLabel${bleedingColorName.isNotEmpty ? ', $bleedingColorName' : ''}" : "None"}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  if (showMucus) ...[
+                    Text(
+                      'Sensation: ${_sensation?.label ?? "Dry"}${hasLubrication ? " (Lubricative)" : ""}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    Text(
+                      'Mucus: ${hasMucus ? "${_stretch?.label ?? 'Sticky'}, ${_colorSelection ?? 'cloudy'}" : "None"}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
                   ],
-                ),
+                  if (showPain)
+                    Text(
+                      'Pain: ${hasPain ? "${_formattedPainTypes.isNotEmpty ? _formattedPainTypes.join(', ') : 'Logged'} (${_painLevel.toInt()}/10)" : "None"}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  if (showIntercourse && _hasIntercourse != null)
+                    Text(
+                      'Intercourse: ${_hasIntercourse == true ? "Yes" : "No"}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Comments / Notes (Optional):',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Comments / Notes (Optional):',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
               ),
-              const SizedBox(height: 8),
-              TextField(
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: TextField(
                 controller: _commentController,
+                maxLines: null,
+                minLines: null,
+                expands: true,
+                textAlignVertical: TextAlignVertical.top,
                 decoration: const InputDecoration(
                   hintText: 'Add extra details or observations...',
                   border: OutlineInputBorder(),
                 ),
-                maxLines: 3,
               ),
-            ],
-          ),
+            ),
+          ],
         );
     }
   }
@@ -1505,9 +1525,9 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
     String commentText = _commentController.text.trim();
     if (_hasIntercourse == true) {
       if (commentText.isEmpty) {
-        commentText = 'Intercourse (I)';
+        commentText = 'Intercourse';
       } else if (!commentText.contains('Intercourse')) {
-        commentText = 'Intercourse (I) • $commentText';
+        commentText = 'Intercourse • $commentText';
       }
     }
 
