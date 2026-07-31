@@ -44,7 +44,7 @@ class PetalCountApp extends StatelessWidget {
         }
 
         return MaterialApp(
-          title: 'PetalCount',
+          title: 'Petal Count',
           theme: ThemeData(colorScheme: lightScheme, useMaterial3: true),
           darkTheme: ThemeData(colorScheme: darkScheme, useMaterial3: true),
           home: const AuthGate(),
