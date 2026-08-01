@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../logic/logic.dart';
+import '../theme/theme.dart';
 
 class ChartScreen extends StatelessWidget {
   final List<Cycle> cycles;
@@ -14,11 +15,11 @@ class ChartScreen extends StatelessWidget {
     required this.onAddForDate,
   });
 
-  static const double kCellWidth = 66.0;
-  static const double kCellHeight = 114.0;
-  static const double kHeaderRowHeight = 36.0;
-  static const double kCycleHeaderWidth = 110.0;
-  static const double kCellGap = 3.0;
+  static const double kCellWidth = CreightonTheme.cellWidth;
+  static const double kCellHeight = CreightonTheme.cellHeight;
+  static const double kHeaderRowHeight = CreightonTheme.headerRowHeight;
+  static const double kCycleHeaderWidth = CreightonTheme.cycleHeaderWidth;
+  static const double kCellGap = CreightonTheme.cellGap;
 
   @override
   Widget build(BuildContext context) {
