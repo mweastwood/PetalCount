@@ -284,5 +284,66 @@ void main() {
         expect(recalculated[dateKey]?.stampType, StampType.yellow);
       },
     );
+
+    test('recalculateCycle handles month boundaries cleanly', () {
+      final endOfMonth = DateTime(2026, 5, 31);
+      final jun1 = DateTime(2026, 6, 1);
+      final jun2 = DateTime(2026, 6, 2);
+      final jun3 = DateTime(2026, 6, 3);
+
+      final entries = <DailyEntry>[
+        DailyEntry(
+          date: endOfMonth,
+          resolvedVdrsCode: '10-K',
+          stampType: StampType.whiteBaby,
+          observations: [],
+          painLevel: 0,
+          painTypes: [],
+          comments: '',
+        ),
+        DailyEntry(
+          date: jun1,
+          resolvedVdrsCode: '0',
+          stampType: StampType.green,
+          observations: [],
+          painLevel: 0,
+          painTypes: [],
+          comments: '',
+        ),
+        DailyEntry(
+          date: jun2,
+          resolvedVdrsCode: '0',
+          stampType: StampType.green,
+          observations: [],
+          painLevel: 0,
+          painTypes: [],
+          comments: '',
+        ),
+        DailyEntry(
+          date: jun3,
+          resolvedVdrsCode: '0',
+          stampType: StampType.green,
+          observations: [],
+          painLevel: 0,
+          painTypes: [],
+          comments: '',
+        ),
+      ];
+
+      final recalculated = CreightonLogic.recalculateCycle(
+        entries: entries,
+        bipCodes: ['6-C'],
+      );
+
+      final keyMay31 = endOfMonth.toIso8601String().substring(0, 10);
+      final keyJun1 = jun1.toIso8601String().substring(0, 10);
+      final keyJun2 = jun2.toIso8601String().substring(0, 10);
+      final keyJun3 = jun3.toIso8601String().substring(0, 10);
+
+      expect(recalculated[keyMay31]?.isPeakDay, isTrue);
+      expect(recalculated[keyJun1]?.peakDayLabel, '1');
+      expect(recalculated[keyJun2]?.peakDayLabel, '2');
+      expect(recalculated[keyJun3]?.peakDayLabel, '3');
+    });
   });
 }

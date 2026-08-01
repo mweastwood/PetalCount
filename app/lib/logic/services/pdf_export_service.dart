@@ -10,7 +10,7 @@ import '../models/daily_entry.dart';
 import 'web_download_helper.dart';
 
 class PdfExportService {
-  static Future<void> exportCyclesToPdf(List<Cycle> cycles) async {
+  static Future<Uint8List> generatePdfBytes(List<Cycle> cycles) async {
     final pdf = pw.Document();
     final dateFormat = DateFormat('MMM dd');
 
@@ -57,10 +57,14 @@ class PdfExportService {
       ),
     );
 
+    return pdf.save();
+  }
+
+  static Future<void> exportCyclesToPdf(List<Cycle> cycles) async {
+    final bytes = await generatePdfBytes(cycles);
+
     // Save and Share the file
     try {
-      final bytes = await pdf.save();
-
       final String filename =
           'Creighton_Chart_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
