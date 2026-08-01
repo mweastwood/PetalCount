@@ -13,6 +13,13 @@ enum StampType {
   const StampType(this.name, this.label);
 }
 
+extension DateTimeNormalizationX on DateTime {
+  /// Normalizes DateTime to local midnight (Year, Month, Day) with 00:00:00 time component
+  DateTime toNormalizedDate() {
+    return DateTime(year, month, day);
+  }
+}
+
 class DailyEntry {
   final DateTime date; // Year, Month, Day only
   final String resolvedVdrsCode;
@@ -24,7 +31,7 @@ class DailyEntry {
   final String? peakDayLabel; // 'P', '1', '2', '3', or null
 
   DailyEntry({
-    required this.date,
+    required DateTime date,
     required this.resolvedVdrsCode,
     required this.stampType,
     required this.observations,
@@ -32,7 +39,7 @@ class DailyEntry {
     required this.painTypes,
     required this.comments,
     this.peakDayLabel,
-  });
+  }) : date = date.toNormalizedDate();
 
   bool get isPeakDay => peakDayLabel == 'P';
   bool get hasBleeding => resolvedVdrsCode.contains(RegExp(r'[HMLVSRB]'));
