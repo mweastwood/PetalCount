@@ -193,4 +193,187 @@ void main() {
       await screenMatchesGolden(tester, 'settings_screen_danger_zone_sole');
     },
   );
+
+  testGoldens(
+    'Creighton Chart Screen renders multiple cycles in Portrait correctly',
+    (tester) async {
+      await Services.init();
+
+      // Create Cycle 1 starting May 1, 2026
+      await Services.db.saveObservation(
+        date: DateTime(2026, 5, 1, 9, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.heavy,
+        bleedingColor: 'R',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Period Start Cycle 1',
+        isVdrsExplicit: true,
+      );
+      await Services.db.saveObservation(
+        date: DateTime(2026, 5, 5, 10, 0),
+        sensation: Sensation.damp,
+        stretch: Stretch.stretchy,
+        colors: [MucusColor.clear],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        bleedingColor: '',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Mucus entry Cycle 1',
+        isVdrsExplicit: true,
+      );
+
+      // Create Cycle 2 starting June 1, 2026
+      await Services.db.saveObservation(
+        date: DateTime(2026, 6, 1, 8, 30),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.heavy,
+        bleedingColor: 'R',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Period Start Cycle 2',
+        isVdrsExplicit: true,
+      );
+      await Services.db.saveObservation(
+        date: DateTime(2026, 6, 8, 14, 0),
+        sensation: Sensation.wet,
+        stretch: Stretch.stretchy,
+        colors: [MucusColor.clear, MucusColor.cloudy],
+        consistencies: [Consistency.lubricative],
+        bleeding: Bleeding.none,
+        bleedingColor: '',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Peak mucus Cycle 2',
+        isVdrsExplicit: true,
+      );
+
+      // Create Cycle 3 starting July 1, 2026
+      await Services.db.saveObservation(
+        date: DateTime(2026, 7, 1, 9, 15),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.heavy,
+        bleedingColor: 'R',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Period Start Cycle 3',
+        isVdrsExplicit: true,
+      );
+
+      await tester.pumpWidgetBuilder(
+        const PetalCountApp(),
+        surfaceSize: const Size(400, 800),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap on "Chart" navigation tab
+      await tester.tap(find.text('Chart'));
+      await tester.pumpAndSettle();
+
+      await screenMatchesGolden(tester, 'creighton_chart_multi_cycle_portrait');
+    },
+  );
+
+  testGoldens(
+    'Creighton Chart Screen renders multiple cycles in Landscape correctly',
+    (tester) async {
+      await Services.init();
+
+      // Create Cycle 1 starting May 1, 2026
+      await Services.db.saveObservation(
+        date: DateTime(2026, 5, 1, 9, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.heavy,
+        bleedingColor: 'R',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Period Start Cycle 1',
+        isVdrsExplicit: true,
+      );
+      await Services.db.saveObservation(
+        date: DateTime(2026, 5, 5, 10, 0),
+        sensation: Sensation.damp,
+        stretch: Stretch.stretchy,
+        colors: [MucusColor.clear],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        bleedingColor: '',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Mucus entry Cycle 1',
+        isVdrsExplicit: true,
+      );
+
+      // Create Cycle 2 starting June 1, 2026
+      await Services.db.saveObservation(
+        date: DateTime(2026, 6, 1, 8, 30),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.heavy,
+        bleedingColor: 'R',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Period Start Cycle 2',
+        isVdrsExplicit: true,
+      );
+      await Services.db.saveObservation(
+        date: DateTime(2026, 6, 8, 14, 0),
+        sensation: Sensation.wet,
+        stretch: Stretch.stretchy,
+        colors: [MucusColor.clear, MucusColor.cloudy],
+        consistencies: [Consistency.lubricative],
+        bleeding: Bleeding.none,
+        bleedingColor: '',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Peak mucus Cycle 2',
+        isVdrsExplicit: true,
+      );
+
+      // Create Cycle 3 starting July 1, 2026
+      await Services.db.saveObservation(
+        date: DateTime(2026, 7, 1, 9, 15),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.heavy,
+        bleedingColor: 'R',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Period Start Cycle 3',
+        isVdrsExplicit: true,
+      );
+
+      await tester.pumpWidgetBuilder(
+        const PetalCountApp(),
+        surfaceSize: const Size(800, 400),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap on "Chart" navigation tab
+      await tester.tap(find.text('Chart'));
+      await tester.pumpAndSettle();
+
+      await screenMatchesGolden(
+        tester,
+        'creighton_chart_multi_cycle_landscape',
+      );
+    },
+  );
 }
