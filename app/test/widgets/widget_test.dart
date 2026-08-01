@@ -28,7 +28,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify that the Creighton grid shows the cycle entry
-    expect(find.textContaining('Cycle starting'), findsOneWidget);
+    expect(find.textContaining('Cycle / Day'), findsOneWidget);
 
     // Verify standard Log Observation speed dial toggle button (+) is present
     expect(find.byIcon(Icons.add), findsOneWidget);
