@@ -7,10 +7,9 @@ import 'chart_selection_screen.dart';
 import 'observations_screen.dart';
 import 'settings_screen.dart';
 
-enum ViewMode { observations, chart }
-
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final Uri? mockUri;
+  const DashboardScreen({super.key, this.mockUri});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -18,6 +17,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   late final Stream<List<Cycle>> _cyclesStream;
+  late final AppRouteManager _routeManager;
   ViewMode _viewMode = ViewMode.observations;
   bool _isSpeedDialOpen = false;
 
@@ -25,6 +25,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _cyclesStream = Services.db.streamCycles();
+    _routeManager = AppRouteManager(mockUri: widget.mockUri);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _routeManager.handleUrlParameters(
+        context: context,
+        onViewModeChanged: (mode) {
+          if (!mounted) return;
+          setState(() {
+            _viewMode = mode;
+          });
+        },
+        currentViewMode: _viewMode,
+      );
+    });
   }
 
   void _toggleSpeedDial() {
@@ -148,11 +161,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
               icon: const Icon(Icons.swap_horiz),
               tooltip: 'Switch Chart',
               onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const ChartSelectionScreen(),
-                  ),
-                );
+                _routeManager.updateUrlPathRaw('/charts');
+                Navigator.of(context)
+                    .push(
+                      MaterialPageRoute(
+                        settings: const RouteSettings(name: '/charts'),
+                        builder: (context) => const ChartSelectionScreen(),
+                      ),
+                    )
+                    .then((_) {
+                      if (!mounted) return;
+                      _routeManager.updateUrlPath(_viewMode);
+                    });
               },
             ),
             actions: [
@@ -167,13 +187,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 icon: const Icon(Icons.settings),
                 tooltip: 'Settings',
                 onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => SettingsScreen(
-                        activeCycle: cycles.isNotEmpty ? cycles.first : null,
-                      ),
-                    ),
-                  );
+                  _routeManager.updateUrlPathRaw('/settings');
+                  Navigator.of(context)
+                      .push(
+                        MaterialPageRoute(
+                          settings: const RouteSettings(name: '/settings'),
+                          builder: (context) => SettingsScreen(
+                            activeCycle: cycles.isNotEmpty
+                                ? cycles.first
+                                : null,
+                          ),
+                        ),
+                      )
+                      .then((_) {
+                        if (!mounted) return;
+                        _routeManager.updateUrlPath(_viewMode);
+                      });
                 },
               ),
             ],
@@ -212,9 +241,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               : NavigationBar(
                   selectedIndex: _viewMode.index,
                   onDestinationSelected: (index) {
+                    final newMode = ViewMode.values[index];
                     setState(() {
-                      _viewMode = ViewMode.values[index];
+                      _viewMode = newMode;
                     });
+                    _routeManager.updateUrlPath(newMode);
                   },
                   destinations: const [
                     NavigationDestination(
