@@ -35,6 +35,159 @@ class ChartScreen extends StatelessWidget {
       if (count > maxDays) maxDays = count;
     }
 
+    final media = MediaQuery.of(context);
+    final isNarrow =
+        media.size.width < media.size.height || media.size.width < 600;
+
+    if (isNarrow) {
+      return _buildVerticalSpreadsheet(context, maxDays);
+    } else {
+      return _buildHorizontalSpreadsheet(context, maxDays);
+    }
+  }
+
+  /// Narrow Screens (Portrait): Vertical Cycle Columns with a shared Day column on the left
+  Widget _buildVerticalSpreadsheet(BuildContext context, int maxDays) {
+    final theme = Theme.of(context);
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.vertical,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12.0, 12.0, 12.0, 88.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Left Shared Day Column (Day 1, Day 2 ... Day N)
+            Column(
+              children: [
+                // Top-Left Corner Header Cell
+                Container(
+                  width: 68.0,
+                  height: kHeaderRowHeight,
+                  margin: const EdgeInsets.only(
+                    bottom: kCellGap,
+                    right: kCellGap,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Day',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+                // Shared Day Labels (Day 1, Day 2, ... Day N)
+                ...List.generate(maxDays, (index) {
+                  final dayNum = index + 1;
+                  return Container(
+                    width: 68.0,
+                    height: kCellHeight,
+                    margin: const EdgeInsets.only(
+                      bottom: kCellGap,
+                      right: kCellGap,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondaryContainer.withValues(
+                        alpha: 0.7,
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      'Day $dayNum',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: theme.colorScheme.onSecondaryContainer,
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+            // Cycle Columns (Side-by-Side)
+            ...cycles.map((cycle) {
+              final entries = cycle.sortedEntries;
+              return Container(
+                margin: const EdgeInsets.only(right: kCellGap),
+                child: Column(
+                  children: [
+                    // Column Top Header: Cycle Start Date + PDF
+                    Container(
+                      width: kCellWidth,
+                      height: kHeaderRowHeight,
+                      margin: const EdgeInsets.only(bottom: kCellGap),
+                      padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: theme.colorScheme.outlineVariant.withValues(
+                            alpha: 0.5,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              DateFormat('MMM dd').format(cycle.startDate),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              ),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.picture_as_pdf, size: 14),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            tooltip: 'Export Cycle PDF',
+                            onPressed: () =>
+                                PdfExportService.exportCyclesToPdf([cycle]),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Cells for Day 1 .. Day N going DOWN
+                    ...List.generate(maxDays, (index) {
+                      final dayNum = index + 1;
+                      DailyEntry? entry;
+                      if (index < entries.length) {
+                        entry = entries[index];
+                      }
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: kCellGap),
+                        child: _buildGridStampCell(
+                          context,
+                          entry,
+                          dayNum,
+                          cycle,
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Wide Screens (Landscape): Horizontal Cycle Rows with a shared Day header row across the top
+  Widget _buildHorizontalSpreadsheet(BuildContext context, int maxDays) {
     return SingleChildScrollView(
       scrollDirection: Axis.vertical,
       child: SingleChildScrollView(
@@ -43,7 +196,7 @@ class ChartScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Shared Spreadsheet Header Row (Day 1, Day 2 ... Day N)
+            // Shared Spreadsheet Header Row (Day 1, Day 2 ... Day N across top)
             _buildSpreadsheetHeaderRow(context, maxDays),
             const SizedBox(height: 6.0),
             // Cycle Rows
@@ -112,7 +265,7 @@ class ChartScreen extends StatelessWidget {
     );
   }
 
-  /// Renders a single cycle row with its left label card and day cells
+  /// Renders a single cycle row with its left label card and day cells (Horizontal Layout)
   Widget _buildCycleRow(BuildContext context, Cycle cycle, int maxDays) {
     final theme = Theme.of(context);
     final entries = cycle.sortedEntries;
@@ -195,7 +348,7 @@ class ChartScreen extends StatelessWidget {
             ],
           ),
         ),
-        // Day Stamp Cells for Day 1 .. Day N
+        // Day Stamp Cells for Day 1 .. Day N going ACROSS
         ...List.generate(maxDays, (index) {
           final dayNum = index + 1;
           DailyEntry? entry;
@@ -258,7 +411,6 @@ class ChartScreen extends StatelessWidget {
 
     final hasPain = entry != null && entry.painLevel > 0;
     final hasComments = entry != null && entry.comments.isNotEmpty;
-
     final peakLabel = entry?.peakDayLabel;
 
     return GestureDetector(
