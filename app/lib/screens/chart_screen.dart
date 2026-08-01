@@ -425,7 +425,6 @@ class ChartScreen extends StatelessWidget {
       child: Container(
         width: kCellWidth,
         height: kCellHeight,
-        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(8),
@@ -438,127 +437,135 @@ class ChartScreen extends StatelessWidget {
             ),
           ],
         ),
-        child: Column(
-          children: [
-            // TOP EDGE-TO-EDGE STICKER BOX
-            Container(
-              width: double.infinity,
-              height: 46.0,
-              decoration: BoxDecoration(color: stampColor),
-              child: Stack(
-                children: [
-                  // Peak Day Badge at top-left
-                  if (peakLabel != null && peakLabel.isNotEmpty)
-                    Positioned(
-                      top: 2,
-                      left: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: peakLabel == 'P'
-                              ? Colors.red.shade700
-                              : Colors.black54,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: Text(
-                          peakLabel,
-                          style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(6.5),
+          child: Column(
+            children: [
+              // TOP EDGE-TO-EDGE STICKER BOX
+              Container(
+                width: double.infinity,
+                height: 46.0,
+                decoration: BoxDecoration(
+                  color: stampColor,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(6.5),
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    // Peak Day Badge at top-left
+                    if (peakLabel != null && peakLabel.isNotEmpty)
+                      Positioned(
+                        top: 2,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: peakLabel == 'P'
+                                ? Colors.red.shade700
+                                : Colors.black54,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                          child: Text(
+                            peakLabel,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  // Baby Icon in center for fertile stamps
-                  if (hasBaby)
-                    Center(
-                      child: Icon(
-                        Icons.child_care,
-                        size: 26,
-                        color: babyIconColor,
+                    // Baby Icon in center for fertile stamps
+                    if (hasBaby)
+                      Center(
+                        child: Icon(
+                          Icons.child_care,
+                          size: 26,
+                          color: babyIconColor,
+                        ),
+                      )
+                    else if (hasGreenBaby)
+                      const Center(
+                        child: Icon(
+                          Icons.child_care,
+                          size: 26,
+                          color: Colors.white,
+                        ),
                       ),
-                    )
-                  else if (hasGreenBaby)
-                    const Center(
-                      child: Icon(
-                        Icons.child_care,
-                        size: 26,
-                        color: Colors.white,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            // BOTTOM CELL DATA SECTION
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 2.0,
-                  vertical: 3.0,
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Date Label (Larger font: 10px bold)
-                    Text(
-                      entry != null
-                          ? DateFormat('MMM dd').format(entry.date)
-                          : '-',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: entry != null
-                            ? theme.colorScheme.onSurface
-                            : theme.colorScheme.outline,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    // Creighton VDRS Code (Prominent font: 12-13px bold)
-                    Text(
-                      entry?.resolvedVdrsCode ?? '',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        color: theme.colorScheme.onSurface,
-                      ),
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    // Icons for Pain or Comments
-                    SizedBox(
-                      height: 12,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (hasPain)
-                            const Icon(
-                              Icons.local_fire_department,
-                              size: 11,
-                              color: Colors.redAccent,
-                            ),
-                          if (hasComments) ...[
-                            if (hasPain) const SizedBox(width: 2),
-                            const Icon(
-                              Icons.notes,
-                              size: 11,
-                              color: Colors.blueAccent,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
-            ),
-          ],
+              // BOTTOM CELL DATA SECTION
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 2.0,
+                    vertical: 3.0,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Date Label (Larger font: 10px bold)
+                      Text(
+                        entry != null
+                            ? DateFormat('MMM dd').format(entry.date)
+                            : '-',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: entry != null
+                              ? theme.colorScheme.onSurface
+                              : theme.colorScheme.outline,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      // Creighton VDRS Code (Prominent font: 12-13px bold)
+                      Text(
+                        entry?.resolvedVdrsCode ?? '',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      // Icons for Pain or Comments
+                      SizedBox(
+                        height: 12,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (hasPain)
+                              const Icon(
+                                Icons.local_fire_department,
+                                size: 11,
+                                color: Colors.redAccent,
+                              ),
+                            if (hasComments) ...[
+                              if (hasPain) const SizedBox(width: 2),
+                              const Icon(
+                                Icons.notes,
+                                size: 11,
+                                color: Colors.blueAccent,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
