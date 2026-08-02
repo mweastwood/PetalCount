@@ -126,7 +126,16 @@ class Observation {
       return sensation.code;
     }
 
-    // Mucus format: [Stretch][Color][Consistency] (e.g. 6C, 10K, 6CG, 10WLK)
+    // Standard Creighton VDRS rules: Pasty (P) and Gummy (G) are strictly sticky (6) & cloudy (C), producing 6CP or 6CG
+    final containsP = consistencies.contains(Consistency.pasty);
+    final containsG = consistencies.contains(Consistency.gummy);
+    if (containsP) {
+      return '6CP';
+    }
+    if (containsG) {
+      return '6CG';
+    }
+
     final stretchCode = stretch.code;
 
     // Color string (e.g. "C/K" or "C" or "Y")

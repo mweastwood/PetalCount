@@ -105,40 +105,22 @@ void main() {
   });
 
   group('3. Mucus Consistencies (Gummy, Pasty)', () {
-    test('Sticky, Cloudy, Gummy maps to "6CG"', () {
+    test('Pasty mucus maps strictly to "6CP"', () {
+      final item = obs(
+        stretch: Stretch.sticky,
+        colors: [MucusColor.cloudy],
+        consistencies: [Consistency.pasty],
+      );
+      expect(item.vdrsCode, '6CP');
+    });
+
+    test('Gummy mucus maps strictly to "6CG"', () {
       final item = obs(
         stretch: Stretch.sticky,
         colors: [MucusColor.cloudy],
         consistencies: [Consistency.gummy],
       );
       expect(item.vdrsCode, '6CG');
-    });
-
-    test('Tacky, Cloudy, Pasty maps to "8CP"', () {
-      final item = obs(
-        stretch: Stretch.tacky,
-        colors: [MucusColor.cloudy],
-        consistencies: [Consistency.pasty],
-      );
-      expect(item.vdrsCode, '8CP');
-    });
-
-    test('Stretchy, Cloudy, Gummy maps to "10CG"', () {
-      final item = obs(
-        stretch: Stretch.stretchy,
-        colors: [MucusColor.cloudy],
-        consistencies: [Consistency.gummy],
-      );
-      expect(item.vdrsCode, '10CG');
-    });
-
-    test('Stretchy, Clear, Pasty maps to "10KP"', () {
-      final item = obs(
-        stretch: Stretch.stretchy,
-        colors: [MucusColor.clear],
-        consistencies: [Consistency.pasty],
-      );
-      expect(item.vdrsCode, '10KP');
     });
   });
 
