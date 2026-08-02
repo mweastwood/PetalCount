@@ -53,7 +53,7 @@ class InMemoryDatabaseService implements DatabaseService {
     final mockCycle = Cycle(
       id: mockCycleStart.toIso8601String().substring(0, 10),
       startDate: mockCycleStart,
-      bipCodes: const ['6-C'],
+      bipCodes: const ['6C'],
       dailyEntries: {},
     );
 
@@ -589,7 +589,7 @@ class InMemoryDatabaseService implements DatabaseService {
       targetCycle = Cycle(
         id: dateStr,
         startDate: date,
-        bipCodes: const ['6-C'],
+        bipCodes: const ['6C'],
         dailyEntries: {},
       );
       targetCycleId = dateStr;

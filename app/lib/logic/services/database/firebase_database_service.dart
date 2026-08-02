@@ -487,7 +487,7 @@ class FirebaseDatabaseService implements DatabaseService {
       targetCycle = Cycle(
         id: dateStr,
         startDate: date,
-        bipCodes: const ['6-C'],
+        bipCodes: const ['6C'],
         dailyEntries: {},
       );
       targetCycleId = dateStr;

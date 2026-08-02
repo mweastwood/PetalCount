@@ -127,17 +127,13 @@ class Observation {
       return sensation.code;
     }
 
-    // Mucus format: [Stretch]-[Color]-[Consistency]
-    // If lubricative, sensation can also be added as 10-DL, 10-SL, 10-WL
+    // Mucus format: [Stretch][Color][Consistency] (e.g. 6C, 10K, 6CG, 10WLK)
     final stretchCode = stretch.code;
 
     // Color string (e.g. "C/K" or "C" or "Y")
     final colorStr = colors.isEmpty
         ? 'C' // Default to cloudy if none specified but mucus exists
         : colors.map((c) => c.code).join('/');
-
-    // Consistency string (e.g. "G" or "L")
-    final consistencyStr = consistencies.map((c) => c.code).join('');
 
     // If it contains Lubricative, check the sensation to form 10DL, 10SL, 10WL
     final containsL = consistencies.contains(Consistency.lubricative);
@@ -156,14 +152,11 @@ class Observation {
           .map((c) => c.code)
           .join('');
 
-      final suffix = otherConsistencies.isNotEmpty
-          ? '-$otherConsistencies'
-          : '';
-      return '$lubricativeCode-$colorStr$suffix';
+      return '$lubricativeCode$colorStr$otherConsistencies';
     }
 
-    final consistencyPart = consistencyStr.isNotEmpty ? '-$consistencyStr' : '';
-    return '$stretchCode-$colorStr$consistencyPart';
+    final consistencyStr = consistencies.map((c) => c.code).join('');
+    return '$stretchCode$colorStr$consistencyStr';
   }
 
   // Check if this specific observation is Peak-type mucus

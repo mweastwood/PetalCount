@@ -17,12 +17,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // Set of BIP codes
   final List<String> _availableBipOptions = [
-    '6-C',
-    '6-Y',
-    '6-W',
-    '8-C',
-    '8-Y',
-    '8-W',
+    '6C',
+    '6Y',
+    '6W',
+    '8C',
+    '8Y',
+    '8W',
   ];
   List<String> _selectedBips = [];
 
