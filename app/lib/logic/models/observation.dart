@@ -146,9 +146,9 @@ class Observation {
         ? 'C' // Default to cloudy if none specified but mucus exists
         : colors.map((c) => c.code).join('/');
 
-    // If it contains Lubricative, check the sensation to form 10DL, 10SL, 10WL
+    // If it contains Lubricative, form 10DL, 10SL, 10WL (Lubricative sensation upgrades to 10 Peak-type)
     final containsL = consistencies.contains(Consistency.lubricative);
-    if (containsL && stretch == Stretch.stretchy) {
+    if (containsL) {
       String sensAbbr = '';
       if (sensation == Sensation.damp) sensAbbr = 'D';
       if (sensation == Sensation.shiny) sensAbbr = 'S';

@@ -173,6 +173,16 @@ void main() {
       );
       expect(item.vdrsCode, '10WLC');
     });
+
+    test('Tacky, Wet, Cloudy, Lubricative upgrades to "10WLC"', () {
+      final item = obs(
+        sensation: Sensation.wet,
+        stretch: Stretch.tacky,
+        colors: [MucusColor.cloudy],
+        consistencies: [Consistency.lubricative],
+      );
+      expect(item.vdrsCode, '10WLC');
+    });
   });
 
   group('5. Bleeding Observations', () {
