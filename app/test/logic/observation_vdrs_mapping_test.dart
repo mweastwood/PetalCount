@@ -122,6 +122,15 @@ void main() {
       );
       expect(item.vdrsCode, '6CG');
     });
+
+    test('Gummy and Pasty mucus maps to "6CGP"', () {
+      final item = obs(
+        stretch: Stretch.sticky,
+        colors: [MucusColor.cloudy],
+        consistencies: [Consistency.gummy, Consistency.pasty],
+      );
+      expect(item.vdrsCode, '6CGP');
+    });
   });
 
   group('4. Lubricative Mucus & Sensation Codes (10DLK, 10SLK, 10WLK)', () {

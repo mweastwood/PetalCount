@@ -126,9 +126,12 @@ class Observation {
       return sensation.code;
     }
 
-    // Standard Creighton VDRS rules: Pasty (P) and Gummy (G) are strictly sticky (6) & cloudy (C), producing 6CP or 6CG
+    // Standard Creighton VDRS rules: Pasty (P) and Gummy (G) are strictly sticky (6) & cloudy (C), producing 6CP, 6CG, or 6CGP
     final containsP = consistencies.contains(Consistency.pasty);
     final containsG = consistencies.contains(Consistency.gummy);
+    if (containsP && containsG) {
+      return '6CGP';
+    }
     if (containsP) {
       return '6CP';
     }
