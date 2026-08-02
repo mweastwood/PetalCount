@@ -18,7 +18,7 @@ void main() {
       expect(obs.vdrsCode, '0');
     });
 
-    test('Stretchy clear mucus generates 10-K', () {
+    test('Stretchy clear mucus generates 10K', () {
       final obs = Observation(
         id: '2',
         timestamp: DateTime(2026, 6, 28),
@@ -29,11 +29,11 @@ void main() {
         bleeding: Bleeding.none,
         userId: 'test_user',
       );
-      expect(obs.vdrsCode, '10-K');
+      expect(obs.vdrsCode, '10K');
     });
 
     test(
-      'Stretchy clear lubricative mucus generates 10WL-K-L (with wet sensation)',
+      'Stretchy clear lubricative mucus generates 10WLK (with wet sensation)',
       () {
         final obs = Observation(
           id: '3',
@@ -45,14 +45,11 @@ void main() {
           bleeding: Bleeding.none,
           userId: 'test_user',
         );
-        expect(
-          obs.vdrsCode,
-          '10WL-K',
-        ); // in our implementation, lubricative code is 10WL-K
+        expect(obs.vdrsCode, '10WLK');
       },
     );
 
-    test('Bleeding only generates code like H-R', () {
+    test('Bleeding only generates code like H', () {
       final obs = Observation(
         id: '4',
         timestamp: DateTime(2026, 6, 28),
@@ -64,7 +61,7 @@ void main() {
         bleedingColor: 'R',
         userId: 'test_user',
       );
-      expect(obs.vdrsCode, 'H-R');
+      expect(obs.vdrsCode, 'H');
     });
   });
 
@@ -97,7 +94,7 @@ void main() {
         observations: [dryObs, stickyCloudyObs],
       );
 
-      expect(daily.resolvedVdrsCode, '6-C-G');
+      expect(daily.resolvedVdrsCode, '6CG');
     });
 
     test('Combines bleeding with the most fertile mucus', () {
@@ -129,7 +126,7 @@ void main() {
         observations: [periodObs, stretchyMucusObs],
       );
 
-      expect(daily.resolvedVdrsCode, 'H-R 10-K');
+      expect(daily.resolvedVdrsCode, 'H 10K');
     });
   });
 
@@ -145,7 +142,7 @@ void main() {
           entries.add(
             DailyEntry(
               date: start.add(Duration(days: i)),
-              resolvedVdrsCode: 'H-R',
+              resolvedVdrsCode: 'H',
               stampType: StampType.green,
               observations: [],
               painLevel: 0,
@@ -174,7 +171,7 @@ void main() {
         entries.add(
           DailyEntry(
             date: start.add(const Duration(days: 8)),
-            resolvedVdrsCode: '6-C',
+            resolvedVdrsCode: '6C',
             stampType: StampType.green,
             observations: [],
             painLevel: 0,
@@ -183,11 +180,11 @@ void main() {
           ),
         );
 
-        // Day 10: Peak mucus (10-K)
+        // Day 10: Peak mucus (10K)
         entries.add(
           DailyEntry(
             date: start.add(const Duration(days: 9)),
-            resolvedVdrsCode: '10-K',
+            resolvedVdrsCode: '10K',
             stampType: StampType.green,
             observations: [],
             painLevel: 0,
@@ -266,7 +263,7 @@ void main() {
         final entries = <DailyEntry>[
           DailyEntry(
             date: start,
-            resolvedVdrsCode: '6-C', // Mucus matching BIP
+            resolvedVdrsCode: '6C', // Mucus matching BIP
             stampType: StampType.green,
             observations: [],
             painLevel: 0,
@@ -277,7 +274,7 @@ void main() {
 
         final recalculated = CreightonLogic.recalculateCycle(
           entries: entries,
-          bipCodes: ['6-C'],
+          bipCodes: ['6C'],
         );
 
         final dateKey = start.toIso8601String().substring(0, 10);
@@ -294,7 +291,7 @@ void main() {
       final entries = <DailyEntry>[
         DailyEntry(
           date: endOfMonth,
-          resolvedVdrsCode: '10-K',
+          resolvedVdrsCode: '10K',
           stampType: StampType.whiteBaby,
           observations: [],
           painLevel: 0,
@@ -332,7 +329,7 @@ void main() {
 
       final recalculated = CreightonLogic.recalculateCycle(
         entries: entries,
-        bipCodes: ['6-C'],
+        bipCodes: ['6C'],
       );
 
       final keyMay31 = endOfMonth.toIso8601String().substring(0, 10);

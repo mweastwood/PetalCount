@@ -26,7 +26,6 @@ enum MucusColor {
   clear('K', 'Clear'),
   cloudy('C', 'Cloudy'),
   yellow('Y', 'Yellow'),
-  white('W', 'White'),
   red('R', 'Red'),
   brown('B', 'Brown');
 
@@ -51,7 +50,7 @@ enum Bleeding {
   moderate('M', 'Moderate'),
   light('L', 'Light'),
   veryLight('VL', 'Very Light'),
-  spotting('S', 'Spotting'),
+  spotting('VL', 'Spotting'),
   brown('B', 'Brown bleeding'),
   red('R', 'Red bleeding');
 
@@ -107,7 +106,9 @@ class Observation {
     }
     if (hasBleeding) {
       final bCode = bleeding.code;
-      final colorSuffix = bleedingColor.isNotEmpty ? '-$bleedingColor' : '';
+      final colorSuffix = (bleedingColor.isNotEmpty && bleedingColor != 'R')
+          ? '-$bleedingColor'
+          : '';
       final bleedingPart = '$bCode$colorSuffix';
 
       if (!hasMucus) {
@@ -127,8 +128,19 @@ class Observation {
       return sensation.code;
     }
 
-    // Mucus format: [Stretch]-[Color]-[Consistency]
-    // If lubricative, sensation can also be added as 10-DL, 10-SL, 10-WL
+    // Standard Creighton VDRS rules: Pasty (P) and Gummy (G) are strictly sticky (6) & cloudy (C), producing 6CP, 6CG, or 6CGP
+    final containsP = consistencies.contains(Consistency.pasty);
+    final containsG = consistencies.contains(Consistency.gummy);
+    if (containsP && containsG) {
+      return '6CGP';
+    }
+    if (containsP) {
+      return '6CP';
+    }
+    if (containsG) {
+      return '6CG';
+    }
+
     final stretchCode = stretch.code;
 
     // Color string (e.g. "C/K" or "C" or "Y")
@@ -136,12 +148,9 @@ class Observation {
         ? 'C' // Default to cloudy if none specified but mucus exists
         : colors.map((c) => c.code).join('/');
 
-    // Consistency string (e.g. "G" or "L")
-    final consistencyStr = consistencies.map((c) => c.code).join('');
-
-    // If it contains Lubricative, check the sensation to form 10DL, 10SL, 10WL
+    // If it contains Lubricative, form 10DL, 10SL, 10WL (Lubricative sensation upgrades to 10 Peak-type)
     final containsL = consistencies.contains(Consistency.lubricative);
-    if (containsL && stretch == Stretch.stretchy) {
+    if (containsL) {
       String sensAbbr = '';
       if (sensation == Sensation.damp) sensAbbr = 'D';
       if (sensation == Sensation.shiny) sensAbbr = 'S';
@@ -156,14 +165,11 @@ class Observation {
           .map((c) => c.code)
           .join('');
 
-      final suffix = otherConsistencies.isNotEmpty
-          ? '-$otherConsistencies'
-          : '';
-      return '$lubricativeCode-$colorStr$suffix';
+      return '$lubricativeCode$colorStr$otherConsistencies';
     }
 
-    final consistencyPart = consistencyStr.isNotEmpty ? '-$consistencyStr' : '';
-    return '$stretchCode-$colorStr$consistencyPart';
+    final consistencyStr = consistencies.map((c) => c.code).join('');
+    return '$stretchCode$colorStr$consistencyStr';
   }
 
   // Check if this specific observation is Peak-type mucus

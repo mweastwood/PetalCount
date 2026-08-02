@@ -123,8 +123,8 @@ void main() {
       expect(find.textContaining('Explicit mucus entry'), findsOneWidget);
       expect(find.textContaining('Cramping only'), findsOneWidget);
 
-      // Verify VDRS badge '10-K' is shown for explicit mucus observation
-      expect(find.text('10-K'), findsWidgets);
+      // Verify VDRS badge '10K' is shown for explicit mucus observation
+      expect(find.text('10K'), findsWidgets);
     },
   );
 }

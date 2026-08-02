@@ -112,7 +112,8 @@ class CreightonLogic {
     String resolvedCode;
     if (hasAnyBleeding) {
       final bCode = worstBleeding.code;
-      final colorSuffix = worstBleedingColor.isNotEmpty
+      final colorSuffix =
+          (worstBleedingColor.isNotEmpty && worstBleedingColor != 'R')
           ? '-$worstBleedingColor'
           : '';
       final bleedingPart = '$bCode$colorSuffix';

@@ -4,7 +4,7 @@ class Cycle {
   final String id;
   final DateTime startDate;
   final DateTime? endDate;
-  final List<String> bipCodes; // e.g., ['6-C', '8-Y']
+  final List<String> bipCodes; // e.g., ['6C', '8Y']
   final Map<String, DailyEntry> dailyEntries; // Key: 'YYYY-MM-DD'
 
   Cycle({

@@ -164,7 +164,7 @@ void main() {
       await tester.tap(find.text('Yes Mucus'));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Stretchy (10)'));
+      await tester.tap(find.text('Sticky'));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Clear (K)'));
@@ -368,8 +368,8 @@ void main() {
         await tester.tap(find.text('Yes Mucus'));
         await tester.pumpAndSettle();
 
-        // 5. Stretchy
-        await tester.tap(find.text('Stretchy (10)'));
+        // 5. Sticky
+        await tester.tap(find.text('Sticky'));
         await tester.pumpAndSettle();
 
         // 6. Clear
@@ -398,7 +398,7 @@ void main() {
         // 10. Summary page
         expect(find.text('Summary & Additional Notes'), findsOneWidget);
         expect(find.textContaining('Wet (Lubricative)'), findsOneWidget);
-        expect(find.textContaining('Stretchy'), findsOneWidget);
+        expect(find.textContaining('Sticky'), findsOneWidget);
         expect(
           find.textContaining('Cramps, Abdominal Pain (Right)'),
           findsOneWidget,

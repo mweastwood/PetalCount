@@ -16,14 +16,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String _inviteStatus = '';
 
   // Set of BIP codes
-  final List<String> _availableBipOptions = [
-    '6-C',
-    '6-Y',
-    '6-W',
-    '8-C',
-    '8-Y',
-    '8-W',
-  ];
+  final List<String> _availableBipOptions = ['6C', '6Y', '8C', '8Y'];
   List<String> _selectedBips = [];
 
   @override

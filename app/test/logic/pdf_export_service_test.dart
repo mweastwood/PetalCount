@@ -19,7 +19,7 @@ void main() {
         final cycle = Cycle(
           id: '2026-06-01',
           startDate: start,
-          bipCodes: const ['6-C'],
+          bipCodes: const ['6C'],
           dailyEntries: {
             '2026-06-01': DailyEntry(
               date: start,
@@ -45,14 +45,14 @@ void main() {
         final cycle1 = Cycle(
           id: '2026-06-01',
           startDate: DateTime(2026, 6, 1),
-          bipCodes: const ['6-C'],
+          bipCodes: const ['6C'],
           dailyEntries: {},
         );
 
         final cycle2 = Cycle(
           id: '2026-07-01',
           startDate: DateTime(2026, 7, 1),
-          bipCodes: const ['8-C'],
+          bipCodes: const ['8C'],
           dailyEntries: {},
         );
 

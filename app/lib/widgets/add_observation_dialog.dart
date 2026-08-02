@@ -159,7 +159,9 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
       if (_hasMucus == true) {
         steps.add(WizardStep.mucusStretch);
         steps.add(WizardStep.mucusColor);
-        steps.add(WizardStep.mucusConsistency);
+        if (_stretch == Stretch.sticky) {
+          steps.add(WizardStep.mucusConsistency);
+        }
       }
       steps.add(WizardStep.comments);
       return steps;
@@ -186,7 +188,9 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
       if (_hasMucus == true) {
         steps.add(WizardStep.mucusStretch);
         steps.add(WizardStep.mucusColor);
-        steps.add(WizardStep.mucusConsistency);
+        if (_stretch == Stretch.sticky) {
+          steps.add(WizardStep.mucusConsistency);
+        }
       }
     }
     steps.add(WizardStep.pain);
