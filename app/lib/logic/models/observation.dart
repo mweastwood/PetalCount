@@ -50,7 +50,7 @@ enum Bleeding {
   moderate('M', 'Moderate'),
   light('L', 'Light'),
   veryLight('VL', 'Very Light'),
-  spotting('S', 'Spotting'),
+  spotting('VL', 'Spotting'),
   brown('B', 'Brown bleeding'),
   red('R', 'Red bleeding');
 
@@ -106,7 +106,9 @@ class Observation {
     }
     if (hasBleeding) {
       final bCode = bleeding.code;
-      final colorSuffix = bleedingColor.isNotEmpty ? '-$bleedingColor' : '';
+      final colorSuffix = (bleedingColor.isNotEmpty && bleedingColor != 'R')
+          ? '-$bleedingColor'
+          : '';
       final bleedingPart = '$bCode$colorSuffix';
 
       if (!hasMucus) {

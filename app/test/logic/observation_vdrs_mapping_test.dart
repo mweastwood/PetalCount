@@ -186,34 +186,34 @@ void main() {
   });
 
   group('5. Bleeding Observations', () {
-    test('Heavy Red bleeding maps to "H-R"', () {
+    test('Heavy Red bleeding maps to "H"', () {
       final item = obs(bleeding: Bleeding.heavy, bleedingColor: 'R');
-      expect(item.vdrsCode, 'H-R');
+      expect(item.vdrsCode, 'H');
     });
 
-    test('Moderate Red bleeding maps to "M-R"', () {
+    test('Moderate Red bleeding maps to "M"', () {
       final item = obs(bleeding: Bleeding.moderate, bleedingColor: 'R');
-      expect(item.vdrsCode, 'M-R');
+      expect(item.vdrsCode, 'M');
     });
 
-    test('Light Red bleeding maps to "L-R"', () {
+    test('Light Red bleeding maps to "L"', () {
       final item = obs(bleeding: Bleeding.light, bleedingColor: 'R');
-      expect(item.vdrsCode, 'L-R');
+      expect(item.vdrsCode, 'L');
     });
 
-    test('Very Light Red bleeding maps to "VL-R"', () {
+    test('Very Light Red bleeding maps to "VL"', () {
       final item = obs(bleeding: Bleeding.veryLight, bleedingColor: 'R');
-      expect(item.vdrsCode, 'VL-R');
+      expect(item.vdrsCode, 'VL');
     });
 
-    test('Spotting Red bleeding maps to "S-R"', () {
+    test('Spotting Red bleeding maps to "VL"', () {
       final item = obs(bleeding: Bleeding.spotting, bleedingColor: 'R');
-      expect(item.vdrsCode, 'S-R');
+      expect(item.vdrsCode, 'VL');
     });
 
-    test('Spotting Brown bleeding maps to "S-B"', () {
+    test('Spotting Brown bleeding maps to "VL-B"', () {
       final item = obs(bleeding: Bleeding.spotting, bleedingColor: 'B');
-      expect(item.vdrsCode, 'S-B');
+      expect(item.vdrsCode, 'VL-B');
     });
 
     test('Brown bleeding maps to "B-B"', () {
@@ -223,34 +223,34 @@ void main() {
   });
 
   group('6. Combined Bleeding + Mucus Observations', () {
-    test('Light Red bleeding + Stretchy Clear Mucus maps to "L-R 10K"', () {
+    test('Light Red bleeding + Stretchy Clear Mucus maps to "L 10K"', () {
       final item = obs(
         bleeding: Bleeding.light,
         bleedingColor: 'R',
         stretch: Stretch.stretchy,
         colors: [MucusColor.clear],
       );
-      expect(item.vdrsCode, 'L-R 10K');
+      expect(item.vdrsCode, 'L 10K');
     });
 
-    test('Spotting Red bleeding + Sticky Cloudy Mucus maps to "S-R 6C"', () {
+    test('Spotting Red bleeding + Sticky Cloudy Mucus maps to "VL 6C"', () {
       final item = obs(
         bleeding: Bleeding.spotting,
         bleedingColor: 'R',
         stretch: Stretch.sticky,
         colors: [MucusColor.cloudy],
       );
-      expect(item.vdrsCode, 'S-R 6C');
+      expect(item.vdrsCode, 'VL 6C');
     });
 
-    test('Spotting Brown bleeding + Tacky Yellow Mucus maps to "S-B 8Y"', () {
+    test('Spotting Brown bleeding + Tacky Yellow Mucus maps to "VL-B 8Y"', () {
       final item = obs(
         bleeding: Bleeding.spotting,
         bleedingColor: 'B',
         stretch: Stretch.tacky,
         colors: [MucusColor.yellow],
       );
-      expect(item.vdrsCode, 'S-B 8Y');
+      expect(item.vdrsCode, 'VL-B 8Y');
     });
   });
 

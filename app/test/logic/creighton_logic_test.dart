@@ -49,7 +49,7 @@ void main() {
       },
     );
 
-    test('Bleeding only generates code like H-R', () {
+    test('Bleeding only generates code like H', () {
       final obs = Observation(
         id: '4',
         timestamp: DateTime(2026, 6, 28),
@@ -61,7 +61,7 @@ void main() {
         bleedingColor: 'R',
         userId: 'test_user',
       );
-      expect(obs.vdrsCode, 'H-R');
+      expect(obs.vdrsCode, 'H');
     });
   });
 
@@ -126,7 +126,7 @@ void main() {
         observations: [periodObs, stretchyMucusObs],
       );
 
-      expect(daily.resolvedVdrsCode, 'H-R 10K');
+      expect(daily.resolvedVdrsCode, 'H 10K');
     });
   });
 
@@ -142,7 +142,7 @@ void main() {
           entries.add(
             DailyEntry(
               date: start.add(Duration(days: i)),
-              resolvedVdrsCode: 'H-R',
+              resolvedVdrsCode: 'H',
               stampType: StampType.green,
               observations: [],
               painLevel: 0,
