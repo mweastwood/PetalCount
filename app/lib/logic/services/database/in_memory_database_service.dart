@@ -503,6 +503,56 @@ class InMemoryDatabaseService implements DatabaseService {
     yield* _cyclesController.stream;
   }
 
+  void _reallocateAndRecalculate(String chartId) {
+    final chartCyclesData = _cycles[chartId];
+    if (chartCyclesData == null || chartCyclesData.isEmpty) return;
+
+    final cycles = chartCyclesData.values.map((d) => Cycle.fromMap(d)).toList();
+    cycles.sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    // Gather all daily entries across all cycles
+    final allEntries = <String, DailyEntry>{};
+    for (final cycle in cycles) {
+      allEntries.addAll(cycle.dailyEntries);
+    }
+
+    // Clear entries on each cycle object
+    final updatedCyclesMap = <String, Cycle>{};
+    for (final cycle in cycles) {
+      updatedCyclesMap[cycle.id] = cycle.copyWith(dailyEntries: {});
+    }
+
+    // Re-assign each daily entry to the latest cycle starting on or before entry.date
+    allEntries.forEach((dateKey, entry) {
+      final entryDate = entry.date;
+      final eligible = cycles
+          .where((c) => c.startDate.compareTo(entryDate) <= 0)
+          .toList();
+      final targetCycle = eligible.isNotEmpty ? eligible.last : cycles.first;
+
+      final cycleEntries = Map<String, DailyEntry>.from(
+        updatedCyclesMap[targetCycle.id]!.dailyEntries,
+      );
+      cycleEntries[dateKey] = entry;
+      updatedCyclesMap[targetCycle.id] = updatedCyclesMap[targetCycle.id]!
+          .copyWith(dailyEntries: cycleEntries);
+    });
+
+    // Recalculate Creighton stamps/Peak for each cycle
+    for (final cycleId in updatedCyclesMap.keys) {
+      final cycle = updatedCyclesMap[cycleId]!;
+      final updatedEntries = CreightonLogic.recalculateCycle(
+        entries: cycle.dailyEntries.values.toList(),
+        bipCodes: cycle.bipCodes,
+      );
+      _cycles[chartId]![cycleId] = cycle
+          .copyWith(dailyEntries: updatedEntries)
+          .toMap();
+    }
+
+    _emitCycles();
+  }
+
   @override
   Future<void> startNewCycle(DateTime startDate, List<String> bipCodes) async {
     final chartId = _chartId;
@@ -518,7 +568,60 @@ class InMemoryDatabaseService implements DatabaseService {
 
     _cycles[chartId] ??= {};
     _cycles[chartId]![dateStr] = cycle.toMap();
-    _emitCycles();
+    _reallocateAndRecalculate(chartId);
+  }
+
+  @override
+  Future<void> updateCycleStartDate(
+    String cycleId,
+    DateTime newStartDate,
+  ) async {
+    final chartId = _chartId;
+    if (chartId == null) return;
+
+    final cycleData = _cycles[chartId]?[cycleId];
+    if (cycleData == null) return;
+
+    final oldCycle = Cycle.fromMap(cycleData);
+    _cycles[chartId]!.remove(cycleId);
+
+    final newDateStr = newStartDate.toIso8601String().substring(0, 10);
+    final updatedCycle = Cycle(
+      id: newDateStr,
+      startDate: newStartDate,
+      endDate: oldCycle.endDate,
+      bipCodes: oldCycle.bipCodes,
+      dailyEntries: oldCycle.dailyEntries,
+    );
+
+    _cycles[chartId]![newDateStr] = updatedCycle.toMap();
+    _reallocateAndRecalculate(chartId);
+  }
+
+  @override
+  Future<void> mergeCycleWithPrevious(String cycleId) async {
+    final chartId = _chartId;
+    if (chartId == null) return;
+
+    final chartCyclesData = _cycles[chartId];
+    if (chartCyclesData == null) return;
+
+    final cycles = chartCyclesData.values.map((d) => Cycle.fromMap(d)).toList();
+    cycles.sort((a, b) => a.startDate.compareTo(b.startDate));
+    final targetIndex = cycles.indexWhere((c) => c.id == cycleId);
+    if (targetIndex <= 0) return;
+
+    final targetCycle = cycles[targetIndex];
+    final prevCycle = cycles[targetIndex - 1];
+
+    final mergedEntries = Map<String, DailyEntry>.from(prevCycle.dailyEntries)
+      ..addAll(targetCycle.dailyEntries);
+
+    final updatedPrevCycle = prevCycle.copyWith(dailyEntries: mergedEntries);
+    _cycles[chartId]![prevCycle.id] = updatedPrevCycle.toMap();
+
+    _cycles[chartId]!.remove(cycleId);
+    _reallocateAndRecalculate(chartId);
   }
 
   @override
@@ -575,73 +678,68 @@ class InMemoryDatabaseService implements DatabaseService {
     final cycles = chartCyclesData.values.map((d) => Cycle.fromMap(d)).toList();
     cycles.sort((a, b) => a.startDate.compareTo(b.startDate));
 
-    final isMenses =
-        (bleeding == Bleeding.heavy ||
-        bleeding == Bleeding.moderate ||
-        bleeding == Bleeding.light ||
-        bleeding == Bleeding.red);
-
-    String targetCycleId;
-    Cycle targetCycle;
+    final isHeavyOrModerate =
+        bleeding == Bleeding.heavy || bleeding == Bleeding.moderate;
 
     if (cycles.isEmpty) {
       final dateStr = date.toIso8601String().substring(0, 10);
-      targetCycle = Cycle(
+      final newCycle = Cycle(
         id: dateStr,
         startDate: date,
         bipCodes: const ['6C'],
         dailyEntries: {},
       );
-      targetCycleId = dateStr;
-      _cycles[chartId]![targetCycleId] = targetCycle.toMap();
-    } else {
-      Cycle? matchedCycle;
-      if (isMenses) {
-        final eligible = cycles
-            .where((c) => c.startDate.compareTo(date) <= 0)
-            .toList();
-        if (eligible.isEmpty) {
-          final dateStr = date.toIso8601String().substring(0, 10);
-          matchedCycle = Cycle(
-            id: dateStr,
-            startDate: date,
-            bipCodes: cycles.first.bipCodes,
-            dailyEntries: {},
-          );
-          _cycles[chartId]![dateStr] = matchedCycle.toMap();
-        } else {
-          final latest = eligible.last;
-          final daysDiff = date.difference(latest.startDate).inDays;
-          if (daysDiff >= 10) {
-            final dateStr = date.toIso8601String().substring(0, 10);
-            matchedCycle = Cycle(
+      _cycles[chartId]![dateStr] = newCycle.toMap();
+      cycles.add(newCycle);
+    } else if (isHeavyOrModerate) {
+      final eligible = cycles
+          .where((c) => c.startDate.compareTo(date) <= 0)
+          .toList();
+      if (eligible.isNotEmpty) {
+        final latest = eligible.last;
+        final daysDiff = date.difference(latest.startDate).inDays;
+        if (daysDiff >= 16) {
+          // Check for pre-menstrual light bleeding rollback leading into H/M flow
+          DateTime newCycleStart = date;
+          DateTime checkDate = date.subtract(const Duration(days: 1));
+          while (checkDate.difference(latest.startDate).inDays >= 16) {
+            final checkKey = checkDate.toIso8601String().substring(0, 10);
+            final checkEntry = latest.dailyEntries[checkKey];
+            if (checkEntry != null && checkEntry.hasBleeding) {
+              newCycleStart = checkDate;
+              checkDate = checkDate.subtract(const Duration(days: 1));
+            } else {
+              break;
+            }
+          }
+          final dateStr = newCycleStart.toIso8601String().substring(0, 10);
+          if (!_cycles[chartId]!.containsKey(dateStr)) {
+            final newCycle = Cycle(
               id: dateStr,
-              startDate: date,
+              startDate: newCycleStart,
               bipCodes: latest.bipCodes,
               dailyEntries: {},
             );
-            _cycles[chartId]![dateStr] = matchedCycle.toMap();
-          } else {
-            matchedCycle = latest;
+            _cycles[chartId]![dateStr] = newCycle.toMap();
+            _reallocateAndRecalculate(chartId);
           }
-        }
-      } else {
-        if (cycleId != null) {
-          final found = cycles.where((c) => c.id == cycleId).firstOrNull;
-          if (found != null) {
-            matchedCycle = found;
-          }
-        }
-        if (matchedCycle == null) {
-          final eligible = cycles
-              .where((c) => c.startDate.compareTo(date) <= 0)
-              .toList();
-          matchedCycle = eligible.isNotEmpty ? eligible.last : cycles.first;
         }
       }
-      targetCycle = matchedCycle;
-      targetCycleId = matchedCycle.id;
     }
+
+    // Refresh sorted cycles list after potential cycle creation
+    final updatedCycles = _cycles[chartId]!.values
+        .map((d) => Cycle.fromMap(d))
+        .toList();
+    updatedCycles.sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    final eligible = updatedCycles
+        .where((c) => c.startDate.compareTo(date) <= 0)
+        .toList();
+    final targetCycle = eligible.isNotEmpty
+        ? eligible.last
+        : updatedCycles.first;
+    final targetCycleId = targetCycle.id;
 
     final dateKey = date.toIso8601String().substring(0, 10);
 

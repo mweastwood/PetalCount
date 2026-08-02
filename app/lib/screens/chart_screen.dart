@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../logic/logic.dart';
+import '../widgets/cycle_options_dialog.dart';
 import '../theme/theme.dart';
 
 class ChartScreen extends StatelessWidget {
@@ -314,78 +315,81 @@ class ChartScreen extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Left Cycle Label Card
-        Container(
-          width: kCycleHeaderWidth,
-          height: kCellHeight,
-          margin: const EdgeInsets.only(right: kCellGap),
-          padding: const EdgeInsets.all(6.0),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        GestureDetector(
+          onTap: () =>
+              CycleOptionsDialog.show(context, cycle: cycle, cycles: cycles),
+          child: Container(
+            width: kCycleHeaderWidth,
+            height: kCellHeight,
+            margin: const EdgeInsets.only(right: kCellGap),
+            padding: const EdgeInsets.all(6.0),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+              ),
             ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          DateFormat('MMM dd').format(cycle.startDate),
-                          style: theme.textTheme.labelLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            DateFormat('MMM dd').format(cycle.startDate),
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          '${cycle.startDate.year}',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                            fontSize: 10,
+                          Text(
+                            '${cycle.startDate.year}',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontSize: 10,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.picture_as_pdf, size: 18),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    tooltip: 'Export Cycle PDF',
-                    onPressed: () =>
-                        PdfExportService.exportCyclesToPdf([cycle]),
-                  ),
-                ],
-              ),
-              const Divider(height: 8),
-              Text(
-                '${cycle.dailyEntries.length} entries',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  fontSize: 10,
-                  color: theme.colorScheme.onSurfaceVariant,
+                    IconButton(
+                      icon: const Icon(Icons.picture_as_pdf, size: 18),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: 'Export Cycle PDF',
+                      onPressed: () =>
+                          PdfExportService.exportCyclesToPdf([cycle]),
+                    ),
+                  ],
                 ),
-              ),
-              if (cycle.bipCodes.isNotEmpty)
-                Text(
-                  'BIP: ${cycle.bipCodes.join(', ')}',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.primary,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Icon(
+                      Icons.settings_suggest,
+                      size: 12,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Options',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-            ],
+              ],
+            ),
           ),
         ),
         // Day Stamp Cells for Day 1 .. Day N going ACROSS

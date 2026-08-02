@@ -25,6 +25,8 @@ abstract class DatabaseService {
   Future<void> startNewCycle(DateTime startDate, List<String> bipCodes);
   Future<void> deleteCycle(String cycleId);
   Future<void> updateBipCodes(String cycleId, List<String> bipCodes);
+  Future<void> updateCycleStartDate(String cycleId, DateTime newStartDate);
+  Future<void> mergeCycleWithPrevious(String cycleId);
 
   Future<void> saveObservation({
     String? cycleId,

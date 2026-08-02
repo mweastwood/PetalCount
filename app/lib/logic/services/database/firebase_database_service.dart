@@ -381,12 +381,69 @@ class FirebaseDatabaseService implements DatabaseService {
         });
   }
 
+  Future<void> _reallocateAndRecalculate(String chartId) async {
+    final cyclesSnapshot = await _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('cycles')
+        .get();
+
+    final cycles = cyclesSnapshot.docs
+        .map((doc) => Cycle.fromMap(doc.data()))
+        .toList();
+    if (cycles.isEmpty) return;
+
+    cycles.sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    final allEntries = <String, DailyEntry>{};
+    for (final cycle in cycles) {
+      allEntries.addAll(cycle.dailyEntries);
+    }
+
+    final updatedCyclesMap = <String, Cycle>{};
+    for (final cycle in cycles) {
+      updatedCyclesMap[cycle.id] = cycle.copyWith(dailyEntries: {});
+    }
+
+    allEntries.forEach((dateKey, entry) {
+      final entryDate = entry.date;
+      final eligible = cycles
+          .where((c) => c.startDate.compareTo(entryDate) <= 0)
+          .toList();
+      final targetCycle = eligible.isNotEmpty ? eligible.last : cycles.first;
+
+      final cycleEntries = Map<String, DailyEntry>.from(
+        updatedCyclesMap[targetCycle.id]!.dailyEntries,
+      );
+      cycleEntries[dateKey] = entry;
+      updatedCyclesMap[targetCycle.id] = updatedCyclesMap[targetCycle.id]!
+          .copyWith(dailyEntries: cycleEntries);
+    });
+
+    final batch = _db.batch();
+    for (final cycleId in updatedCyclesMap.keys) {
+      final cycle = updatedCyclesMap[cycleId]!;
+      final updatedEntries = CreightonLogic.recalculateCycle(
+        entries: cycle.dailyEntries.values.toList(),
+        bipCodes: cycle.bipCodes,
+      );
+      final ref = _db
+          .collection('charts')
+          .doc(chartId)
+          .collection('cycles')
+          .doc(cycleId);
+      batch.update(ref, {
+        'dailyEntries': updatedEntries.map((k, v) => MapEntry(k, v.toMap())),
+      });
+    }
+    await batch.commit();
+  }
+
   @override
   Future<void> startNewCycle(DateTime startDate, List<String> bipCodes) async {
     final chartId = currentChartId;
     if (chartId == null) return;
 
-    // Format ID using starting date
     final dateStr = startDate.toIso8601String().substring(0, 10);
     final cycleRef = _db
         .collection('charts')
@@ -402,6 +459,7 @@ class FirebaseDatabaseService implements DatabaseService {
     );
 
     await cycleRef.set(newCycle.toMap());
+    await _reallocateAndRecalculate(chartId);
   }
 
   @override
@@ -415,6 +473,86 @@ class FirebaseDatabaseService implements DatabaseService {
         .collection('cycles')
         .doc(cycleId)
         .delete();
+  }
+
+  @override
+  Future<void> updateCycleStartDate(
+    String cycleId,
+    DateTime newStartDate,
+  ) async {
+    final chartId = currentChartId;
+    if (chartId == null) return;
+
+    final cyclesSnapshot = await _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('cycles')
+        .get();
+
+    final cycles = cyclesSnapshot.docs
+        .map((doc) => Cycle.fromMap(doc.data()))
+        .toList();
+
+    final oldCycleIndex = cycles.indexWhere((c) => c.id == cycleId);
+    if (oldCycleIndex == -1) return;
+
+    final oldCycle = cycles[oldCycleIndex];
+    final newDateStr = newStartDate.toIso8601String().substring(0, 10);
+
+    if (cycleId != newDateStr) {
+      await _db
+          .collection('charts')
+          .doc(chartId)
+          .collection('cycles')
+          .doc(cycleId)
+          .delete();
+    }
+
+    final updatedCycle = Cycle(
+      id: newDateStr,
+      startDate: newStartDate,
+      endDate: oldCycle.endDate,
+      bipCodes: oldCycle.bipCodes,
+      dailyEntries: oldCycle.dailyEntries,
+    );
+
+    await _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('cycles')
+        .doc(newDateStr)
+        .set(updatedCycle.toMap());
+
+    await _reallocateAndRecalculate(chartId);
+  }
+
+  @override
+  Future<void> mergeCycleWithPrevious(String cycleId) async {
+    final chartId = currentChartId;
+    if (chartId == null) return;
+
+    final cyclesSnapshot = await _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('cycles')
+        .get();
+
+    final cycles = cyclesSnapshot.docs
+        .map((doc) => Cycle.fromMap(doc.data()))
+        .toList();
+    cycles.sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    final targetIndex = cycles.indexWhere((c) => c.id == cycleId);
+    if (targetIndex <= 0) return;
+
+    await _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('cycles')
+        .doc(cycleId)
+        .delete();
+
+    await _reallocateAndRecalculate(chartId);
   }
 
   @override
@@ -473,58 +611,55 @@ class FirebaseDatabaseService implements DatabaseService {
         .toList();
     cycles.sort((a, b) => a.startDate.compareTo(b.startDate));
 
-    final isMenses =
-        (bleeding == Bleeding.heavy ||
-        bleeding == Bleeding.moderate ||
-        bleeding == Bleeding.light ||
-        bleeding == Bleeding.red);
-
-    String targetCycleId;
-    Cycle targetCycle;
+    final isHeavyOrModerate =
+        bleeding == Bleeding.heavy || bleeding == Bleeding.moderate;
 
     if (cycles.isEmpty) {
       final dateStr = date.toIso8601String().substring(0, 10);
-      targetCycle = Cycle(
+      final newCycle = Cycle(
         id: dateStr,
         startDate: date,
         bipCodes: const ['6C'],
         dailyEntries: {},
       );
-      targetCycleId = dateStr;
       await _db
           .collection('charts')
           .doc(chartId)
           .collection('cycles')
-          .doc(targetCycleId)
-          .set(targetCycle.toMap());
-    } else {
-      Cycle? matchedCycle;
-      if (isMenses) {
-        final eligible = cycles
-            .where((c) => c.startDate.compareTo(date) <= 0)
-            .toList();
-        if (eligible.isEmpty) {
-          final dateStr = date.toIso8601String().substring(0, 10);
-          matchedCycle = Cycle(
-            id: dateStr,
-            startDate: date,
-            bipCodes: cycles.first.bipCodes,
-            dailyEntries: {},
-          );
-          await _db
+          .doc(dateStr)
+          .set(newCycle.toMap());
+      cycles.add(newCycle);
+    } else if (isHeavyOrModerate) {
+      final eligible = cycles
+          .where((c) => c.startDate.compareTo(date) <= 0)
+          .toList();
+      if (eligible.isNotEmpty) {
+        final latest = eligible.last;
+        final daysDiff = date.difference(latest.startDate).inDays;
+        if (daysDiff >= 16) {
+          DateTime newCycleStart = date;
+          DateTime checkDate = date.subtract(const Duration(days: 1));
+          while (checkDate.difference(latest.startDate).inDays >= 16) {
+            final checkKey = checkDate.toIso8601String().substring(0, 10);
+            final checkEntry = latest.dailyEntries[checkKey];
+            if (checkEntry != null && checkEntry.hasBleeding) {
+              newCycleStart = checkDate;
+              checkDate = checkDate.subtract(const Duration(days: 1));
+            } else {
+              break;
+            }
+          }
+          final dateStr = newCycleStart.toIso8601String().substring(0, 10);
+          final existingDoc = await _db
               .collection('charts')
               .doc(chartId)
               .collection('cycles')
               .doc(dateStr)
-              .set(matchedCycle.toMap());
-        } else {
-          final latest = eligible.last;
-          final daysDiff = date.difference(latest.startDate).inDays;
-          if (daysDiff >= 10) {
-            final dateStr = date.toIso8601String().substring(0, 10);
-            matchedCycle = Cycle(
+              .get();
+          if (!existingDoc.exists) {
+            final newCycle = Cycle(
               id: dateStr,
-              startDate: date,
+              startDate: newCycleStart,
               bipCodes: latest.bipCodes,
               dailyEntries: {},
             );
@@ -533,34 +668,31 @@ class FirebaseDatabaseService implements DatabaseService {
                 .doc(chartId)
                 .collection('cycles')
                 .doc(dateStr)
-                .set(matchedCycle.toMap());
-          } else {
-            matchedCycle = latest;
+                .set(newCycle.toMap());
+            await _reallocateAndRecalculate(chartId);
           }
-        }
-      } else {
-        if (cycleId != null) {
-          final found = cycles.where((c) => c.id == cycleId).firstOrNull;
-          if (found != null) {
-            matchedCycle = found;
-          }
-        }
-        if (matchedCycle == null) {
-          final eligible = cycles
-              .where((c) => c.startDate.compareTo(date) <= 0)
-              .toList();
-          matchedCycle = eligible.isNotEmpty ? eligible.last : cycles.first;
         }
       }
-      targetCycle = matchedCycle;
-      targetCycleId = matchedCycle.id;
     }
 
-    final cycleRef = _db
+    final updatedCyclesSnap = await _db
         .collection('charts')
         .doc(chartId)
         .collection('cycles')
-        .doc(targetCycleId);
+        .get();
+
+    final updatedCycles = updatedCyclesSnap.docs
+        .map((doc) => Cycle.fromMap(doc.data()))
+        .toList();
+    updatedCycles.sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    final eligible = updatedCycles
+        .where((c) => c.startDate.compareTo(date) <= 0)
+        .toList();
+    final targetCycle = eligible.isNotEmpty
+        ? eligible.last
+        : updatedCycles.first;
+    final targetCycleId = targetCycle.id;
 
     final dateKey = date.toIso8601String().substring(0, 10);
 
@@ -584,30 +716,29 @@ class FirebaseDatabaseService implements DatabaseService {
       targetCycle.dailyEntries,
     );
     final existingEntry = currentEntries[dateKey];
+    List<Observation> observations = existingEntry != null
+        ? (List<Observation>.from(existingEntry.observations)..add(newObs))
+        : [newObs];
 
-    List<Observation> observations = [];
-    if (existingEntry != null) {
-      observations = List<Observation>.from(existingEntry.observations)
-        ..add(newObs);
-    } else {
-      observations = [newObs];
-    }
-
-    final resolvedDaily = CreightonLogic.resolveDailyEntry(
+    final resolved = CreightonLogic.resolveDailyEntry(
       date: date,
       observations: observations,
     );
+    currentEntries[dateKey] = resolved;
 
-    currentEntries[dateKey] = resolvedDaily;
-
-    final updatedEntries = CreightonLogic.recalculateCycle(
+    final updated = CreightonLogic.recalculateCycle(
       entries: currentEntries.values.toList(),
       bipCodes: targetCycle.bipCodes,
     );
 
-    await cycleRef.update({
-      'dailyEntries': updatedEntries.map((k, v) => MapEntry(k, v.toMap())),
-    });
+    await _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('cycles')
+        .doc(targetCycleId)
+        .update({
+          'dailyEntries': updated.map((k, v) => MapEntry(k, v.toMap())),
+        });
   }
 
   @override

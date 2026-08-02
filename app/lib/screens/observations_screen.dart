@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../logic/logic.dart';
+import '../widgets/cycle_options_dialog.dart';
 
 class _ObservationsItem {
   final DateTime date;
@@ -238,56 +239,69 @@ class ObservationsScreen extends StatelessWidget {
                     // Stamp Box Node
                     Positioned(
                       top: 0,
-                      child: Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          color: stampColor,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: borderColor, width: 1.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.06),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            if (entry?.peakDayLabel != null &&
-                                entry!.peakDayLabel!.isNotEmpty)
-                              Positioned(
-                                top: 2,
-                                right: 4,
-                                child: Text(
-                                  entry.peakDayLabel!,
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                    color: entry.peakDayLabel == 'P'
-                                        ? Colors.red
-                                        : Colors.black87,
+                      child: GestureDetector(
+                        onTap: () {
+                          if (item.cycle != null) {
+                            CycleOptionsDialog.show(
+                              context,
+                              cycle: item.cycle!,
+                              cycles: cycles,
+                              targetDate: item.date,
+                            );
+                          }
+                        },
+                        child: Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: stampColor,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: borderColor, width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.06),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              if (entry?.peakDayLabel != null &&
+                                  entry!.peakDayLabel!.isNotEmpty)
+                                Positioned(
+                                  top: 2,
+                                  right: 4,
+                                  child: Text(
+                                    entry.peakDayLabel!,
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: entry.peakDayLabel == 'P'
+                                          ? Colors.red
+                                          : Colors.black87,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            if (stampIcon != null)
-                              Icon(stampIcon, size: 24, color: stampIconColor)
-                            else
-                              Text(
-                                '${item.dayNumber}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color:
-                                      entry != null &&
-                                          entry.stampType != StampType.whiteBaby
-                                      ? Colors.white
-                                      : Colors.grey.shade800,
+                              if (stampIcon != null)
+                                Icon(stampIcon, size: 24, color: stampIconColor)
+                              else
+                                Text(
+                                  '${item.dayNumber}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        entry != null &&
+                                            entry.stampType !=
+                                                StampType.whiteBaby
+                                        ? Colors.white
+                                        : Colors.grey.shade800,
+                                  ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -393,38 +407,55 @@ class ObservationsScreen extends StatelessWidget {
                             ),
 
                             // Cycle Start Banner if applicable
-                            if (item.isCycleStart) ...[
+                            if (item.isCycleStart && item.cycle != null) ...[
                               const SizedBox(height: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
+                              GestureDetector(
+                                onTap: () => CycleOptionsDialog.show(
+                                  context,
+                                  cycle: item.cycle!,
+                                  cycles: cycles,
+                                  targetDate: item.date,
                                 ),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.primaryContainer,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.flag,
-                                      size: 14,
-                                      color:
-                                          theme.colorScheme.onPrimaryContainer,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Cycle starting ${DateFormat('MMMM dd, yyyy').format(item.date)}',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primaryContainer,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.flag,
+                                        size: 14,
                                         color: theme
                                             .colorScheme
                                             .onPrimaryContainer,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Cycle starting ${DateFormat('MMMM dd, yyyy').format(item.date)}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                          color: theme
+                                              .colorScheme
+                                              .onPrimaryContainer,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        Icons.tune,
+                                        size: 12,
+                                        color: theme
+                                            .colorScheme
+                                            .onPrimaryContainer,
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
