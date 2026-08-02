@@ -60,11 +60,6 @@ void main() {
       expect(item.vdrsCode, '6Y');
     });
 
-    test('Sticky, White maps to "6W"', () {
-      final item = obs(stretch: Stretch.sticky, colors: [MucusColor.white]);
-      expect(item.vdrsCode, '6W');
-    });
-
     test('Tacky, Cloudy maps to "8C"', () {
       final item = obs(stretch: Stretch.tacky, colors: [MucusColor.cloudy]);
       expect(item.vdrsCode, '8C');
@@ -119,13 +114,13 @@ void main() {
       expect(item.vdrsCode, '6CG');
     });
 
-    test('Tacky, White, Pasty maps to "8WP"', () {
+    test('Tacky, Cloudy, Pasty maps to "8CP"', () {
       final item = obs(
         stretch: Stretch.tacky,
-        colors: [MucusColor.white],
+        colors: [MucusColor.cloudy],
         consistencies: [Consistency.pasty],
       );
-      expect(item.vdrsCode, '8WP');
+      expect(item.vdrsCode, '8CP');
     });
 
     test('Stretchy, Cloudy, Gummy maps to "10CG"', () {

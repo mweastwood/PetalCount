@@ -26,7 +26,6 @@ enum MucusColor {
   clear('K', 'Clear'),
   cloudy('C', 'Cloudy'),
   yellow('Y', 'Yellow'),
-  white('W', 'White'),
   red('R', 'Red'),
   brown('B', 'Brown');
 
