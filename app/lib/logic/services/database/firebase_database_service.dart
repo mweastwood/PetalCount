@@ -409,25 +409,59 @@ class FirebaseDatabaseService implements DatabaseService {
 
   @override
   Stream<List<Cycle>> streamCycles() {
-    final chartId = currentChartId;
-    if (chartId == null) {
-      return Stream.value([]);
+    late StreamController<List<Cycle>> controller;
+    StreamSubscription<User?>? authSub;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? cyclesSub;
+
+    void listenToCycles(String chartId) {
+      cyclesSub?.cancel();
+      cyclesSub = _db
+          .collection('charts')
+          .doc(chartId)
+          .collection('cycles')
+          .snapshots()
+          .listen(
+            (snap) {
+              final cycles = snap.docs
+                  .map((doc) => Cycle.fromMap(doc.data()))
+                  .toList();
+              cycles.sort(
+                (a, b) => b.startDate.compareTo(a.startDate),
+              ); // descending order
+              controller.add(cycles);
+            },
+            onError: (e) {
+              debugPrint('Error streaming cycles: $e');
+              controller.add([]);
+            },
+          );
     }
 
-    return _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('cycles')
-        .snapshots()
-        .map((snap) {
-          final cycles = snap.docs
-              .map((doc) => Cycle.fromMap(doc.data()))
-              .toList();
-          cycles.sort(
-            (a, b) => b.startDate.compareTo(a.startDate),
-          ); // descending order
-          return cycles;
+    void updateListener() {
+      final chartId = currentChartId;
+      if (chartId == null) {
+        cyclesSub?.cancel();
+        cyclesSub = null;
+        controller.add([]);
+      } else {
+        listenToCycles(chartId);
+      }
+    }
+
+    controller = StreamController<List<Cycle>>.broadcast(
+      onListen: () {
+        updateListener();
+        authSub = _authStateChangesStream.listen((_) {
+          updateListener();
         });
+      },
+      onCancel: () {
+        cyclesSub?.cancel();
+        authSub?.cancel();
+      },
+    );
+
+    return controller.stream;
   }
 
   Future<void> _reallocateAndRecalculate(String chartId) async {

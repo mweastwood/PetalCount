@@ -56,16 +56,50 @@ class _ChartSelectionScreenState extends State<ChartSelectionScreen> {
     }
   }
 
-  Future<void> _acceptInvite(String chartId) async {
+  Future<void> _acceptInvite(String invitationId) async {
     setState(() => _isLoading = true);
     try {
-      await Services.db.acceptInvitation(chartId);
+      await Services.db.acceptInvitation(invitationId);
+      await _loadInvitations();
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
     } catch (e) {
       debugPrint('Error accepting invitation: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: SelectableText('Error accepting invitation: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 20),
+            action: SnackBarAction(
+              label: 'Dismiss',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _declineInvite(String invitationId) async {
+    setState(() => _isLoading = true);
+    try {
+      await Services.db.declineInvitation(invitationId);
+      await _loadInvitations();
+    } catch (e) {
+      debugPrint('Error declining invitation: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: SelectableText('Error declining invitation: $e'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 20),
             action: SnackBarAction(
@@ -265,10 +299,21 @@ class _ChartSelectionScreenState extends State<ChartSelectionScreen> {
                                             strokeWidth: 2,
                                           ),
                                         )
-                                      : FilledButton(
-                                          onPressed: () =>
-                                              _acceptInvite(invitationId),
-                                          child: const Text('Accept'),
+                                      : Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            OutlinedButton(
+                                              onPressed: () =>
+                                                  _declineInvite(invitationId),
+                                              child: const Text('Decline'),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            FilledButton(
+                                              onPressed: () =>
+                                                  _acceptInvite(invitationId),
+                                              child: const Text('Accept'),
+                                            ),
+                                          ],
                                         ),
                                 ),
                               );
