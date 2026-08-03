@@ -206,9 +206,32 @@ class FirebaseDatabaseService implements DatabaseService {
     final user = currentUser;
     if (user == null) return;
 
-    final docRef = _db.collection('invitations').doc(invitationId);
-    final doc = await docRef.get();
-    if (!doc.exists) throw Exception("Invitation not found");
+    DocumentSnapshot<Map<String, dynamic>>? doc;
+    var docRef = _db.collection('invitations').doc(invitationId);
+
+    try {
+      final snap = await docRef.get();
+      if (snap.exists) {
+        doc = snap;
+      }
+    } catch (_) {}
+
+    if (doc == null || !doc.exists) {
+      final cleanEmail = user.email?.trim().toLowerCase() ?? '';
+      final snap = await _db
+          .collection('invitations')
+          .where('invitationId', isEqualTo: cleanEmail)
+          .where('status', isEqualTo: 'pending')
+          .get();
+      if (snap.docs.isNotEmpty) {
+        doc = snap.docs.first;
+        docRef = doc.reference;
+      }
+    }
+
+    if (doc == null || !doc.exists) {
+      throw Exception("Invitation not found");
+    }
 
     final data = doc.data()!;
     final chartId = data['chartId'] as String;
@@ -239,9 +262,32 @@ class FirebaseDatabaseService implements DatabaseService {
 
   @override
   Future<void> declineInvitation(String invitationId) async {
-    await _db.collection('invitations').doc(invitationId).update({
-      'status': 'declined',
-    });
+    final user = currentUser;
+    if (user == null) return;
+
+    DocumentSnapshot<Map<String, dynamic>>? doc;
+    var docRef = _db.collection('invitations').doc(invitationId);
+
+    try {
+      final snap = await docRef.get();
+      if (snap.exists) {
+        doc = snap;
+      }
+    } catch (_) {}
+
+    if (doc == null || !doc.exists) {
+      final cleanEmail = user.email?.trim().toLowerCase() ?? '';
+      final snap = await _db
+          .collection('invitations')
+          .where('invitationId', isEqualTo: cleanEmail)
+          .where('status', isEqualTo: 'pending')
+          .get();
+      if (snap.docs.isNotEmpty) {
+        docRef = snap.docs.first.reference;
+      }
+    }
+
+    await docRef.update({'status': 'declined'});
   }
 
   @override

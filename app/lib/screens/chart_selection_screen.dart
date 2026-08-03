@@ -244,6 +244,11 @@ class _ChartSelectionScreenState extends State<ChartSelectionScreen> {
                             itemCount: _pendingInvites.length,
                             itemBuilder: (context, index) {
                               final invite = _pendingInvites[index];
+                              final invitationId =
+                                  (invite['invitationId'] ??
+                                          invite['id'] ??
+                                          invite['chartId'])
+                                      as String;
                               final chartId = invite['chartId'] as String;
                               final senderEmail =
                                   invite['senderEmail'] as String;
@@ -262,7 +267,7 @@ class _ChartSelectionScreenState extends State<ChartSelectionScreen> {
                                         )
                                       : FilledButton(
                                           onPressed: () =>
-                                              _acceptInvite(chartId),
+                                              _acceptInvite(invitationId),
                                           child: const Text('Accept'),
                                         ),
                                 ),
