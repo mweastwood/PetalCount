@@ -36,10 +36,16 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.resource.data.senderUid == request.auth.uid;
       allow read: if isSignedIn() && (
         resource.data.senderUid == request.auth.uid || 
-        (request.auth.token.email != null && resource.data.invitationId == request.auth.token.email.lower())
+        (request.auth.token.email != null && (
+          resource.data.invitationId == request.auth.token.email.lower() ||
+          invitationId == request.auth.token.email.lower()
+        ))
       );
       allow update: if isSignedIn() && (
-        (request.auth.token.email != null && resource.data.invitationId == request.auth.token.email.lower())
+        (request.auth.token.email != null && (
+          resource.data.invitationId == request.auth.token.email.lower() ||
+          invitationId == request.auth.token.email.lower()
+        ))
       );
       allow delete: if false;
     }

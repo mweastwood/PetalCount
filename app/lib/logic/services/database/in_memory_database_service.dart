@@ -341,7 +341,9 @@ class InMemoryDatabaseService implements DatabaseService {
 
     final invIndex = _invitations.indexWhere(
       (inv) =>
-          inv['invitationId'] == invitationId && inv['status'] == 'pending',
+          (inv['invitationId'] == invitationId ||
+              inv['chartId'] == invitationId) &&
+          inv['status'] == 'pending',
     );
     if (invIndex == -1) return;
 
@@ -364,7 +366,9 @@ class InMemoryDatabaseService implements DatabaseService {
   Future<void> declineInvitation(String invitationId) async {
     final invIndex = _invitations.indexWhere(
       (inv) =>
-          inv['invitationId'] == invitationId && inv['status'] == 'pending',
+          (inv['invitationId'] == invitationId ||
+              inv['chartId'] == invitationId) &&
+          inv['status'] == 'pending',
     );
     if (invIndex != -1) {
       _invitations[invIndex]['status'] = 'declined';
