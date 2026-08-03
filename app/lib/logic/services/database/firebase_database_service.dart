@@ -215,10 +215,13 @@ class FirebaseDatabaseService implements DatabaseService {
 
     // Join the chart
     final chartRef = _db.collection('charts').doc(chartId);
-    await chartRef.update({
+    final updates = <String, dynamic>{
       'userIds': FieldValue.arrayUnion([user.uid]),
-      'emails': FieldValue.arrayUnion([user.email]),
-    });
+    };
+    if (user.email != null && user.email!.isNotEmpty) {
+      updates['emails'] = FieldValue.arrayUnion([user.email]);
+    }
+    await chartRef.update(updates);
 
     // Update user profile
     await _db.collection('users').doc(user.uid).set({
