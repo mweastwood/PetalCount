@@ -23,22 +23,20 @@ class ObservationsScreen extends StatelessWidget {
   final List<Cycle> cycles;
   final void Function(DailyEntry entry, Cycle cycle) onSelectEntry;
   final void Function(Cycle? cycle, DateTime date) onAddForDate;
+  final DateTime? todayOverride;
 
   const ObservationsScreen({
     super.key,
     required this.cycles,
     required this.onSelectEntry,
     required this.onAddForDate,
+    this.todayOverride,
   });
 
   String _getBleedingSummary(DailyEntry entry) {
     for (final obs in entry.observations) {
       if (obs.hasBleeding) {
-        final colorStr = obs.bleedingColor == 'R'
-            ? 'Red'
-            : (obs.bleedingColor == 'B' ? 'Brown' : '');
-        final colorPart = colorStr.isNotEmpty ? ' ($colorStr)' : '';
-        return '${obs.bleeding.label}$colorPart';
+        return '${obs.bleeding.label}${obs.bleedingColor.isNotEmpty ? " (${obs.bleedingColor})" : ""}';
       }
     }
     if (entry.hasBleeding) {
@@ -79,7 +77,7 @@ class ObservationsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final now = DateTime.now();
+    final now = todayOverride ?? DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
     final timelineItems = <_ObservationsItem>[];

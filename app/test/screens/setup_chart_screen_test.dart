@@ -55,7 +55,7 @@ void main() {
   testWidgets('SetupChartScreen success path navigates to DashboardScreen', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(const PetalCountApp());
+    await tester.pumpWidget(PetalCountApp(todayOverride: DateTime(2026, 8, 3)));
 
     // Emit the initial user so AuthGate builder fires
     testDb.emitUser(testDb.testUser);
@@ -81,7 +81,9 @@ void main() {
       testDb.shouldFailCreateChart = true;
       testDb.createChartCompleter = Completer<void>();
 
-      await tester.pumpWidget(const PetalCountApp());
+      await tester.pumpWidget(
+        PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+      );
       testDb.emitUser(testDb.testUser);
       await tester.pumpAndSettle();
 

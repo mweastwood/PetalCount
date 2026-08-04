@@ -33,8 +33,37 @@ class ChartScreen extends StatelessWidget {
     // Determine the maximum number of days to display across all cycles (at least 35 days)
     int maxDays = 35;
     for (final cycle in cycles) {
-      final count = cycle.sortedEntries.length;
-      if (count > maxDays) maxDays = count;
+      final cycleStart = DateTime(
+        cycle.startDate.year,
+        cycle.startDate.month,
+        cycle.startDate.day,
+      );
+      int cycleMaxDay = 0;
+      for (final entry in cycle.sortedEntries) {
+        final entryDate = DateTime(
+          entry.date.year,
+          entry.date.month,
+          entry.date.day,
+        );
+        final dayNum = entryDate.difference(cycleStart).inDays + 1;
+        if (dayNum > cycleMaxDay) {
+          cycleMaxDay = dayNum;
+        }
+      }
+      if (cycle.endDate != null) {
+        final endClean = DateTime(
+          cycle.endDate!.year,
+          cycle.endDate!.month,
+          cycle.endDate!.day,
+        );
+        final endDayNum = endClean.difference(cycleStart).inDays + 1;
+        if (endDayNum > cycleMaxDay) {
+          cycleMaxDay = endDayNum;
+        }
+      }
+      if (cycleMaxDay > maxDays) {
+        maxDays = cycleMaxDay;
+      }
     }
 
     final media = MediaQuery.of(context);
@@ -125,7 +154,6 @@ class ChartScreen extends StatelessWidget {
                     ),
                     // Cycle Columns (Side-by-Side)
                     ...cycles.map((cycle) {
-                      final entries = cycle.sortedEntries;
                       return Container(
                         margin: const EdgeInsets.only(right: kCellGap),
                         child: Column(
@@ -184,16 +212,22 @@ class ChartScreen extends StatelessWidget {
                             // Cells for Day 1 .. Day N going DOWN
                             ...List.generate(maxDays, (index) {
                               final dayNum = index + 1;
-                              DailyEntry? entry;
-                              if (index < entries.length) {
-                                entry = entries[index];
-                              }
+                              final dayDate = DateTime(
+                                cycle.startDate.year,
+                                cycle.startDate.month,
+                                cycle.startDate.day + index,
+                              );
+                              final dateKey = DateFormat(
+                                'yyyy-MM-dd',
+                              ).format(dayDate);
+                              final entry = cycle.dailyEntries[dateKey];
                               return Container(
                                 margin: const EdgeInsets.only(bottom: kCellGap),
                                 child: _buildGridStampCell(
                                   context,
                                   entry,
                                   dayNum,
+                                  dayDate,
                                   cycle,
                                 ),
                               );
@@ -309,7 +343,6 @@ class ChartScreen extends StatelessWidget {
   /// Renders a single cycle row with its left label card and day cells (Horizontal Layout)
   Widget _buildCycleRow(BuildContext context, Cycle cycle, int maxDays) {
     final theme = Theme.of(context);
-    final entries = cycle.sortedEntries;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,13 +428,16 @@ class ChartScreen extends StatelessWidget {
         // Day Stamp Cells for Day 1 .. Day N going ACROSS
         ...List.generate(maxDays, (index) {
           final dayNum = index + 1;
-          DailyEntry? entry;
-          if (index < entries.length) {
-            entry = entries[index];
-          }
+          final dayDate = DateTime(
+            cycle.startDate.year,
+            cycle.startDate.month,
+            cycle.startDate.day + index,
+          );
+          final dateKey = DateFormat('yyyy-MM-dd').format(dayDate);
+          final entry = cycle.dailyEntries[dateKey];
           return Container(
             margin: const EdgeInsets.only(right: kCellGap),
-            child: _buildGridStampCell(context, entry, dayNum, cycle),
+            child: _buildGridStampCell(context, entry, dayNum, dayDate, cycle),
           );
         }),
       ],
@@ -413,6 +449,7 @@ class ChartScreen extends StatelessWidget {
     BuildContext context,
     DailyEntry? entry,
     int dayNum,
+    DateTime dayDate,
     Cycle cycle,
   ) {
     final theme = Theme.of(context);
@@ -462,8 +499,7 @@ class ChartScreen extends StatelessWidget {
         if (entry != null) {
           onSelectEntry(entry, cycle);
         } else {
-          final mockDate = cycle.startDate.add(Duration(days: dayNum - 1));
-          onAddForDate(cycle, mockDate);
+          onAddForDate(cycle, dayDate);
         }
       },
       child: Container(
@@ -539,6 +575,19 @@ class ChartScreen extends StatelessWidget {
                           size: 26,
                           color: Colors.white,
                         ),
+                      )
+                    else if (entry == null)
+                      Center(
+                        child: Text(
+                          '?',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.outline.withValues(
+                              alpha: 0.7,
+                            ),
+                          ),
+                        ),
                       ),
                   ],
                 ),
@@ -555,9 +604,7 @@ class ChartScreen extends StatelessWidget {
                     children: [
                       // Date Label (Larger font: 10px bold)
                       Text(
-                        entry != null
-                            ? DateFormat('MMM dd').format(entry.date)
-                            : '-',
+                        DateFormat('MMM dd').format(dayDate),
                         style: theme.textTheme.labelSmall?.copyWith(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,
@@ -571,11 +618,15 @@ class ChartScreen extends StatelessWidget {
                       ),
                       // Creighton VDRS Code (Prominent font: 12-13px bold)
                       Text(
-                        entry?.resolvedVdrsCode ?? '',
+                        entry != null ? entry.resolvedVdrsCode : '?',
                         style: theme.textTheme.labelMedium?.copyWith(
                           fontSize: 12,
                           fontWeight: FontWeight.w900,
-                          color: theme.colorScheme.onSurface,
+                          color: entry != null
+                              ? theme.colorScheme.onSurface
+                              : theme.colorScheme.outline.withValues(
+                                  alpha: 0.6,
+                                ),
                         ),
                         textAlign: TextAlign.center,
                         maxLines: 2,

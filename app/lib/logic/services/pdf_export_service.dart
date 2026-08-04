@@ -90,14 +90,33 @@ class PdfExportService {
   }
 
   static pw.Widget _buildCycleRow(Cycle cycle, DateFormat dateFormat) {
-    final entries = cycle.sortedEntries;
+    final cycleStart = DateTime(
+      cycle.startDate.year,
+      cycle.startDate.month,
+      cycle.startDate.day,
+    );
+    int cycleMaxDay = 0;
+    for (final entry in cycle.sortedEntries) {
+      final entryDate = DateTime(
+        entry.date.year,
+        entry.date.month,
+        entry.date.day,
+      );
+      final dayNum = entryDate.difference(cycleStart).inDays + 1;
+      if (dayNum > cycleMaxDay) cycleMaxDay = dayNum;
+    }
+    if (cycle.endDate != null) {
+      final endClean = DateTime(
+        cycle.endDate!.year,
+        cycle.endDate!.month,
+        cycle.endDate!.day,
+      );
+      final endDayNum = endClean.difference(cycleStart).inDays + 1;
+      if (endDayNum > cycleMaxDay) cycleMaxDay = endDayNum;
+    }
 
-    // We break the cycle into rows of 35 days (like a standard Creighton paper chart page)
     const int daysPerRow = 35;
-    final int totalDays = entries.length;
-
-    // Ensure we display at least 35 days, or pad the cycle
-    final int displayDays = totalDays < daysPerRow ? daysPerRow : totalDays;
+    final int displayDays = cycleMaxDay < daysPerRow ? daysPerRow : cycleMaxDay;
 
     final columns = <pw.Widget>[];
 
@@ -105,11 +124,13 @@ class PdfExportService {
     final commentsList = <Map<String, String>>[];
 
     for (int i = 0; i < displayDays; i++) {
-      DailyEntry? entry;
-      if (i < totalDays) {
-        entry = entries[i];
-      }
-
+      final dayDate = DateTime(
+        cycle.startDate.year,
+        cycle.startDate.month,
+        cycle.startDate.day + i,
+      );
+      final dateKey = DateFormat('yyyy-MM-dd').format(dayDate);
+      final entry = cycle.dailyEntries[dateKey];
       final dayNum = i + 1;
 
       // Determine Stamp Color & Baby Symbol
@@ -192,7 +213,16 @@ class PdfExportService {
                       ? _buildBabySymbol(PdfColors.black)
                       : (drawGreenBaby
                             ? _buildBabySymbol(PdfColors.white)
-                            : pw.SizedBox()),
+                            : (entry == null
+                                  ? pw.Text(
+                                      '?',
+                                      style: pw.TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: PdfColors.grey600,
+                                      ),
+                                    )
+                                  : pw.SizedBox())),
                 ),
               ),
 
@@ -209,7 +239,7 @@ class PdfExportService {
 
               // 4. Date
               pw.Text(
-                entry != null ? dateFormat.format(entry.date) : '',
+                dateFormat.format(dayDate),
                 style: const pw.TextStyle(
                   fontSize: 6,
                   color: PdfColors.grey500,
@@ -221,10 +251,10 @@ class PdfExportService {
                 height: 20,
                 alignment: pw.Alignment.topCenter,
                 child: pw.Text(
-                  entry != null ? entry.resolvedVdrsCode : '',
-                  style: const pw.TextStyle(
+                  entry != null ? entry.resolvedVdrsCode : '?',
+                  style: pw.TextStyle(
                     fontSize: 5,
-                    color: PdfColors.black,
+                    color: entry != null ? PdfColors.black : PdfColors.grey600,
                   ),
                   textAlign: pw.TextAlign.center,
                 ),
