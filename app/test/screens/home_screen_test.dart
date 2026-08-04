@@ -14,7 +14,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidgetBuilder(
-      const PetalCountApp(),
+      PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
       surfaceSize: const Size(400, 800),
     );
     await tester.pumpAndSettle();
@@ -25,7 +25,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidgetBuilder(
-      const PetalCountApp(),
+      PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
       surfaceSize: const Size(400, 800),
     );
     await tester.pumpAndSettle();
@@ -41,7 +41,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidgetBuilder(
-      const PetalCountApp(),
+      PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
       surfaceSize: const Size(400, 800),
     );
     await tester.pumpAndSettle();
@@ -57,7 +57,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidgetBuilder(
-      const PetalCountApp(),
+      PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
       surfaceSize: const Size(800, 400),
     );
     await tester.pumpAndSettle();
@@ -71,7 +71,7 @@ void main() {
 
   testGoldens('ChartSelectionScreen renders correctly', (tester) async {
     await tester.pumpWidgetBuilder(
-      const PetalCountApp(),
+      PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
       surfaceSize: const Size(400, 800),
     );
     await tester.pumpAndSettle();
@@ -85,7 +85,7 @@ void main() {
 
   testGoldens('SettingsScreen danger zone renders correctly', (tester) async {
     await tester.pumpWidgetBuilder(
-      const PetalCountApp(),
+      PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
       surfaceSize: const Size(400, 800),
     );
     await tester.pumpAndSettle();
@@ -113,7 +113,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidgetBuilder(
-      const PetalCountApp(),
+      PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
       surfaceSize: const Size(400, 800),
     );
     await tester.pumpAndSettle();
@@ -141,7 +141,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidgetBuilder(
-      const PetalCountApp(),
+      PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
       surfaceSize: const Size(400, 800),
     );
     await tester.pumpAndSettle();
@@ -173,7 +173,7 @@ void main() {
     'SettingsScreen danger zone sole collaborator renders correctly',
     (tester) async {
       await tester.pumpWidgetBuilder(
-        const PetalCountApp(),
+        PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
         surfaceSize: const Size(400, 800),
       );
       await tester.pumpAndSettle();
@@ -271,7 +271,7 @@ void main() {
       );
 
       await tester.pumpWidgetBuilder(
-        const PetalCountApp(),
+        PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
         surfaceSize: const Size(400, 800),
       );
       await tester.pumpAndSettle();
@@ -361,7 +361,7 @@ void main() {
       );
 
       await tester.pumpWidgetBuilder(
-        const PetalCountApp(),
+        PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
         surfaceSize: const Size(800, 400),
       );
       await tester.pumpAndSettle();

@@ -9,7 +9,8 @@ import 'settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Uri? mockUri;
-  const DashboardScreen({super.key, this.mockUri});
+  final DateTime? todayOverride;
+  const DashboardScreen({super.key, this.mockUri, this.todayOverride});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -223,6 +224,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 cycle,
                                 date,
                               ),
+                          todayOverride: widget.todayOverride,
                         )
                       : ChartScreen(
                           cycles: cycles,

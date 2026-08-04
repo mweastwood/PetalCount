@@ -16,7 +16,8 @@ void mainCommon() {
 }
 
 class PetalCountApp extends StatelessWidget {
-  const PetalCountApp({super.key});
+  final DateTime? todayOverride;
+  const PetalCountApp({super.key, this.todayOverride});
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +48,7 @@ class PetalCountApp extends StatelessWidget {
           title: 'Petal Count',
           theme: ThemeData(colorScheme: lightScheme, useMaterial3: true),
           darkTheme: ThemeData(colorScheme: darkScheme, useMaterial3: true),
-          home: const AuthGate(),
+          home: AuthGate(todayOverride: todayOverride),
           debugShowCheckedModeBanner: false,
         );
       },
@@ -56,7 +57,8 @@ class PetalCountApp extends StatelessWidget {
 }
 
 class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
+  final DateTime? todayOverride;
+  const AuthGate({super.key, this.todayOverride});
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +81,7 @@ class AuthGate extends StatelessWidget {
           return const ChartSelectionScreen();
         }
 
-        return const DashboardScreen();
+        return DashboardScreen(todayOverride: todayOverride);
       },
     );
   }

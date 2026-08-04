@@ -13,7 +13,7 @@ void main() {
     WidgetTester tester,
   ) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const PetalCountApp());
+    await tester.pumpWidget(PetalCountApp(todayOverride: DateTime(2026, 8, 3)));
     await tester.pumpAndSettle();
 
     // Verify Dashboard Screen title is shown
@@ -56,7 +56,9 @@ void main() {
   testWidgets(
     'Vertical Timeline View displays today at bottom and scrolls up',
     (WidgetTester tester) async {
-      await tester.pumpWidget(const PetalCountApp());
+      await tester.pumpWidget(
+        PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+      );
       await tester.pumpAndSettle();
 
       // Verify Observations navigation tab is selected by default
@@ -111,7 +113,9 @@ void main() {
         isVdrsExplicit: false,
       );
 
-      await tester.pumpWidget(const PetalCountApp());
+      await tester.pumpWidget(
+        PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+      );
       await tester.pumpAndSettle();
 
       // Scroll up to view past observations
