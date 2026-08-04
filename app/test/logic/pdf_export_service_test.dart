@@ -61,5 +61,40 @@ void main() {
         expect(bytes.length, greaterThan(1000));
       },
     );
+    test(
+      'generatePdfBytes produces valid PDF bytes for cycle with missing observation days',
+      () async {
+        final start = DateTime(2026, 6, 1);
+        final cycle = Cycle(
+          id: '2026-06-01',
+          startDate: start,
+          bipCodes: const ['6C'],
+          dailyEntries: {
+            '2026-06-01': DailyEntry(
+              date: start,
+              resolvedVdrsCode: 'H',
+              stampType: StampType.red,
+              observations: [],
+              painLevel: 0,
+              painTypes: [],
+              comments: 'Period start',
+            ),
+            '2026-06-05': DailyEntry(
+              date: DateTime(2026, 6, 5),
+              resolvedVdrsCode: '10KL',
+              stampType: StampType.whiteBaby,
+              observations: [],
+              painLevel: 0,
+              painTypes: [],
+              comments: '',
+            ),
+          },
+        );
+
+        final bytes = await PdfExportService.generatePdfBytes([cycle]);
+        expect(bytes, isNotEmpty);
+        expect(bytes.length, greaterThan(500));
+      },
+    );
   });
 }

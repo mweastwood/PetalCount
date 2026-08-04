@@ -9,6 +9,27 @@ void main() {
     await Services.init();
   });
 
+  testWidgets('ChartScreen shows fallback text when no cycles available', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ChartScreen(
+            cycles: const [],
+            onSelectEntry: (e, c) {},
+            onAddForDate: (c, d) {},
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.text('No cycles available. Log an observation to begin.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets(
     'ChartScreen displays question mark for missing observation days and preserves day alignment',
     (WidgetTester tester) async {
