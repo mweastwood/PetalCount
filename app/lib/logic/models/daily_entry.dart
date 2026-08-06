@@ -1,4 +1,5 @@
 import 'observation.dart';
+import '../services/creighton_logic.dart';
 
 enum StampType {
   red('Red', 'Bleeding'),
@@ -42,7 +43,11 @@ class DailyEntry {
   }) : date = date.toNormalizedDate();
 
   bool get isPeakDay => peakDayLabel == 'P';
-  bool get hasBleeding => resolvedVdrsCode.contains(RegExp(r'[HMLVSRB]'));
+  bool get hasBleeding {
+    if (observations.any((o) => o.hasBleeding)) return true;
+    final parsed = CreightonLogic.parseVdrsCode(resolvedVdrsCode);
+    return parsed.bleedingPart != null;
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -57,14 +62,25 @@ class DailyEntry {
     };
   }
 
+  static DateTime _parseIsoDate(String dateStr) {
+    try {
+      return DateTime.parse(dateStr);
+    } catch (_) {
+      final dateOnly = dateStr.contains('T') ? dateStr.split('T')[0] : dateStr;
+      final parts = dateOnly.split('-');
+      if (parts.length >= 3) {
+        final year = int.tryParse(parts[0]) ?? 1970;
+        final month = int.tryParse(parts[1]) ?? 1;
+        final day = int.tryParse(parts[2].replaceAll(RegExp(r'\D.*'), '')) ?? 1;
+        return DateTime(year, month, day);
+      }
+      return DateTime.now();
+    }
+  }
+
   factory DailyEntry.fromMap(Map<String, dynamic> map) {
     final dateStr = map['date'] as String;
-    final parts = dateStr.split('-');
-    final parsedDate = DateTime(
-      int.parse(parts[0]),
-      int.parse(parts[1]),
-      int.parse(parts[2]),
-    );
+    final parsedDate = _parseIsoDate(dateStr);
 
     return DailyEntry(
       date: parsedDate,

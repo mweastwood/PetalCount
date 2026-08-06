@@ -343,4 +343,112 @@ void main() {
       expect(recalculated[keyJun3]?.peakDayLabel, '3');
     });
   });
+
+  group('Issue 51 Fixes: Peak-Type Matching, Stamp Defaults, ISO Date Parsing', () {
+    test(
+      'isPeakTypeCode correctly isolates mucus part from bleeding and comment suffixes',
+      () {
+        expect(CreightonLogic.isPeakTypeCode('L'), isFalse);
+        expect(CreightonLogic.isPeakTypeCode('L-R'), isFalse);
+        expect(CreightonLogic.isPeakTypeCode('L-K'), isFalse);
+        expect(CreightonLogic.isPeakTypeCode('VL-K'), isFalse);
+        expect(CreightonLogic.isPeakTypeCode('L 6C'), isFalse);
+        expect(
+          CreightonLogic.isPeakTypeCode('L-R (feeling sluggish with K)'),
+          isFalse,
+        );
+
+        expect(CreightonLogic.isPeakTypeCode('L 10K'), isTrue);
+        expect(CreightonLogic.isPeakTypeCode('10WLK'), isTrue);
+        expect(CreightonLogic.isPeakTypeCode('8K'), isTrue);
+        expect(CreightonLogic.isPeakTypeCode('10C'), isTrue);
+      },
+    );
+
+    test(
+      'resolveDailyEntry sets appropriate initial StampType prior to cycle recalculation',
+      () {
+        final date = DateTime(2026, 8, 5);
+
+        final bleedingObs = Observation(
+          id: '1',
+          timestamp: date,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.heavy,
+          userId: 'test',
+        );
+        final dailyBleeding = CreightonLogic.resolveDailyEntry(
+          date: date,
+          observations: [bleedingObs],
+        );
+        expect(dailyBleeding.stampType, StampType.red);
+
+        final mucusObs = Observation(
+          id: '2',
+          timestamp: date,
+          sensation: Sensation.damp,
+          stretch: Stretch.sticky,
+          colors: [MucusColor.cloudy],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+        final dailyMucus = CreightonLogic.resolveDailyEntry(
+          date: date,
+          observations: [mucusObs],
+        );
+        expect(dailyMucus.stampType, StampType.whiteBaby);
+
+        final dryObs = Observation(
+          id: '3',
+          timestamp: date,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+        final dailyDry = CreightonLogic.resolveDailyEntry(
+          date: date,
+          observations: [dryObs],
+        );
+        expect(dailyDry.stampType, StampType.green);
+      },
+    );
+
+    test(
+      'DailyEntry.fromMap and Cycle.fromMap parse ISO timestamps without FormatException',
+      () {
+        final dailyMap = {
+          'date': '2026-08-05T14:30:00.000Z',
+          'resolvedVdrsCode': '10K',
+          'stampType': 'WhiteBaby',
+          'observations': [],
+          'painLevel': 0.0,
+          'painTypes': [],
+          'comments': '',
+        };
+        final entry = DailyEntry.fromMap(dailyMap);
+        expect(entry.date, DateTime(2026, 8, 5));
+        expect(entry.resolvedVdrsCode, '10K');
+
+        final cycleMap = {
+          'id': 'cycle_1',
+          'startDate': '2026-08-01T00:00:00.000Z',
+          'endDate': '2026-08-28T23:59:59Z',
+          'bipCodes': [],
+          'dailyEntries': {'2026-08-05': dailyMap},
+        };
+        final cycle = Cycle.fromMap(cycleMap);
+        expect(cycle.startDate.year, 2026);
+        expect(cycle.startDate.month, 8);
+        expect(cycle.startDate.day, 1);
+        expect(cycle.endDate?.day, 28);
+      },
+    );
+  });
 }

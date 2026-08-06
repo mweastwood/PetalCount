@@ -1,6 +1,13 @@
 import '../models/observation.dart';
 import '../models/daily_entry.dart';
 
+class ParsedVdrs {
+  final String? bleedingPart;
+  final String? mucusPart;
+
+  const ParsedVdrs({this.bleedingPart, this.mucusPart});
+}
+
 class CreightonLogic {
   // Helper values for comparing fertility levels of observations
   static int _stretchValue(Stretch s) {
@@ -142,10 +149,20 @@ class CreightonLogic {
       }
     }
 
+    // Determine initial basic stamp type prior to full cycle recalculation
+    StampType initialStamp;
+    if (hasAnyBleeding) {
+      initialStamp = StampType.red;
+    } else if (bestObs.hasMucus) {
+      initialStamp = StampType.whiteBaby;
+    } else {
+      initialStamp = StampType.green;
+    }
+
     return DailyEntry(
       date: date,
       resolvedVdrsCode: resolvedCode,
-      stampType: StampType.green, // Will be computed in the cycle recalculation
+      stampType: initialStamp,
       observations: observations,
       painLevel: maxPainLevel,
       painTypes: allPainTypes.toList(),
@@ -153,37 +170,69 @@ class CreightonLogic {
     );
   }
 
-  // Parses a resolved VDRS code to check if it has Peak-type mucus properties.
-  // Peak-type means: stretchy (10), clear (K), or lubricative (L)
-  static bool isPeakTypeCode(String code) {
-    if (code.contains('10') || code.contains('K') || code.contains('L')) {
-      // Must verify it's not just a bleeding code containing L (Light bleeding)
-      // Standard Creighton Peak-type mucus has '10', 'K', or 'L' as a consistency.
-      // If code contains 'L' we must check if it represents Light Bleeding or Lubricative mucus.
-      // Light bleeding typically appears as "L" or "L-R" or "L-B" at the start.
-      // Lubricative mucus is represented by "10DL", "10SL", "10WL", or suffix "-L".
-
-      final parts = code.split(' ');
-      String mucusPart = parts.length > 1 ? parts[1] : parts[0];
-
-      // If there is no space, but it's a bleeding code like "L", "L-R", "L-B", it is NOT peak-type mucus.
-      if (parts.length == 1 &&
-          (code == 'L' ||
-              code == 'L-R' ||
-              code == 'L-B' ||
-              code == 'VL' ||
-              code == 'VL-R' ||
-              code == 'VL-B')) {
-        return false;
-      }
-
-      final has10 = mucusPart.contains('10');
-      final hasK = mucusPart.contains('K');
-      final hasL = mucusPart.contains('L');
-
-      return has10 || hasK || hasL;
+  // Parses a raw or resolved VDRS code into structured bleeding and mucus components.
+  static ParsedVdrs parseVdrsCode(String code) {
+    final trimmed = code.trim();
+    if (trimmed.isEmpty) {
+      return const ParsedVdrs();
     }
-    return false;
+
+    // Strip comments in parentheses or trailing semicolon comments
+    String cleanCode = trimmed.replaceAll(RegExp(r'\s*\(.*?\)\s*'), '').trim();
+    if (cleanCode.contains(';')) {
+      cleanCode = cleanCode.split(';')[0].trim();
+    }
+
+    if (cleanCode.isEmpty) {
+      return const ParsedVdrs();
+    }
+
+    final tokens = cleanCode.split(RegExp(r'\s+'));
+
+    String? bleedingPart;
+    String? mucusPart;
+
+    final bleedingRegex = RegExp(
+      r'^(H|M|L|VL|S|B|R)(-[A-Z]+)?$',
+      caseSensitive: false,
+    );
+    final mucusRegex = RegExp(r'^(0|2W?|4|6|8|10)', caseSensitive: false);
+
+    for (final token in tokens) {
+      if (bleedingPart == null && bleedingRegex.hasMatch(token)) {
+        bleedingPart = token;
+      } else if (mucusPart == null && mucusRegex.hasMatch(token)) {
+        mucusPart = token;
+      }
+    }
+
+    if (bleedingPart == null && mucusPart == null && tokens.isNotEmpty) {
+      final t = tokens[0];
+      if (t.contains(RegExp(r'\d'))) {
+        mucusPart = t;
+      } else {
+        bleedingPart = t;
+      }
+    }
+
+    return ParsedVdrs(bleedingPart: bleedingPart, mucusPart: mucusPart);
+  }
+
+  // Parses a resolved VDRS code to check if it has Peak-type mucus properties.
+  // Peak-type means: stretchy (10), clear (K), or lubricative (L) in the mucus component.
+  static bool isPeakTypeCode(String code) {
+    final parsed = parseVdrsCode(code);
+    final mucusPart = parsed.mucusPart;
+    if (mucusPart == null || mucusPart.isEmpty) {
+      return false;
+    }
+
+    final upperMucus = mucusPart.toUpperCase();
+    final has10 = upperMucus.contains('10');
+    final hasK = upperMucus.contains('K');
+    final hasL = upperMucus.contains('L');
+
+    return has10 || hasK || hasL;
   }
 
   // Recalculates stamps and Peak-Day labels for an entire cycle
@@ -263,10 +312,11 @@ class CreightonLogic {
         stamp = StampType.red;
       } else {
         // Extract mucus-only portion
-        final parts = code.split(' ');
-        final mucusPart = parts.length > 1 ? parts[1] : parts[0];
+        final parsed = parseVdrsCode(code);
+        final mucusPart = parsed.mucusPart ?? '';
 
         final hasMucus =
+            mucusPart.isNotEmpty &&
             mucusPart != '0' &&
             mucusPart != '2' &&
             mucusPart != '2W' &&
