@@ -1,5 +1,4 @@
 import 'observation.dart';
-import '../services/creighton_logic.dart';
 
 enum StampType {
   red('Red', 'Bleeding'),
@@ -43,10 +42,43 @@ class DailyEntry {
   }) : date = date.toNormalizedDate();
 
   bool get isPeakDay => peakDayLabel == 'P';
+
   bool get hasBleeding {
-    if (observations.any((o) => o.hasBleeding)) return true;
-    final parsed = CreightonLogic.parseVdrsCode(resolvedVdrsCode);
-    return parsed.bleedingPart != null;
+    if (observations.isNotEmpty) {
+      return observations.any((o) => o.hasBleeding);
+    }
+    // Fallback for synthetic entries with empty observations list
+    return resolvedVdrsCode.startsWith(
+      RegExp(r'^(H|M|L|VL|S|B|R)\b', caseSensitive: false),
+    );
+  }
+
+  bool get hasMucus {
+    if (observations.isNotEmpty) {
+      return observations.any((o) => o.hasMucus);
+    }
+    // Fallback for synthetic entries with empty observations list
+    final parts = resolvedVdrsCode.split(' ');
+    final mucusPart = parts.length > 1 ? parts[1] : parts[0];
+    return mucusPart.isNotEmpty &&
+        mucusPart != '0' &&
+        mucusPart != '2' &&
+        mucusPart != '2W' &&
+        mucusPart != '4' &&
+        !hasBleeding;
+  }
+
+  bool get isPeakType {
+    if (observations.isNotEmpty) {
+      return observations.any((o) => o.isPeakType);
+    }
+    // Fallback for synthetic entries with empty observations list
+    final parts = resolvedVdrsCode.split(' ');
+    final mucusPart = parts.length > 1
+        ? parts[1]
+        : (hasBleeding ? '' : parts[0]);
+    final upper = mucusPart.toUpperCase();
+    return upper.contains('10') || upper.contains('K') || upper.contains('L');
   }
 
   Map<String, dynamic> toMap() {

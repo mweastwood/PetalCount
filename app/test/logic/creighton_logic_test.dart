@@ -346,22 +346,74 @@ void main() {
 
   group('Issue 51 Fixes: Peak-Type Matching, Stamp Defaults, ISO Date Parsing', () {
     test(
-      'isPeakTypeCode correctly isolates mucus part from bleeding and comment suffixes',
+      'Observation.isPeakType and DailyEntry.isPeakType correctly identify peak-type mucus using underlying data structures',
       () {
-        expect(CreightonLogic.isPeakTypeCode('L'), isFalse);
-        expect(CreightonLogic.isPeakTypeCode('L-R'), isFalse);
-        expect(CreightonLogic.isPeakTypeCode('L-K'), isFalse);
-        expect(CreightonLogic.isPeakTypeCode('VL-K'), isFalse);
-        expect(CreightonLogic.isPeakTypeCode('L 6C'), isFalse);
-        expect(
-          CreightonLogic.isPeakTypeCode('L-R (feeling sluggish with K)'),
-          isFalse,
-        );
+        final date = DateTime(2026, 8, 5);
 
-        expect(CreightonLogic.isPeakTypeCode('L 10K'), isTrue);
-        expect(CreightonLogic.isPeakTypeCode('10WLK'), isTrue);
-        expect(CreightonLogic.isPeakTypeCode('8K'), isTrue);
-        expect(CreightonLogic.isPeakTypeCode('10C'), isTrue);
+        // Light bleeding only (Bleeding.light), no mucus -> not peak-type
+        final lightBleedingObs = Observation(
+          id: '1',
+          timestamp: date,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.light,
+          bleedingColor: 'K', // black bleeding color
+          comment: 'feeling sluggish with K',
+          userId: 'test',
+        );
+        expect(lightBleedingObs.isPeakType, isFalse);
+
+        final dailyLightBleeding = DailyEntry(
+          date: date,
+          resolvedVdrsCode: 'L-K',
+          stampType: StampType.red,
+          observations: [lightBleedingObs],
+          painLevel: 0,
+          painTypes: [],
+          comments: 'feeling sluggish with K',
+        );
+        expect(dailyLightBleeding.isPeakType, isFalse);
+        expect(dailyLightBleeding.hasBleeding, isTrue);
+
+        // Stretchy clear mucus -> peak-type
+        final stretchyObs = Observation(
+          id: '2',
+          timestamp: date,
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: [MucusColor.clear],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+        expect(stretchyObs.isPeakType, isTrue);
+
+        final dailyStretchy = DailyEntry(
+          date: date,
+          resolvedVdrsCode: '10K',
+          stampType: StampType.whiteBaby,
+          observations: [stretchyObs],
+          painLevel: 0,
+          painTypes: [],
+          comments: '',
+        );
+        expect(dailyStretchy.isPeakType, isTrue);
+        expect(dailyStretchy.hasBleeding, isFalse);
+
+        // Lubricative mucus -> peak-type
+        final lubricativeObs = Observation(
+          id: '3',
+          timestamp: date,
+          sensation: Sensation.wet,
+          stretch: Stretch.tacky,
+          colors: [MucusColor.cloudy],
+          consistencies: [Consistency.lubricative],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+        expect(lubricativeObs.isPeakType, isTrue);
       },
     );
 
