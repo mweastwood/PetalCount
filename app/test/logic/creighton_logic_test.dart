@@ -139,72 +139,87 @@ void main() {
 
         // Day 1-3: Bleeding (Red)
         for (int i = 0; i < 3; i++) {
+          final d = start.add(Duration(days: i));
+          final obs = Observation(
+            id: 'b_$i',
+            timestamp: d,
+            sensation: Sensation.dry,
+            stretch: Stretch.none,
+            colors: [],
+            consistencies: [],
+            bleeding: Bleeding.heavy,
+            userId: 'test',
+          );
           entries.add(
-            DailyEntry(
-              date: start.add(Duration(days: i)),
-              resolvedVdrsCode: 'H',
-              stampType: StampType.green,
-              observations: [],
-              painLevel: 0,
-              painTypes: [],
-              comments: '',
-            ),
+            CreightonLogic.resolveDailyEntry(date: d, observations: [obs]),
           );
         }
 
         // Day 4-8: Dry (Green)
         for (int i = 3; i < 8; i++) {
+          final d = start.add(Duration(days: i));
+          final obs = Observation(
+            id: 'd_$i',
+            timestamp: d,
+            sensation: Sensation.dry,
+            stretch: Stretch.none,
+            colors: [],
+            consistencies: [],
+            bleeding: Bleeding.none,
+            userId: 'test',
+          );
           entries.add(
-            DailyEntry(
-              date: start.add(Duration(days: i)),
-              resolvedVdrsCode: '0',
-              stampType: StampType.green,
-              observations: [],
-              painLevel: 0,
-              painTypes: [],
-              comments: '',
-            ),
+            CreightonLogic.resolveDailyEntry(date: d, observations: [obs]),
           );
         }
 
-        // Day 9: Mucus Build-up (White Baby)
+        // Day 9: Mucus Build-up (White Baby - 6C)
+        final d9 = start.add(const Duration(days: 8));
+        final obs9 = Observation(
+          id: 'm_9',
+          timestamp: d9,
+          sensation: Sensation.damp,
+          stretch: Stretch.sticky,
+          colors: [MucusColor.cloudy],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
         entries.add(
-          DailyEntry(
-            date: start.add(const Duration(days: 8)),
-            resolvedVdrsCode: '6C',
-            stampType: StampType.green,
-            observations: [],
-            painLevel: 0,
-            painTypes: [],
-            comments: '',
-          ),
+          CreightonLogic.resolveDailyEntry(date: d9, observations: [obs9]),
         );
 
         // Day 10: Peak mucus (10K)
+        final d10 = start.add(const Duration(days: 9));
+        final obs10 = Observation(
+          id: 'm_10',
+          timestamp: d10,
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: [MucusColor.clear],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
         entries.add(
-          DailyEntry(
-            date: start.add(const Duration(days: 9)),
-            resolvedVdrsCode: '10K',
-            stampType: StampType.green,
-            observations: [],
-            painLevel: 0,
-            painTypes: [],
-            comments: '',
-          ),
+          CreightonLogic.resolveDailyEntry(date: d10, observations: [obs10]),
         );
 
-        // Day 11-14: Dry (should be Green Baby for 11, 12, 13 due to Peak + 3 shift, and then Plain Green)
+        // Day 11-14: Dry
         for (int i = 10; i < 15; i++) {
+          final d = start.add(Duration(days: i));
+          final obs = Observation(
+            id: 'd_$i',
+            timestamp: d,
+            sensation: Sensation.dry,
+            stretch: Stretch.none,
+            colors: [],
+            consistencies: [],
+            bleeding: Bleeding.none,
+            userId: 'test',
+          );
           entries.add(
-            DailyEntry(
-              date: start.add(Duration(days: i)),
-              resolvedVdrsCode: '0',
-              stampType: StampType.green,
-              observations: [],
-              painLevel: 0,
-              painTypes: [],
-              comments: '',
-            ),
+            CreightonLogic.resolveDailyEntry(date: d, observations: [obs]),
           );
         }
 
@@ -260,16 +275,18 @@ void main() {
       'Applies Yellow stamps for BIP mucus codes outside post-peak window',
       () {
         final start = DateTime(2026, 6, 1);
+        final bipObs = Observation(
+          id: 'bip_1',
+          timestamp: start,
+          sensation: Sensation.damp,
+          stretch: Stretch.sticky,
+          colors: [MucusColor.cloudy],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
         final entries = <DailyEntry>[
-          DailyEntry(
-            date: start,
-            resolvedVdrsCode: '6C', // Mucus matching BIP
-            stampType: StampType.green,
-            observations: [],
-            painLevel: 0,
-            painTypes: [],
-            comments: '',
-          ),
+          CreightonLogic.resolveDailyEntry(date: start, observations: [bipObs]),
         ];
 
         final recalculated = CreightonLogic.recalculateCycle(
@@ -288,43 +305,55 @@ void main() {
       final jun2 = DateTime(2026, 6, 2);
       final jun3 = DateTime(2026, 6, 3);
 
+      final peakObs = Observation(
+        id: 'peak',
+        timestamp: endOfMonth,
+        sensation: Sensation.damp,
+        stretch: Stretch.stretchy,
+        colors: [MucusColor.clear],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        userId: 'test',
+      );
+      final dryObs1 = Observation(
+        id: 'd1',
+        timestamp: jun1,
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        userId: 'test',
+      );
+      final dryObs2 = Observation(
+        id: 'd2',
+        timestamp: jun2,
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        userId: 'test',
+      );
+      final dryObs3 = Observation(
+        id: 'd3',
+        timestamp: jun3,
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        userId: 'test',
+      );
+
       final entries = <DailyEntry>[
-        DailyEntry(
+        CreightonLogic.resolveDailyEntry(
           date: endOfMonth,
-          resolvedVdrsCode: '10K',
-          stampType: StampType.whiteBaby,
-          observations: [],
-          painLevel: 0,
-          painTypes: [],
-          comments: '',
+          observations: [peakObs],
         ),
-        DailyEntry(
-          date: jun1,
-          resolvedVdrsCode: '0',
-          stampType: StampType.green,
-          observations: [],
-          painLevel: 0,
-          painTypes: [],
-          comments: '',
-        ),
-        DailyEntry(
-          date: jun2,
-          resolvedVdrsCode: '0',
-          stampType: StampType.green,
-          observations: [],
-          painLevel: 0,
-          painTypes: [],
-          comments: '',
-        ),
-        DailyEntry(
-          date: jun3,
-          resolvedVdrsCode: '0',
-          stampType: StampType.green,
-          observations: [],
-          painLevel: 0,
-          painTypes: [],
-          comments: '',
-        ),
+        CreightonLogic.resolveDailyEntry(date: jun1, observations: [dryObs1]),
+        CreightonLogic.resolveDailyEntry(date: jun2, observations: [dryObs2]),
+        CreightonLogic.resolveDailyEntry(date: jun3, observations: [dryObs3]),
       ];
 
       final recalculated = CreightonLogic.recalculateCycle(
