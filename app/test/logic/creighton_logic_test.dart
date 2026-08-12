@@ -541,9 +541,11 @@ void main() {
         expect(parsedMucusOnly.bleedingPart, isNull);
         expect(parsedMucusOnly.mucusPart, '10K');
 
-        final parsedSpaceDelimited = CreightonLogic.parseVdrsCode('10K L');
-        expect(parsedSpaceDelimited.bleedingPart, isNull);
-        expect(parsedSpaceDelimited.mucusPart, '10K L');
+        final parsedMucusPrecedesBleeding = CreightonLogic.parseVdrsCode(
+          '10KL L',
+        );
+        expect(parsedMucusPrecedesBleeding.bleedingPart, 'L');
+        expect(parsedMucusPrecedesBleeding.mucusPart, '10KL');
 
         final parsedBleedingAndSpaceMucus = CreightonLogic.parseVdrsCode(
           'L 10K L',
@@ -586,18 +588,18 @@ void main() {
         expect(entryComposite.hasMucus, isTrue);
         expect(entryComposite.isPeakType, isTrue);
 
-        final entrySpaceDelimitedMucus = DailyEntry(
+        final entryMucusPrecedesBleeding = DailyEntry(
           date: date,
-          resolvedVdrsCode: '10K L',
-          stampType: StampType.whiteBaby,
+          resolvedVdrsCode: '10KL L',
+          stampType: StampType.red,
           observations: const [],
           painLevel: 0,
           painTypes: const [],
           comments: '',
         );
-        expect(entrySpaceDelimitedMucus.hasBleeding, isFalse);
-        expect(entrySpaceDelimitedMucus.hasMucus, isTrue);
-        expect(entrySpaceDelimitedMucus.isPeakType, isTrue);
+        expect(entryMucusPrecedesBleeding.hasBleeding, isTrue);
+        expect(entryMucusPrecedesBleeding.hasMucus, isTrue);
+        expect(entryMucusPrecedesBleeding.isPeakType, isTrue);
 
         final entryDry = DailyEntry(
           date: date,
@@ -611,6 +613,45 @@ void main() {
         expect(entryDry.hasBleeding, isFalse);
         expect(entryDry.hasMucus, isFalse);
         expect(entryDry.isPeakType, isFalse);
+
+        final entryDryModifier2AD = DailyEntry(
+          date: date,
+          resolvedVdrsCode: '2AD',
+          stampType: StampType.green,
+          observations: const [],
+          painLevel: 0,
+          painTypes: const [],
+          comments: '',
+        );
+        expect(entryDryModifier2AD.hasBleeding, isFalse);
+        expect(entryDryModifier2AD.hasMucus, isFalse);
+        expect(entryDryModifier2AD.isPeakType, isFalse);
+
+        final entryDryModifier0AD = DailyEntry(
+          date: date,
+          resolvedVdrsCode: '0AD',
+          stampType: StampType.green,
+          observations: const [],
+          painLevel: 0,
+          painTypes: const [],
+          comments: '',
+        );
+        expect(entryDryModifier0AD.hasBleeding, isFalse);
+        expect(entryDryModifier0AD.hasMucus, isFalse);
+        expect(entryDryModifier0AD.isPeakType, isFalse);
+
+        final entryDryModifier4AD = DailyEntry(
+          date: date,
+          resolvedVdrsCode: '4AD',
+          stampType: StampType.green,
+          observations: const [],
+          painLevel: 0,
+          painTypes: const [],
+          comments: '',
+        );
+        expect(entryDryModifier4AD.hasBleeding, isFalse);
+        expect(entryDryModifier4AD.hasMucus, isFalse);
+        expect(entryDryModifier4AD.isPeakType, isFalse);
 
         final entryNonPeakMucus = DailyEntry(
           date: date,
@@ -636,6 +677,9 @@ void main() {
         expect(isoWithTime.year, 2026);
         expect(isoWithTime.month, 8);
         expect(isoWithTime.day, 5);
+
+        final invalidDate = parseIsoDate('completely-invalid-date');
+        expect(invalidDate, DateTime(1970, 1, 1));
       });
     },
   );
