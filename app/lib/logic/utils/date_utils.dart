@@ -1,5 +1,5 @@
-/// Utility functions and extensions for DateTime operations and ISO date
-/// parsing.
+// Utility functions and extensions for DateTime operations and ISO date
+// parsing.
 
 /// Extension providing date normalization helpers for [DateTime] instances.
 extension DateTimeNormalizationX on DateTime {
@@ -28,6 +28,7 @@ DateTime parseIsoDate(String dateStr) {
       final day = int.tryParse(parts[2].replaceAll(RegExp(r'\D.*'), '')) ?? 1;
       return DateTime(year, month, day);
     }
-    return DateTime.now();
+    return DateTime(1970, 1, 1);
   }
 }
+

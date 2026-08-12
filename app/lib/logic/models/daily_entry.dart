@@ -52,12 +52,11 @@ class DailyEntry {
     }
     final parsed = CreightonLogic.parseVdrsCode(resolvedVdrsCode);
     final m = parsed.mucusPart;
-    return m != null &&
-        m.isNotEmpty &&
-        m != '0' &&
-        m != '2' &&
-        m != '2W' &&
-        m != '4';
+    if (m == null || m.isEmpty) return false;
+    final trimmed = m.trim();
+    return !trimmed.startsWith('0') &&
+        !trimmed.startsWith('2') &&
+        !trimmed.startsWith('4');
   }
 
   bool get isPeakType {

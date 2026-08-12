@@ -39,12 +39,12 @@ class CreightonLogic {
     final mucusRegex = RegExp(r'^(0|2W?|4|6|8|10)', caseSensitive: false);
 
     for (final token in tokens) {
-      if (mucusPart != null) {
-        mucusPart = '$mucusPart $token';
-      } else if (bleedingPart == null && bleedingRegex.hasMatch(token)) {
+      if (bleedingPart == null && bleedingRegex.hasMatch(token)) {
         bleedingPart = token;
       } else if (mucusRegex.hasMatch(token)) {
         mucusPart = token;
+      } else if (mucusPart != null) {
+        mucusPart = '$mucusPart $token';
       }
     }
 
