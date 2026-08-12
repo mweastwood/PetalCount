@@ -8,6 +8,10 @@ extension DateTimeNormalizationX on DateTime {
   DateTime toNormalizedDate() {
     return DateTime(year, month, day);
   }
+
+  /// Safely parses an ISO 8601 date string or YYYY-MM-DD date string with
+  /// fallback handling.
+  static DateTime parseIso(String dateStr) => parseIsoDate(dateStr);
 }
 
 /// Safely parses an ISO 8601 date string or YYYY-MM-DD date string with

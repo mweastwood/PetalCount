@@ -77,6 +77,7 @@ class CreightonLogic {
 
     return has10 || hasK || hasL;
   }
+
   // Helper values for comparing fertility levels of observations
   static int _stretchValue(Stretch s) {
     switch (s) {
