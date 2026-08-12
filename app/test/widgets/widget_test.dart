@@ -79,7 +79,7 @@ void main() {
   testWidgets(
     'Vertical Timeline renders continuous connector line and logged observations cleanly',
     (WidgetTester tester) async {
-      final now = DateTime.now();
+      final now = DateTime(2026, 8, 3);
       final day1 = now.subtract(const Duration(days: 5));
       final day2 = now.subtract(const Duration(days: 4));
 

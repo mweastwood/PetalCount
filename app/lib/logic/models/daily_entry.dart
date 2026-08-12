@@ -1,4 +1,5 @@
 import 'observation.dart';
+import '../services/creighton_logic.dart';
 
 enum StampType {
   red('Red', 'Bleeding'),
@@ -42,9 +43,35 @@ class DailyEntry {
   }) : date = date.toNormalizedDate();
 
   bool get isPeakDay => peakDayLabel == 'P';
-  bool get hasBleeding => observations.any((o) => o.hasBleeding);
-  bool get hasMucus => observations.any((o) => o.hasMucus);
-  bool get isPeakType => observations.any((o) => o.isPeakType);
+
+  bool get hasBleeding {
+    if (observations.isNotEmpty) {
+      return observations.any((o) => o.hasBleeding);
+    }
+    final parsed = CreightonLogic.parseVdrsCode(resolvedVdrsCode);
+    return parsed.bleedingPart != null;
+  }
+
+  bool get hasMucus {
+    if (observations.isNotEmpty) {
+      return observations.any((o) => o.hasMucus);
+    }
+    final parsed = CreightonLogic.parseVdrsCode(resolvedVdrsCode);
+    final m = parsed.mucusPart;
+    return m != null &&
+        m.isNotEmpty &&
+        m != '0' &&
+        m != '2' &&
+        m != '2W' &&
+        m != '4';
+  }
+
+  bool get isPeakType {
+    if (observations.isNotEmpty) {
+      return observations.any((o) => o.isPeakType);
+    }
+    return CreightonLogic.isPeakTypeCode(resolvedVdrsCode);
+  }
 
   Map<String, dynamic> toMap() {
     return {

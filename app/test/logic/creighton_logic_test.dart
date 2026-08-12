@@ -531,5 +531,79 @@ void main() {
         expect(cycle.endDate?.day, 28);
       },
     );
+
+    test('CreightonLogic.parseVdrsCode correctly splits VDRS strings', () {
+      final parsedComposite = CreightonLogic.parseVdrsCode('L-R 10KL');
+      expect(parsedComposite.bleedingPart, 'L-R');
+      expect(parsedComposite.mucusPart, '10KL');
+
+      final parsedBleedingOnly = CreightonLogic.parseVdrsCode('L-R');
+      expect(parsedBleedingOnly.bleedingPart, 'L-R');
+      expect(parsedBleedingOnly.mucusPart, isNull);
+
+      final parsedMucusOnly = CreightonLogic.parseVdrsCode('10K');
+      expect(parsedMucusOnly.bleedingPart, isNull);
+      expect(parsedMucusOnly.mucusPart, '10K');
+
+      final parsedEmpty = CreightonLogic.parseVdrsCode('');
+      expect(parsedEmpty.bleedingPart, isNull);
+      expect(parsedEmpty.mucusPart, isNull);
+    });
+
+    test('DailyEntry getters fallback to resolvedVdrsCode when observations is empty', () {
+      final date = DateTime(2026, 8, 5);
+
+      final entryBleedingOnly = DailyEntry(
+        date: date,
+        resolvedVdrsCode: 'L-R',
+        stampType: StampType.red,
+        observations: const [],
+        painLevel: 0,
+        painTypes: const [],
+        comments: '',
+      );
+      expect(entryBleedingOnly.hasBleeding, isTrue);
+      expect(entryBleedingOnly.hasMucus, isFalse);
+      expect(entryBleedingOnly.isPeakType, isFalse);
+
+      final entryComposite = DailyEntry(
+        date: date,
+        resolvedVdrsCode: 'L-R 10KL',
+        stampType: StampType.red,
+        observations: const [],
+        painLevel: 0,
+        painTypes: const [],
+        comments: '',
+      );
+      expect(entryComposite.hasBleeding, isTrue);
+      expect(entryComposite.hasMucus, isTrue);
+      expect(entryComposite.isPeakType, isTrue);
+
+      final entryDry = DailyEntry(
+        date: date,
+        resolvedVdrsCode: '2W',
+        stampType: StampType.green,
+        observations: const [],
+        painLevel: 0,
+        painTypes: const [],
+        comments: '',
+      );
+      expect(entryDry.hasBleeding, isFalse);
+      expect(entryDry.hasMucus, isFalse);
+      expect(entryDry.isPeakType, isFalse);
+
+      final entryNonPeakMucus = DailyEntry(
+        date: date,
+        resolvedVdrsCode: '6C',
+        stampType: StampType.whiteBaby,
+        observations: const [],
+        painLevel: 0,
+        painTypes: const [],
+        comments: '',
+      );
+      expect(entryNonPeakMucus.hasBleeding, isFalse);
+      expect(entryNonPeakMucus.hasMucus, isTrue);
+      expect(entryNonPeakMucus.isPeakType, isFalse);
+    });
   });
 }

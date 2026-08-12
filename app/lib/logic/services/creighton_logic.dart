@@ -1,7 +1,78 @@
 import '../models/observation.dart';
 import '../models/daily_entry.dart';
 
+class ParsedVdrs {
+  final String? bleedingPart;
+  final String? mucusPart;
+
+  const ParsedVdrs({this.bleedingPart, this.mucusPart});
+}
+
 class CreightonLogic {
+  /// Parses a raw or resolved VDRS code into structured bleeding and mucus components.
+  static ParsedVdrs parseVdrsCode(String code) {
+    final trimmed = code.trim();
+    if (trimmed.isEmpty) {
+      return const ParsedVdrs();
+    }
+
+    // Strip comments in parentheses or trailing semicolon comments
+    String cleanCode = trimmed.replaceAll(RegExp(r'\s*\(.*?\)\s*'), '').trim();
+    if (cleanCode.contains(';')) {
+      cleanCode = cleanCode.split(';')[0].trim();
+    }
+
+    if (cleanCode.isEmpty) {
+      return const ParsedVdrs();
+    }
+
+    final tokens = cleanCode.split(RegExp(r'\s+'));
+
+    String? bleedingPart;
+    String? mucusPart;
+
+    final bleedingRegex = RegExp(
+      r'^(H|M|L|VL|S|B|R)(-[A-Z]+)?$',
+      caseSensitive: false,
+    );
+    final mucusRegex = RegExp(r'^(0|2W?|4|6|8|10)', caseSensitive: false);
+
+    for (final token in tokens) {
+      if (bleedingPart == null && bleedingRegex.hasMatch(token)) {
+        bleedingPart = token;
+      } else if (mucusPart == null && mucusRegex.hasMatch(token)) {
+        mucusPart = token;
+      }
+    }
+
+    if (bleedingPart == null && mucusPart == null && tokens.isNotEmpty) {
+      final t = tokens[0];
+      if (t.contains(RegExp(r'\d'))) {
+        mucusPart = t;
+      } else {
+        bleedingPart = t;
+      }
+    }
+
+    return ParsedVdrs(bleedingPart: bleedingPart, mucusPart: mucusPart);
+  }
+
+  /// Parses a resolved VDRS code to check if it has Peak-type mucus properties.
+  /// Peak-type means: stretchy (10), clear (K), or lubricative (L) in the mucus component.
+  static bool isPeakTypeCode(String code) {
+    final parsed = parseVdrsCode(code);
+    final mucusPart = parsed.mucusPart;
+    if (mucusPart == null || mucusPart.isEmpty) {
+      return false;
+    }
+
+    final upperMucus = mucusPart.toUpperCase();
+    final has10 = upperMucus.contains('10');
+    final hasK = upperMucus.contains('K');
+    final hasL = upperMucus.contains('L');
+
+    return has10 || hasK || hasL;
+  }
   // Helper values for comparing fertility levels of observations
   static int _stretchValue(Stretch s) {
     switch (s) {
@@ -241,7 +312,10 @@ class CreightonLogic {
           }
         }
 
-        final mucusPart = bestObs?.mucusPart() ?? entry.resolvedVdrsCode;
+        final mucusPart =
+            bestObs?.mucusPart() ??
+            (parseVdrsCode(entry.resolvedVdrsCode).mucusPart ??
+                entry.resolvedVdrsCode);
         final isBip = bipCodes.any((bip) => mucusPart.startsWith(bip));
 
         if (isBip) {
