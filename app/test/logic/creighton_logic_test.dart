@@ -556,6 +556,19 @@ void main() {
         final parsedEmpty = CreightonLogic.parseVdrsCode('');
         expect(parsedEmpty.bleedingPart, isNull);
         expect(parsedEmpty.mucusPart, isNull);
+
+        final parsedMultiTokenMucus = CreightonLogic.parseVdrsCode('10K 2W');
+        expect(parsedMultiTokenMucus.mucusPart, contains('10K'));
+        expect(CreightonLogic.isPeakTypeCode('10K 2W'), isTrue);
+
+        final parsedCommentWord = CreightonLogic.parseVdrsCode('6C Left');
+        expect(parsedCommentWord.mucusPart, '6C');
+        expect(CreightonLogic.isPeakTypeCode('6C Left'), isFalse);
+
+        final parsedDigitlessMucus = CreightonLogic.parseVdrsCode('K');
+        expect(parsedDigitlessMucus.mucusPart, 'K');
+        expect(parsedDigitlessMucus.bleedingPart, isNull);
+        expect(CreightonLogic.isPeakTypeCode('K'), isTrue);
       });
 
       test('DailyEntry getters fallback to resolvedVdrsCode when observations'

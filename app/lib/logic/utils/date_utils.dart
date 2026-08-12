@@ -18,7 +18,7 @@ extension DateTimeNormalizationX on DateTime {
 /// fallback handling.
 DateTime parseIsoDate(String dateStr) {
   try {
-    return DateTime.parse(dateStr);
+    return DateTime.parse(dateStr).toNormalizedDate();
   } catch (_) {
     final dateOnly = dateStr.contains('T') ? dateStr.split('T')[0] : dateStr;
     final parts = dateOnly.split('-');

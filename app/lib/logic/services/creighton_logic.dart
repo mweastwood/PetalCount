@@ -36,21 +36,33 @@ class CreightonLogic {
       r'^(H|M|L|VL|S|B|R)(-[A-Z]+)?$',
       caseSensitive: false,
     );
-    final mucusRegex = RegExp(r'^(0|2W?|4|6|8|10)', caseSensitive: false);
+    final mucusCategoryRegex = RegExp(
+      r'^(0|2W?|4|6|8|10)',
+      caseSensitive: false,
+    );
+    final mucusDescriptorRegex = RegExp(
+      r'^[CKGLPYBRWAD]+$',
+      caseSensitive: false,
+    );
+
+    bool isMucusToken(String token) {
+      return mucusCategoryRegex.hasMatch(token) ||
+          mucusDescriptorRegex.hasMatch(token);
+    }
 
     for (final token in tokens) {
       if (bleedingPart == null && bleedingRegex.hasMatch(token)) {
         bleedingPart = token;
-      } else if (mucusRegex.hasMatch(token)) {
+      } else if (mucusPart == null && isMucusToken(token)) {
         mucusPart = token;
-      } else if (mucusPart != null) {
+      } else if (mucusPart != null && isMucusToken(token)) {
         mucusPart = '$mucusPart $token';
       }
     }
 
     if (bleedingPart == null && mucusPart == null && tokens.isNotEmpty) {
       final t = tokens[0];
-      if (t.contains(RegExp(r'\d'))) {
+      if (t.contains(RegExp(r'\d')) || isMucusToken(t)) {
         mucusPart = t;
       } else {
         bleedingPart = t;
