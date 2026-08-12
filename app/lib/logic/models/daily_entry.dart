@@ -1,5 +1,6 @@
-import 'observation.dart';
 import '../services/creighton_logic.dart';
+import '../utils/date_utils.dart';
+import 'observation.dart';
 
 enum StampType {
   red('Red', 'Bleeding'),
@@ -12,13 +13,6 @@ enum StampType {
   final String name;
   final String label;
   const StampType(this.name, this.label);
-}
-
-extension DateTimeNormalizationX on DateTime {
-  /// Normalizes DateTime to local midnight (Year, Month, Day) with 00:00:00 time component
-  DateTime toNormalizedDate() {
-    return DateTime(year, month, day);
-  }
 }
 
 class DailyEntry {
@@ -86,25 +80,9 @@ class DailyEntry {
     };
   }
 
-  static DateTime _parseIsoDate(String dateStr) {
-    try {
-      return DateTime.parse(dateStr);
-    } catch (_) {
-      final dateOnly = dateStr.contains('T') ? dateStr.split('T')[0] : dateStr;
-      final parts = dateOnly.split('-');
-      if (parts.length >= 3) {
-        final year = int.tryParse(parts[0]) ?? 1970;
-        final month = int.tryParse(parts[1]) ?? 1;
-        final day = int.tryParse(parts[2].replaceAll(RegExp(r'\D.*'), '')) ?? 1;
-        return DateTime(year, month, day);
-      }
-      return DateTime.now();
-    }
-  }
-
   factory DailyEntry.fromMap(Map<String, dynamic> map) {
     final dateStr = map['date'] as String;
-    final parsedDate = _parseIsoDate(dateStr);
+    final parsedDate = parseIsoDate(dateStr);
 
     return DailyEntry(
       date: parsedDate,

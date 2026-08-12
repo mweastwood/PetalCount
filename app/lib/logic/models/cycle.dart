@@ -1,3 +1,4 @@
+import '../utils/date_utils.dart';
 import 'daily_entry.dart';
 
 class Cycle {
@@ -33,29 +34,13 @@ class Cycle {
     };
   }
 
-  static DateTime _parseIsoDate(String dateStr) {
-    try {
-      return DateTime.parse(dateStr);
-    } catch (_) {
-      final dateOnly = dateStr.contains('T') ? dateStr.split('T')[0] : dateStr;
-      final parts = dateOnly.split('-');
-      if (parts.length >= 3) {
-        final year = int.tryParse(parts[0]) ?? 1970;
-        final month = int.tryParse(parts[1]) ?? 1;
-        final day = int.tryParse(parts[2].replaceAll(RegExp(r'\D.*'), '')) ?? 1;
-        return DateTime(year, month, day);
-      }
-      return DateTime.now();
-    }
-  }
-
   factory Cycle.fromMap(Map<String, dynamic> map) {
     final startStr = map['startDate'] as String;
-    final parsedStart = _parseIsoDate(startStr);
+    final parsedStart = parseIsoDate(startStr);
 
     DateTime? parsedEnd;
     if (map['endDate'] != null) {
-      parsedEnd = _parseIsoDate(map['endDate'] as String);
+      parsedEnd = parseIsoDate(map['endDate'] as String);
     }
 
     final rawEntries = map['dailyEntries'] as Map? ?? {};

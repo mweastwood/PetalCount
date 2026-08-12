@@ -9,7 +9,8 @@ class ParsedVdrs {
 }
 
 class CreightonLogic {
-  /// Parses a raw or resolved VDRS code into structured bleeding and mucus components.
+  /// Parses a raw or resolved VDRS code into structured bleeding and mucus
+  /// components.
   static ParsedVdrs parseVdrsCode(String code) {
     final trimmed = code.trim();
     if (trimmed.isEmpty) {
@@ -38,9 +39,11 @@ class CreightonLogic {
     final mucusRegex = RegExp(r'^(0|2W?|4|6|8|10)', caseSensitive: false);
 
     for (final token in tokens) {
-      if (bleedingPart == null && bleedingRegex.hasMatch(token)) {
+      if (mucusPart != null) {
+        mucusPart = '$mucusPart $token';
+      } else if (bleedingPart == null && bleedingRegex.hasMatch(token)) {
         bleedingPart = token;
-      } else if (mucusPart == null && mucusRegex.hasMatch(token)) {
+      } else if (mucusRegex.hasMatch(token)) {
         mucusPart = token;
       }
     }
@@ -58,7 +61,8 @@ class CreightonLogic {
   }
 
   /// Parses a resolved VDRS code to check if it has Peak-type mucus properties.
-  /// Peak-type means: stretchy (10), clear (K), or lubricative (L) in the mucus component.
+  /// Peak-type means: stretchy (10), clear (K), or lubricative (L) in the
+  /// mucus component.
   static bool isPeakTypeCode(String code) {
     final parsed = parseVdrsCode(code);
     final mucusPart = parsed.mucusPart;
@@ -136,8 +140,8 @@ class CreightonLogic {
     return 0;
   }
 
-  // Resolves a list of observations recorded on a single day to the most fertile one,
-  // while combining any bleeding records so they aren't lost.
+  // Resolves a list of observations recorded on a single day to the most
+  // fertile one, while combining any bleeding records so they aren't lost.
   static DailyEntry resolveDailyEntry({
     required DateTime date,
     required List<Observation> observations,
@@ -253,7 +257,8 @@ class CreightonLogic {
 
     // --- STEP A: IDENTIFY THE PEAK DAY ---
     // The Peak Day is the last day of Peak-type mucus (10, K, or L)
-    // followed by a shift of at least 3 consecutive days of non-Peak/dry patterns.
+    // followed by a shift of at least 3 consecutive days of non-Peak/dry
+    // patterns.
     int peakIndex = -1;
 
     for (int i = sorted.length - 1; i >= 0; i--) {
@@ -323,7 +328,8 @@ class CreightonLogic {
           // BIP mucus gets a Yellow stamp (infertile)
           // Unless it is the Peak Day or in the Peak+1/2/3 fertile window
           if (label != null) {
-            // During the post-Peak window, even if it's BIP mucus, it's considered fertile
+            // During the post-Peak window, even if it's BIP mucus, it's
+            // considered fertile
             stamp = StampType.whiteBaby;
           } else {
             stamp = StampType.yellow;
