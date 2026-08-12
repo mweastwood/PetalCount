@@ -541,11 +541,11 @@ void main() {
         expect(parsedMucusOnly.bleedingPart, isNull);
         expect(parsedMucusOnly.mucusPart, '10K');
 
-        final parsedMucusPrecedesBleeding = CreightonLogic.parseVdrsCode(
+        final parsedMucusWithTrailingDescriptor = CreightonLogic.parseVdrsCode(
           '10KL L',
         );
-        expect(parsedMucusPrecedesBleeding.bleedingPart, 'L');
-        expect(parsedMucusPrecedesBleeding.mucusPart, '10KL');
+        expect(parsedMucusWithTrailingDescriptor.bleedingPart, isNull);
+        expect(parsedMucusWithTrailingDescriptor.mucusPart, '10KL L');
 
         final parsedBleedingAndSpaceMucus = CreightonLogic.parseVdrsCode(
           'L 10K L',
@@ -588,18 +588,18 @@ void main() {
         expect(entryComposite.hasMucus, isTrue);
         expect(entryComposite.isPeakType, isTrue);
 
-        final entryMucusPrecedesBleeding = DailyEntry(
+        final entryMucusWithTrailingDescriptor = DailyEntry(
           date: date,
           resolvedVdrsCode: '10KL L',
-          stampType: StampType.red,
+          stampType: StampType.whiteBaby,
           observations: const [],
           painLevel: 0,
           painTypes: const [],
           comments: '',
         );
-        expect(entryMucusPrecedesBleeding.hasBleeding, isTrue);
-        expect(entryMucusPrecedesBleeding.hasMucus, isTrue);
-        expect(entryMucusPrecedesBleeding.isPeakType, isTrue);
+        expect(entryMucusWithTrailingDescriptor.hasBleeding, isFalse);
+        expect(entryMucusWithTrailingDescriptor.hasMucus, isTrue);
+        expect(entryMucusWithTrailingDescriptor.isPeakType, isTrue);
 
         final entryDry = DailyEntry(
           date: date,
@@ -677,6 +677,11 @@ void main() {
         expect(isoWithTime.year, 2026);
         expect(isoWithTime.month, 8);
         expect(isoWithTime.day, 5);
+
+        final isoWithTimezoneOffset = parseIsoDate('2026-08-05T23:30:00-05:00');
+        expect(isoWithTimezoneOffset.year, 2026);
+        expect(isoWithTimezoneOffset.month, 8);
+        expect(isoWithTimezoneOffset.day, 5);
 
         final invalidDate = parseIsoDate('completely-invalid-date');
         expect(invalidDate, DateTime(1970, 1, 1));

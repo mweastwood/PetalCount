@@ -17,16 +17,26 @@ extension DateTimeNormalizationX on DateTime {
 /// Safely parses an ISO 8601 date string or YYYY-MM-DD date string with
 /// fallback handling.
 DateTime parseIsoDate(String dateStr) {
+  final trimmed = dateStr.trim();
+  if (trimmed.isEmpty) return DateTime(1970, 1, 1);
+
+  final dateOnly = trimmed.contains('T')
+      ? trimmed.split('T')[0]
+      : (trimmed.contains(' ') ? trimmed.split(' ')[0] : trimmed);
+
   try {
-    return DateTime.parse(dateStr);
+    final parsed = DateTime.parse(dateOnly);
+    return DateTime(parsed.year, parsed.month, parsed.day);
   } catch (_) {
-    final dateOnly = dateStr.contains('T') ? dateStr.split('T')[0] : dateStr;
     final parts = dateOnly.split('-');
     if (parts.length >= 3) {
-      final year = int.tryParse(parts[0]) ?? 1970;
-      final month = int.tryParse(parts[1]) ?? 1;
-      final day = int.tryParse(parts[2].replaceAll(RegExp(r'\D.*'), '')) ?? 1;
-      return DateTime(year, month, day);
+      final year = int.tryParse(parts[0]);
+      final month = int.tryParse(parts[1]);
+      final dayStr = parts[2].replaceAll(RegExp(r'\D.*'), '');
+      final day = int.tryParse(dayStr);
+      if (year != null && month != null && day != null) {
+        return DateTime(year, month, day);
+      }
     }
     return DateTime(1970, 1, 1);
   }
