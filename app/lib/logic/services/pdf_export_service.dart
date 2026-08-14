@@ -92,32 +92,8 @@ class PdfExportService {
   }
 
   static pw.Widget _buildCycleRow(Cycle cycle, DateFormat dateFormat) {
-    final cycleStart = DateTime(
-      cycle.startDate.year,
-      cycle.startDate.month,
-      cycle.startDate.day,
-    );
-    int cycleMaxDay = 0;
-    for (final entry in cycle.sortedEntries) {
-      final entryDate = DateTime(
-        entry.date.year,
-        entry.date.month,
-        entry.date.day,
-      );
-      final dayNum = entryDate.difference(cycleStart).inDays + 1;
-      if (dayNum > cycleMaxDay) cycleMaxDay = dayNum;
-    }
-    if (cycle.endDate != null) {
-      final endClean = DateTime(
-        cycle.endDate!.year,
-        cycle.endDate!.month,
-        cycle.endDate!.day,
-      );
-      final endDayNum = endClean.difference(cycleStart).inDays + 1;
-      if (endDayNum > cycleMaxDay) cycleMaxDay = endDayNum;
-    }
-
     const int daysPerRow = 35;
+    final int cycleMaxDay = cycle.maxDayNumber;
     final int displayDays = cycleMaxDay < daysPerRow ? daysPerRow : cycleMaxDay;
 
     final columns = <pw.Widget>[];

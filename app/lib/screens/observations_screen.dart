@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../logic/logic.dart';
+import '../widgets/creighton_stamp_widget.dart';
 import '../widgets/cycle_options_dialog.dart';
 
 class _ObservationsItem {
@@ -172,42 +173,6 @@ class ObservationsScreen extends StatelessWidget {
             DateFormat('MMMM yyyy').format(reversedItems[index - 1].date) !=
                 DateFormat('MMMM yyyy').format(item.date);
 
-        Color stampColor = theme.colorScheme.surfaceContainerLowest;
-        Color borderColor = theme.colorScheme.outlineVariant;
-        IconData? stampIcon;
-        Color stampIconColor = Colors.black87;
-
-        if (entry != null) {
-          borderColor = Colors.grey.shade400;
-          switch (entry.stampType) {
-            case StampType.red:
-              stampColor = Colors.red.shade400;
-              break;
-            case StampType.green:
-              stampColor = Colors.green.shade400;
-              break;
-            case StampType.whiteBaby:
-              stampColor = Colors.white;
-              borderColor = Colors.green.shade600;
-              stampIcon = Icons.child_care;
-              stampIconColor = Colors.green.shade700;
-              break;
-            case StampType.greenBaby:
-              stampColor = Colors.green.shade400;
-              stampIcon = Icons.child_care;
-              stampIconColor = Colors.white;
-              break;
-            case StampType.yellow:
-              stampColor = Colors.yellow.shade400;
-              break;
-            case StampType.yellowBaby:
-              stampColor = Colors.yellow.shade400;
-              stampIcon = Icons.child_care;
-              stampIconColor = Colors.green.shade800;
-              break;
-          }
-        }
-
         final bleedingSummary = entry != null ? _getBleedingSummary(entry) : '';
         final mucusSummary = entry != null ? _getMucusSummary(entry) : '';
         final hasPain =
@@ -249,58 +214,10 @@ class ObservationsScreen extends StatelessWidget {
                             );
                           }
                         },
-                        child: Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            color: stampColor,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: borderColor, width: 1.5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.06),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              if (entry?.peakDayLabel != null &&
-                                  entry!.peakDayLabel!.isNotEmpty)
-                                Positioned(
-                                  top: 2,
-                                  right: 4,
-                                  child: Text(
-                                    entry.peakDayLabel!,
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                      color: entry.peakDayLabel == 'P'
-                                          ? Colors.red
-                                          : Colors.black87,
-                                    ),
-                                  ),
-                                ),
-                              if (stampIcon != null)
-                                Icon(stampIcon, size: 24, color: stampIconColor)
-                              else
-                                Text(
-                                  '${item.dayNumber}',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color:
-                                        entry != null &&
-                                            entry.stampType !=
-                                                StampType.whiteBaby
-                                        ? Colors.white
-                                        : Colors.grey.shade800,
-                                  ),
-                                ),
-                            ],
-                          ),
+                        child: CreightonStampWidget.timelineNode(
+                          stampType: entry?.stampType,
+                          peakDayLabel: entry?.peakDayLabel,
+                          dayNumber: item.dayNumber,
                         ),
                       ),
                     ),

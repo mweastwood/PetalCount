@@ -1,3 +1,4 @@
+import '../models/cycle.dart';
 import '../models/observation.dart';
 import '../models/daily_entry.dart';
 
@@ -372,5 +373,75 @@ class CreightonLogic {
     }
 
     return map;
+  }
+
+  /// Evaluates whether a new cycle should be automatically started based on
+  /// Creighton bleeding rules (16+ days since previous cycle start, rolling back
+  /// over consecutive prior days with bleeding).
+  static DateTime? evaluateAutoCycleStart(Cycle latestCycle, DateTime date) {
+    final daysDiff = date.difference(latestCycle.startDate).inDays;
+    if (daysDiff >= 16) {
+      DateTime newCycleStart = date;
+      DateTime checkDate = date.subtract(const Duration(days: 1));
+      while (checkDate.difference(latestCycle.startDate).inDays >= 16) {
+        final checkKey = checkDate.toIso8601String().substring(0, 10);
+        final checkEntry = latestCycle.dailyEntries[checkKey];
+        if (checkEntry != null && checkEntry.hasBleeding) {
+          newCycleStart = checkDate;
+          checkDate = checkDate.subtract(const Duration(days: 1));
+        } else {
+          break;
+        }
+      }
+      return newCycleStart;
+    }
+    return null;
+  }
+
+  /// Reallocates all daily entries across cycles chronologically based on their
+  /// start dates, and recalculates Creighton stamps / peak labels for each cycle.
+  static List<Cycle> reallocateAndRecalculateCycles(List<Cycle> cycles) {
+    if (cycles.isEmpty) return [];
+
+    final sortedCycles = List<Cycle>.from(cycles)
+      ..sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    final allEntries = <String, DailyEntry>{};
+    for (final cycle in sortedCycles) {
+      allEntries.addAll(cycle.dailyEntries);
+    }
+
+    final updatedCyclesMap = <String, Cycle>{};
+    for (final cycle in sortedCycles) {
+      updatedCyclesMap[cycle.id] = cycle.copyWith(dailyEntries: {});
+    }
+
+    allEntries.forEach((dateKey, entry) {
+      final entryDate = entry.date;
+      final eligible = sortedCycles
+          .where((c) => c.startDate.compareTo(entryDate) <= 0)
+          .toList();
+      final targetCycle = eligible.isNotEmpty
+          ? eligible.last
+          : sortedCycles.first;
+
+      final cycleEntries = Map<String, DailyEntry>.from(
+        updatedCyclesMap[targetCycle.id]!.dailyEntries,
+      );
+      cycleEntries[dateKey] = entry;
+      updatedCyclesMap[targetCycle.id] = updatedCyclesMap[targetCycle.id]!
+          .copyWith(dailyEntries: cycleEntries);
+    });
+
+    final result = <Cycle>[];
+    for (final cycle in sortedCycles) {
+      final cycleWithEntries = updatedCyclesMap[cycle.id]!;
+      final updatedEntries = recalculateCycle(
+        entries: cycleWithEntries.dailyEntries.values.toList(),
+        bipCodes: cycleWithEntries.bipCodes,
+      );
+      result.add(cycleWithEntries.copyWith(dailyEntries: updatedEntries));
+    }
+    return result;
   }
 }

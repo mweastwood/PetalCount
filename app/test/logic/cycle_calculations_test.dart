@@ -1,0 +1,201 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:petal_count/logic/models/cycle.dart';
+import 'package:petal_count/logic/models/daily_entry.dart';
+import 'package:petal_count/logic/services/creighton_logic.dart';
+
+void main() {
+  group('Cycle Calculations and Helper Unit Tests', () {
+    test(
+      'Cycle.maxDayNumber calculates correct span from entries and endDate',
+      () {
+        final start = DateTime(2026, 1, 1);
+        final emptyCycle = Cycle(
+          id: '2026-01-01',
+          startDate: start,
+          dailyEntries: {},
+        );
+        expect(emptyCycle.maxDayNumber, 0);
+
+        final cycleWithEntries = Cycle(
+          id: '2026-01-01',
+          startDate: start,
+          dailyEntries: {
+            '2026-01-01': DailyEntry(
+              date: DateTime(2026, 1, 1),
+              resolvedVdrsCode: 'H',
+              stampType: StampType.red,
+              observations: const [],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+            '2026-01-28': DailyEntry(
+              date: DateTime(2026, 1, 28),
+              resolvedVdrsCode: '0',
+              stampType: StampType.green,
+              observations: const [],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+          },
+        );
+        expect(cycleWithEntries.maxDayNumber, 28);
+
+        final cycleWithEndDate = cycleWithEntries.copyWith(
+          endDate: DateTime(2026, 2, 5), // 36 days from Jan 1
+        );
+        expect(cycleWithEndDate.maxDayNumber, 36);
+      },
+    );
+
+    test('Cycle.dayNumberFor returns accurate 1-based day indices', () {
+      final cycle = Cycle(
+        id: '2026-03-01',
+        startDate: DateTime(2026, 3, 1),
+        dailyEntries: {},
+      );
+
+      expect(cycle.dayNumberFor(DateTime(2026, 3, 1)), 1);
+      expect(cycle.dayNumberFor(DateTime(2026, 3, 15)), 15);
+      expect(cycle.dayNumberFor(DateTime(2026, 3, 31)), 31);
+    });
+
+    test(
+      'Cycle.calculateMaxDisplayDays calculates max across cycles with minDays',
+      () {
+        final cycle1 = Cycle(
+          id: '2026-01-01',
+          startDate: DateTime(2026, 1, 1),
+          dailyEntries: {
+            '2026-01-20': DailyEntry(
+              date: DateTime(2026, 1, 20),
+              resolvedVdrsCode: '0',
+              stampType: StampType.green,
+              observations: const [],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+          },
+        );
+
+        final cycle2 = Cycle(
+          id: '2026-02-01',
+          startDate: DateTime(2026, 2, 1),
+          dailyEntries: {
+            '2026-03-15': DailyEntry(
+              date: DateTime(2026, 3, 15), // 43 days
+              resolvedVdrsCode: '0',
+              stampType: StampType.green,
+              observations: const [],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+          },
+        );
+
+        // Default minDays is 35
+        expect(Cycle.calculateMaxDisplayDays([cycle1]), 35);
+        expect(Cycle.calculateMaxDisplayDays([cycle1, cycle2]), 43);
+        expect(Cycle.calculateMaxDisplayDays([cycle1], minDays: 25), 25);
+      },
+    );
+
+    test(
+      'CreightonLogic.evaluateAutoCycleStart checks 16+ day threshold and bleeding rollback',
+      () {
+        final cycleStart = DateTime(2026, 5, 1);
+        final cycle = Cycle(
+          id: '2026-05-01',
+          startDate: cycleStart,
+          dailyEntries: {
+            '2026-05-20': DailyEntry(
+              date: DateTime(2026, 5, 20),
+              resolvedVdrsCode: 'VL',
+              stampType: StampType.red,
+              observations: const [],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+            '2026-05-21': DailyEntry(
+              date: DateTime(2026, 5, 21),
+              resolvedVdrsCode: 'L',
+              stampType: StampType.red,
+              observations: const [],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+          },
+        );
+
+        // Less than 16 days -> null
+        expect(
+          CreightonLogic.evaluateAutoCycleStart(cycle, DateTime(2026, 5, 10)),
+          isNull,
+        );
+
+        // Day 22 (May 22) has H/M bleeding preceded by May 21 (L) and May 20 (VL)
+        // Auto cycle start should roll back to May 20
+        final autoStart = CreightonLogic.evaluateAutoCycleStart(
+          cycle,
+          DateTime(2026, 5, 22),
+        );
+        expect(autoStart, DateTime(2026, 5, 20));
+      },
+    );
+
+    test(
+      'CreightonLogic.reallocateAndRecalculateCycles partitions and recalculates cycles',
+      () {
+        final cycle1 = Cycle(
+          id: '2026-01-01',
+          startDate: DateTime(2026, 1, 1),
+          bipCodes: const ['6C'],
+          dailyEntries: {
+            // Entry belonging to cycle1
+            '2026-01-05': DailyEntry(
+              date: DateTime(2026, 1, 5),
+              resolvedVdrsCode: '0',
+              stampType: StampType.green,
+              observations: const [],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+            // Misallocated entry belonging to cycle2
+            '2026-02-05': DailyEntry(
+              date: DateTime(2026, 2, 5),
+              resolvedVdrsCode: 'H',
+              stampType: StampType.red,
+              observations: const [],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+          },
+        );
+
+        final cycle2 = Cycle(
+          id: '2026-02-01',
+          startDate: DateTime(2026, 2, 1),
+          bipCodes: const ['6C'],
+          dailyEntries: {},
+        );
+
+        final reallocated = CreightonLogic.reallocateAndRecalculateCycles([
+          cycle1,
+          cycle2,
+        ]);
+
+        expect(reallocated.length, 2);
+        expect(reallocated[0].dailyEntries.containsKey('2026-01-05'), isTrue);
+        expect(reallocated[0].dailyEntries.containsKey('2026-02-05'), isFalse);
+        expect(reallocated[1].dailyEntries.containsKey('2026-02-05'), isTrue);
+      },
+    );
+  });
+}

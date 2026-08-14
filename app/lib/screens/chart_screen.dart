@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../logic/logic.dart';
+import '../widgets/creighton_stamp_widget.dart';
 import '../widgets/cycle_options_dialog.dart';
 import '../theme/theme.dart';
 
@@ -32,40 +33,7 @@ class ChartScreen extends StatelessWidget {
     }
 
     // Determine the maximum number of days to display across all cycles (at least 35 days)
-    int maxDays = 35;
-    for (final cycle in cycles) {
-      final cycleStart = DateTime(
-        cycle.startDate.year,
-        cycle.startDate.month,
-        cycle.startDate.day,
-      );
-      int cycleMaxDay = 0;
-      for (final entry in cycle.sortedEntries) {
-        final entryDate = DateTime(
-          entry.date.year,
-          entry.date.month,
-          entry.date.day,
-        );
-        final dayNum = entryDate.difference(cycleStart).inDays + 1;
-        if (dayNum > cycleMaxDay) {
-          cycleMaxDay = dayNum;
-        }
-      }
-      if (cycle.endDate != null) {
-        final endClean = DateTime(
-          cycle.endDate!.year,
-          cycle.endDate!.month,
-          cycle.endDate!.day,
-        );
-        final endDayNum = endClean.difference(cycleStart).inDays + 1;
-        if (endDayNum > cycleMaxDay) {
-          cycleMaxDay = endDayNum;
-        }
-      }
-      if (cycleMaxDay > maxDays) {
-        maxDays = cycleMaxDay;
-      }
-    }
+    final int maxDays = Cycle.calculateMaxDisplayDays(cycles);
 
     final media = MediaQuery.of(context);
     final isNarrow =
@@ -454,46 +422,14 @@ class ChartScreen extends StatelessWidget {
     Cycle cycle,
   ) {
     final theme = Theme.of(context);
-
-    Color stampColor = theme.colorScheme.surfaceContainerLowest;
-    Color borderCol = theme.colorScheme.outlineVariant.withValues(alpha: 0.5);
-    bool hasBaby = false;
-    bool hasGreenBaby = false;
-    Color babyIconColor = Colors.black87;
-
-    if (entry != null) {
-      borderCol = theme.colorScheme.outline;
-      switch (entry.stampType) {
-        case StampType.red:
-          stampColor = Colors.red.shade400;
-          break;
-        case StampType.green:
-          stampColor = Colors.green.shade400;
-          break;
-        case StampType.whiteBaby:
-          stampColor = Colors.white;
-          borderCol = Colors.green.shade600;
-          hasBaby = true;
-          babyIconColor = Colors.green.shade700;
-          break;
-        case StampType.greenBaby:
-          stampColor = Colors.green.shade400;
-          hasGreenBaby = true;
-          break;
-        case StampType.yellow:
-          stampColor = Colors.yellow.shade400;
-          break;
-        case StampType.yellowBaby:
-          stampColor = Colors.yellow.shade400;
-          hasBaby = true;
-          babyIconColor = Colors.green.shade800;
-          break;
-      }
-    }
+    final borderCol = entry != null
+        ? (entry.stampType == StampType.whiteBaby
+              ? CreightonTheme.greenBorder
+              : theme.colorScheme.outline)
+        : theme.colorScheme.outlineVariant.withValues(alpha: 0.5);
 
     final hasPain = entry != null && entry.painLevel > 0;
     final hasComments = entry != null && entry.comments.isNotEmpty;
-    final peakLabel = entry?.peakDayLabel;
 
     return GestureDetector(
       onTap: () {
@@ -523,75 +459,9 @@ class ChartScreen extends StatelessWidget {
           child: Column(
             children: [
               // TOP EDGE-TO-EDGE STICKER BOX
-              Container(
-                width: double.infinity,
-                height: 46.0,
-                decoration: BoxDecoration(
-                  color: stampColor,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(6.5),
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    // Peak Day Badge at top-left
-                    if (peakLabel != null && peakLabel.isNotEmpty)
-                      Positioned(
-                        top: 2,
-                        left: 4,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: peakLabel == 'P'
-                                ? Colors.red.shade700
-                                : Colors.black54,
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                          child: Text(
-                            peakLabel,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    // Baby Icon in center for fertile stamps
-                    if (hasBaby)
-                      Center(
-                        child: Icon(
-                          Icons.child_care,
-                          size: 26,
-                          color: babyIconColor,
-                        ),
-                      )
-                    else if (hasGreenBaby)
-                      const Center(
-                        child: Icon(
-                          Icons.child_care,
-                          size: 26,
-                          color: Colors.white,
-                        ),
-                      )
-                    else if (entry == null)
-                      Center(
-                        child: Text(
-                          '?',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.outline.withValues(
-                              alpha: 0.7,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
+              CreightonStampWidget.gridSticker(
+                stampType: entry?.stampType,
+                peakDayLabel: entry?.peakDayLabel,
               ),
               // BOTTOM CELL DATA SECTION
               Expanded(

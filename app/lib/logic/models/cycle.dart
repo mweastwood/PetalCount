@@ -24,6 +24,55 @@ class Cycle {
     return list;
   }
 
+  /// Calculates the maximum 1-based day index reached by entries or [endDate]
+  /// relative to [startDate].
+  int get maxDayNumber {
+    final cycleStart = DateTime(startDate.year, startDate.month, startDate.day);
+    int cycleMaxDay = 0;
+    for (final entry in sortedEntries) {
+      final entryDate = DateTime(
+        entry.date.year,
+        entry.date.month,
+        entry.date.day,
+      );
+      final dayNum = entryDate.difference(cycleStart).inDays + 1;
+      if (dayNum > cycleMaxDay) {
+        cycleMaxDay = dayNum;
+      }
+    }
+    if (endDate != null) {
+      final endClean = DateTime(endDate!.year, endDate!.month, endDate!.day);
+      final endDayNum = endClean.difference(cycleStart).inDays + 1;
+      if (endDayNum > cycleMaxDay) {
+        cycleMaxDay = endDayNum;
+      }
+    }
+    return cycleMaxDay;
+  }
+
+  /// Returns the 1-based day index for a specific date within the cycle.
+  int dayNumberFor(DateTime date) {
+    final cycleStart = DateTime(startDate.year, startDate.month, startDate.day);
+    final targetDate = DateTime(date.year, date.month, date.day);
+    return targetDate.difference(cycleStart).inDays + 1;
+  }
+
+  /// Calculates the global maximum display days across a collection of cycles,
+  /// with a default minimum of [minDays] (default: 35).
+  static int calculateMaxDisplayDays(
+    Iterable<Cycle> cycles, {
+    int minDays = 35,
+  }) {
+    int maxDays = minDays;
+    for (final cycle in cycles) {
+      final cycleMax = cycle.maxDayNumber;
+      if (cycleMax > maxDays) {
+        maxDays = cycleMax;
+      }
+    }
+    return maxDays;
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'id': id,

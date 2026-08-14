@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../logic/logic.dart';
 import 'add_observation_dialog.dart';
+import 'creighton_stamp_widget.dart';
 
 class DailyDetailSheet extends StatelessWidget {
   final DailyEntry entry;
@@ -44,7 +45,10 @@ class DailyDetailSheet extends StatelessWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              _buildStampBadge(entry.stampType, entry.peakDayLabel),
+              CreightonStampWidget.badge(
+                stampType: entry.stampType,
+                peakDayLabel: entry.peakDayLabel,
+              ),
               const SizedBox(width: 12),
               Text(
                 'Resolved Code: ${entry.resolvedVdrsCode}',
@@ -153,78 +157,6 @@ class DailyDetailSheet extends StatelessWidget {
             icon: const Icon(Icons.add),
             label: const Text('Add Another Observation for This Day'),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStampBadge(StampType type, String? label) {
-    Color bg = Colors.grey;
-    Color border = Colors.grey;
-    bool hasBaby = false;
-    Color babyColor = Colors.black;
-
-    switch (type) {
-      case StampType.red:
-        bg = Colors.red.shade400;
-        border = Colors.red.shade600;
-        break;
-      case StampType.green:
-        bg = Colors.green.shade400;
-        border = Colors.green.shade600;
-        break;
-      case StampType.whiteBaby:
-        bg = Colors.white;
-        border = Colors.green.shade600;
-        hasBaby = true;
-        babyColor = Colors.green.shade700;
-        break;
-      case StampType.greenBaby:
-        bg = Colors.green.shade400;
-        border = Colors.green.shade600;
-        hasBaby = true;
-        babyColor = Colors.white;
-        break;
-      case StampType.yellow:
-        bg = Colors.yellow.shade400;
-        border = Colors.yellow.shade600;
-        break;
-      case StampType.yellowBaby:
-        bg = Colors.yellow.shade400;
-        border = Colors.yellow.shade600;
-        hasBaby = true;
-        babyColor = Colors.green.shade800;
-        break;
-    }
-
-    return Container(
-      width: 44,
-      height: 48,
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: border, width: 2),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          if (label != null)
-            Positioned(
-              top: 2,
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 8,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-          if (hasBaby)
-            Positioned(
-              bottom: 4,
-              child: Icon(Icons.child_care, size: 20, color: babyColor),
-            ),
         ],
       ),
     );
