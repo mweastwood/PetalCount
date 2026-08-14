@@ -201,6 +201,19 @@ class Observation {
     };
   }
 
+  static DateTime _parseTimestamp(dynamic timestamp) {
+    if (timestamp is Timestamp) {
+      return timestamp.toDate();
+    } else if (timestamp is DateTime) {
+      return timestamp;
+    } else if (timestamp is String) {
+      return DateTime.tryParse(timestamp) ?? DateTime.now();
+    } else if (timestamp is num) {
+      return DateTime.fromMillisecondsSinceEpoch(timestamp.toInt());
+    }
+    return DateTime.now();
+  }
+
   factory Observation.fromMap(Map<String, dynamic> map) {
     final sensation = Sensation.values.firstWhere(
       (e) => e.name == map['sensation'],
@@ -232,7 +245,7 @@ class Observation {
 
     return Observation(
       id: map['id'] ?? '',
-      timestamp: (map['timestamp'] as Timestamp).toDate(),
+      timestamp: _parseTimestamp(map['timestamp']),
       sensation: sensation,
       stretch: stretch,
       colors: colors,

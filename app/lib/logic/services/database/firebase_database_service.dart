@@ -21,7 +21,6 @@ class FirebaseDatabaseService implements DatabaseService {
   String? _cachedChartId;
   final StreamController<User?> _authController =
       StreamController<User?>.broadcast();
-  late final Stream<User?> _authStateChangesStream;
 
   FirebaseDatabaseService() {
     _auth.authStateChanges().listen((user) async {
@@ -32,21 +31,6 @@ class FirebaseDatabaseService implements DatabaseService {
       }
       _authController.add(user);
     });
-
-    late StreamController<User?> controller;
-    StreamSubscription<User?>? sub;
-
-    controller = StreamController<User?>(
-      onListen: () {
-        controller.add(currentUser);
-        sub = _authController.stream.listen(controller.add);
-      },
-      onCancel: () {
-        sub?.cancel();
-      },
-    );
-
-    _authStateChangesStream = controller.stream.asBroadcastStream();
   }
 
   @override
@@ -56,7 +40,18 @@ class FirebaseDatabaseService implements DatabaseService {
   String? get currentChartId => _cachedChartId;
 
   @override
-  Stream<User?> get authStateChanges => _authStateChangesStream;
+  Stream<User?> get authStateChanges => _buildAuthStream();
+
+  Stream<User?> _buildAuthStream() async* {
+    final user = currentUser;
+    if (user != null) {
+      _cachedChartId ??= await _fetchChartId(user.uid);
+    } else {
+      _cachedChartId = null;
+    }
+    yield user;
+    yield* _authController.stream;
+  }
 
   Future<String?> _fetchChartId(String uid) async {
     try {
@@ -335,10 +330,6 @@ class FirebaseDatabaseService implements DatabaseService {
         .get();
 
     for (final doc in cyclesSnapshot.docs) {
-      final obsSnapshot = await doc.reference.collection('observations').get();
-      for (final obsDoc in obsSnapshot.docs) {
-        await obsDoc.reference.delete();
-      }
       await doc.reference.delete();
     }
 
@@ -388,12 +379,6 @@ class FirebaseDatabaseService implements DatabaseService {
     if (shouldDeleteAll) {
       final cyclesSnapshot = await chartRef.collection('cycles').get();
       for (final doc in cyclesSnapshot.docs) {
-        final obsSnapshot = await doc.reference
-            .collection('observations')
-            .get();
-        for (final obsDoc in obsSnapshot.docs) {
-          await obsDoc.reference.delete();
-        }
         await doc.reference.delete();
       }
     }
@@ -451,7 +436,7 @@ class FirebaseDatabaseService implements DatabaseService {
     controller = StreamController<List<Cycle>>.broadcast(
       onListen: () {
         updateListener();
-        authSub = _authStateChangesStream.listen((_) {
+        authSub = authStateChanges.listen((_) {
           updateListener();
         });
       },
