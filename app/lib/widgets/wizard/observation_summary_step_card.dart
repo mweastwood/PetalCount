@@ -52,11 +52,21 @@ class ObservationSummaryStepCard extends StatelessWidget {
         selectedColors.contains(MucusColor.clear)) {
       return 'Cloudy/Clear';
     }
-    if (selectedColors.contains(MucusColor.clear)) return MucusColor.clear.label;
-    if (selectedColors.contains(MucusColor.cloudy)) return MucusColor.cloudy.label;
-    if (selectedColors.contains(MucusColor.yellow)) return MucusColor.yellow.label;
-    if (selectedColors.contains(MucusColor.red)) return MucusColor.red.label;
-    if (selectedColors.contains(MucusColor.brown)) return MucusColor.brown.label;
+    if (selectedColors.contains(MucusColor.clear)) {
+      return MucusColor.clear.label;
+    }
+    if (selectedColors.contains(MucusColor.cloudy)) {
+      return MucusColor.cloudy.label;
+    }
+    if (selectedColors.contains(MucusColor.yellow)) {
+      return MucusColor.yellow.label;
+    }
+    if (selectedColors.contains(MucusColor.red)) {
+      return MucusColor.red.label;
+    }
+    if (selectedColors.contains(MucusColor.brown)) {
+      return MucusColor.brown.label;
+    }
     return selectedColors.map((c) => c.label).join('/');
   }
 
