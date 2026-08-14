@@ -219,6 +219,9 @@ class ChartScreen extends StatelessWidget {
   Widget _buildHorizontalSpreadsheet(BuildContext context, int maxDays) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final contentWidth =
+            kCycleHeaderWidth + kCellGap + maxDays * (kCellWidth + kCellGap);
+
         return SingleChildScrollView(
           scrollDirection: Axis.vertical,
           physics: const AlwaysScrollableScrollPhysics(),
@@ -239,13 +242,25 @@ class ChartScreen extends StatelessWidget {
                     // Shared Spreadsheet Header Row (Day 1, Day 2 ... Day N across top)
                     _buildSpreadsheetHeaderRow(context, maxDays),
                     const SizedBox(height: 6.0),
-                    // Cycle Rows
-                    ...cycles.map((cycle) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 6.0),
-                        child: _buildCycleRow(context, cycle, maxDays),
-                      );
-                    }),
+                    // Cycle Rows: Note that in a bidirectional 2D scroll layout with
+                    // unbounded vertical constraints, ListView.builder with shrinkWrap
+                    // measures items eagerly while maintaining clean index-based rendering.
+                    SizedBox(
+                      width: contentWidth,
+                      child: ListView.builder(
+                        padding: EdgeInsets.zero,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: cycles.length,
+                        itemBuilder: (context, index) {
+                          final cycle = cycles[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 6.0),
+                            child: _buildCycleRow(context, cycle, maxDays),
+                          );
+                        },
+                      ),
+                    ),
                   ],
                 ),
               ),

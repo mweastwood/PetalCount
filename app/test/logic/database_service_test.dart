@@ -283,5 +283,59 @@ void main() {
         contains('10'),
       );
     });
+
+    test(
+      'deleteObservation removes observation and recalculates cycle',
+      () async {
+        await db.createChart();
+
+        final obsDate = DateTime(2026, 7, 10);
+        await db.saveObservation(
+          date: obsDate,
+          sensation: Sensation.wet,
+          stretch: Stretch.stretchy,
+          colors: [MucusColor.clear],
+          consistencies: [Consistency.lubricative],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Peak entry',
+        );
+
+        var cycles = await db.streamCycles().first;
+        expect(cycles.first.dailyEntries.containsKey('2026-07-10'), true);
+        final obsId =
+            cycles.first.dailyEntries['2026-07-10']!.observations.first.id;
+
+        await db.deleteObservation(
+          cycleId: cycles.first.id,
+          date: obsDate,
+          observationId: obsId,
+        );
+
+        cycles = await db.streamCycles().first;
+        expect(cycles.first.dailyEntries.containsKey('2026-07-10'), false);
+      },
+    );
+
+    test('deleteCycle deletes specific cycle from chart', () async {
+      await db.createChart();
+
+      final start1 = DateTime(2026, 1, 1);
+      await db.startNewCycle(start1, ['6C']);
+
+      final start2 = DateTime(2026, 2, 1);
+      await db.startNewCycle(start2, ['6C']);
+
+      var cycles = await db.streamCycles().first;
+      expect(cycles.length, 2);
+
+      await db.deleteCycle(cycles.first.id);
+
+      cycles = await db.streamCycles().first;
+      expect(cycles.length, 1);
+      expect(cycles.first.startDate, start1);
+    });
   });
 }
