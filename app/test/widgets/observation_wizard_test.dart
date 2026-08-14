@@ -543,5 +543,215 @@ void main() {
         expect(find.textContaining('Cramps'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'ObservationSummaryStepCard displays title-cased mucus color labels',
+      (tester) async {
+        final commentController = TextEditingController();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationSummaryStepCard(
+                combinedDateTime: DateTime(2026, 7, 27, 10, 30),
+                showMucus: true,
+                hasMucus: true,
+                stretch: Stretch.stretchy,
+                selectedColors: const [MucusColor.cloudy, MucusColor.clear],
+                commentController: commentController,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.textContaining('Mucus: Stretchy (1 inch or more), Cloudy/Clear'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'ObservationSummaryStepCard formats empty and single non-cloudy mucus colors correctly',
+      (tester) async {
+        final commentController = TextEditingController();
+
+        // 1. Empty colors defaults to Cloudy
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationSummaryStepCard(
+                combinedDateTime: DateTime(2026, 7, 27, 10, 30),
+                showMucus: true,
+                hasMucus: true,
+                stretch: Stretch.sticky,
+                selectedColors: const [],
+                commentController: commentController,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('Mucus: Sticky (up to 1/4 inch), Cloudy'),
+          findsOneWidget,
+        );
+
+        // 2. Single non-cloudy color: Yellow
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationSummaryStepCard(
+                combinedDateTime: DateTime(2026, 7, 27, 10, 30),
+                showMucus: true,
+                hasMucus: true,
+                stretch: Stretch.sticky,
+                selectedColors: const [MucusColor.yellow],
+                commentController: commentController,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('Mucus: Sticky (up to 1/4 inch), Yellow'),
+          findsOneWidget,
+        );
+
+        // 3. Single non-cloudy color: Red
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationSummaryStepCard(
+                combinedDateTime: DateTime(2026, 7, 27, 10, 30),
+                showMucus: true,
+                hasMucus: true,
+                stretch: Stretch.sticky,
+                selectedColors: const [MucusColor.red],
+                commentController: commentController,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('Mucus: Sticky (up to 1/4 inch), Red'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'ObservationSummaryStepCard formats arbitrary multi-color mucus combinations correctly',
+      (tester) async {
+        final commentController = TextEditingController();
+
+        // Multi-color: Yellow/Red
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationSummaryStepCard(
+                combinedDateTime: DateTime(2026, 7, 27, 10, 30),
+                showMucus: true,
+                hasMucus: true,
+                stretch: Stretch.sticky,
+                selectedColors: const [MucusColor.yellow, MucusColor.red],
+                commentController: commentController,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('Mucus: Sticky (up to 1/4 inch), Yellow/Red'),
+          findsOneWidget,
+        );
+
+        // Multi-color: Clear/Brown
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationSummaryStepCard(
+                combinedDateTime: DateTime(2026, 7, 27, 10, 30),
+                showMucus: true,
+                hasMucus: true,
+                stretch: Stretch.stretchy,
+                selectedColors: const [MucusColor.clear, MucusColor.brown],
+                commentController: commentController,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('Mucus: Stretchy (1 inch or more), Clear/Brown'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'ObservationSummaryStepCard formats bleeding colors matching enum code properties',
+      (tester) async {
+        final commentController = TextEditingController();
+
+        // Red bleeding
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationSummaryStepCard(
+                combinedDateTime: DateTime(2026, 7, 27, 10, 30),
+                showBleeding: true,
+                hasBleeding: true,
+                bleedingFlow: Bleeding.light,
+                bleedingColor: Bleeding.red.code,
+                commentController: commentController,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Bleeding: Light, Red'), findsOneWidget);
+
+        // Brown bleeding
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationSummaryStepCard(
+                combinedDateTime: DateTime(2026, 7, 27, 10, 30),
+                showBleeding: true,
+                hasBleeding: true,
+                bleedingFlow: Bleeding.moderate,
+                bleedingColor: Bleeding.brown.code,
+                commentController: commentController,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('Bleeding: Moderate, Brown'),
+          findsOneWidget,
+        );
+
+        // Black bleeding
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationSummaryStepCard(
+                combinedDateTime: DateTime(2026, 7, 27, 10, 30),
+                showBleeding: true,
+                hasBleeding: true,
+                bleedingFlow: Bleeding.heavy,
+                bleedingColor: Bleeding.black.code,
+                commentController: commentController,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Bleeding: Heavy, Black'), findsOneWidget);
+      },
+    );
   });
 }

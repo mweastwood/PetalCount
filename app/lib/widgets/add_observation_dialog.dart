@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../logic/logic.dart';
+import 'wizard/wizard.dart';
 
 enum ObservationCategory {
   full('Log Single Observation'),
@@ -65,7 +67,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
   // Mucus Observation (nullable so no option is pre-selected)
   bool? _hasMucus;
   Stretch? _stretch;
-  String? _colorSelection; // 'cloudy', 'clear', 'cloudy_clear', 'yellow'
+  List<MucusColor> _selectedColors = [];
   bool _isGummy = false;
   bool _isPasty = false;
   bool _hasSelectedConsistency = false;
@@ -427,925 +429,177 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
     );
   }
 
-  Widget _buildOptionGrid({
-    required List<Widget> children,
-    int crossAxisCount = 2,
-    double childAspectRatio = 1.6,
-    List<int>? fullWidthIndexes,
-  }) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final responsiveColumns = constraints.maxWidth < 380
-            ? 1
-            : crossAxisCount;
-        final responsiveAspectRatio = constraints.maxWidth < 380
-            ? 2.8
-            : childAspectRatio;
-
-        if (fullWidthIndexes != null &&
-            fullWidthIndexes.isNotEmpty &&
-            responsiveColumns > 1) {
-          final gridItems = <Widget>[];
-          for (int i = 0; i < children.length; i++) {
-            if (fullWidthIndexes.contains(i)) {
-              gridItems.add(
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 64),
-                  child: children[i],
-                ),
-              );
-            } else {
-              int pairEnd = i;
-              final pair = <Widget>[];
-              while (pairEnd < children.length &&
-                  !fullWidthIndexes.contains(pairEnd) &&
-                  pair.length < responsiveColumns) {
-                pair.add(Expanded(child: children[pairEnd]));
-                pairEnd++;
-              }
-              i = pairEnd - 1;
-              gridItems.add(
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (int p = 0; p < pair.length; p++) ...[
-                      if (p > 0) const SizedBox(width: 10),
-                      pair[p],
-                    ],
-                    if (pair.length < responsiveColumns)
-                      for (
-                        int pad = 0;
-                        pad < responsiveColumns - pair.length;
-                        pad++
-                      ) ...[const SizedBox(width: 10), const Spacer()],
-                  ],
-                ),
-              );
-            }
-          }
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (int k = 0; k < gridItems.length; k++) ...[
-                if (k > 0) const SizedBox(height: 10),
-                gridItems[k],
-              ],
-            ],
-          );
-        }
-
-        return GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: responsiveColumns,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-          childAspectRatio: responsiveAspectRatio,
-          children: children,
-        );
-      },
-    );
-  }
-
   Widget _buildStepContent(BuildContext context, WizardStep step) {
-    final theme = Theme.of(context);
-
     switch (step) {
       case WizardStep.bleedingFlow:
         final showNoBleeding = widget.category != ObservationCategory.bleeding;
-
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                showNoBleeding
-                    ? 'Are you experiencing bleeding at this point in time?'
-                    : 'Select Bleeding Flow Level',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                showNoBleeding
-                    ? 'Select "No Bleeding" or choose the bleeding flow level observed right now:'
-                    : 'Choose the bleeding flow level observed right now:',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 14),
-              _buildOptionGrid(
-                fullWidthIndexes: showNoBleeding ? const [0] : null,
-                children: [
-                  if (showNoBleeding)
-                    _OptionCard(
-                      label: 'No Bleeding',
-                      icon: Icons.block,
-                      subtitle: 'No bleeding present',
-                      isSelected: _hasBleeding == false,
-                      onTap: () {
-                        setState(() {
-                          _hasBleeding = false;
-                          _bleedingFlow = Bleeding.none;
-                          _bleedingColor = null;
-                        });
-                        _nextStep();
-                      },
-                    ),
-                  _OptionCard(
-                    label: 'Heavy (H)',
-                    icon: Icons.water_drop,
-                    subtitle: 'Heavy flow',
-                    isSelected:
-                        _hasBleeding == true && _bleedingFlow == Bleeding.heavy,
-                    onTap: () {
-                      setState(() {
-                        _hasBleeding = true;
-                        _bleedingFlow = Bleeding.heavy;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Moderate (M)',
-                    icon: Icons.water_drop_outlined,
-                    subtitle: 'Moderate flow',
-                    isSelected:
-                        _hasBleeding == true &&
-                        _bleedingFlow == Bleeding.moderate,
-                    onTap: () {
-                      setState(() {
-                        _hasBleeding = true;
-                        _bleedingFlow = Bleeding.moderate;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Light (L)',
-                    icon: Icons.opacity,
-                    subtitle: 'Light flow',
-                    isSelected:
-                        _hasBleeding == true && _bleedingFlow == Bleeding.light,
-                    onTap: () {
-                      setState(() {
-                        _hasBleeding = true;
-                        _bleedingFlow = Bleeding.light;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Very Light (VL)',
-                    icon: Icons.grain,
-                    subtitle: 'Very light flow / spotting',
-                    isSelected:
-                        _hasBleeding == true &&
-                        _bleedingFlow == Bleeding.veryLight,
-                    onTap: () {
-                      setState(() {
-                        _hasBleeding = true;
-                        _bleedingFlow = Bleeding.veryLight;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
+        return BleedingStepCard(
+          isFlowStep: true,
+          showNoBleeding: showNoBleeding,
+          hasBleeding: _hasBleeding,
+          bleedingFlow: _bleedingFlow,
+          onSelectNoBleeding: () {
+            setState(() {
+              _hasBleeding = false;
+              _bleedingFlow = Bleeding.none;
+              _bleedingColor = null;
+            });
+            _nextStep();
+          },
+          onSelectFlow: (flow) {
+            setState(() {
+              _hasBleeding = true;
+              _bleedingFlow = flow;
+            });
+            _nextStep();
+          },
         );
 
       case WizardStep.bleedingColor:
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Blood Color',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Select the observed color of blood:',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 14),
-              _buildOptionGrid(
-                fullWidthIndexes: const [0],
-                children: [
-                  _OptionCard(
-                    label: 'Red (R)',
-                    icon: Icons.color_lens,
-                    subtitle: 'Bright or dark red blood',
-                    isSelected: _bleedingColor == 'R',
-                    onTap: () {
-                      setState(() {
-                        _bleedingColor = 'R';
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Brown (B)',
-                    icon: Icons.color_lens_outlined,
-                    subtitle: 'Brownish discharge',
-                    isSelected: _bleedingColor == 'B',
-                    onTap: () {
-                      setState(() {
-                        _bleedingColor = 'B';
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Black (K)',
-                    icon: Icons.circle,
-                    subtitle: 'Blackish old blood',
-                    isSelected: _bleedingColor == 'K',
-                    onTap: () {
-                      setState(() {
-                        _bleedingColor = 'K';
-                      });
-                      _nextStep();
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
+        return BleedingStepCard(
+          isFlowStep: false,
+          bleedingColor: _bleedingColor,
+          onSelectColor: (color) {
+            setState(() {
+              _bleedingColor = color;
+            });
+            _nextStep();
+          },
         );
 
       case WizardStep.sensation:
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Sensation at Vulva',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'What sensation do you feel at the vulva right now during normal daily routine?',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 14),
-              _buildOptionGrid(
-                children: [
-                  _OptionCard(
-                    label: 'Dry',
-                    icon: Icons.wb_sunny_outlined,
-                    subtitle: 'No sensation of moisture',
-                    isSelected: _sensation == Sensation.dry,
-                    onTap: () {
-                      setState(() {
-                        _sensation = Sensation.dry;
-                        _hasLubrication = false;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Wet',
-                    icon: Icons.water,
-                    subtitle: 'Definite sensation of moisture',
-                    isSelected: _sensation == Sensation.wet,
-                    onTap: () {
-                      setState(() {
-                        _sensation = Sensation.wet;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Damp',
-                    icon: Icons.opacity,
-                    subtitle: 'Slight feeling of dampness',
-                    isSelected: _sensation == Sensation.damp,
-                    onTap: () {
-                      setState(() {
-                        _sensation = Sensation.damp;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Shiny / Smooth',
-                    icon: Icons.auto_awesome,
-                    subtitle: 'Slick or smooth feeling',
-                    isSelected: _sensation == Sensation.shiny,
-                    onTap: () {
-                      setState(() {
-                        _sensation = Sensation.shiny;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
+        return SensationStepCard(
+          isLubricationStep: false,
+          sensation: _sensation,
+          onSelectSensation: (sens) {
+            setState(() {
+              _sensation = sens;
+              if (sens == Sensation.dry) {
+                _hasLubrication = false;
+              }
+            });
+            _nextStep();
+          },
         );
 
       case WizardStep.lubrication:
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Lubricative Sensation',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Was there a distinctly lubricative or slippery sensation?',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 14),
-              _buildOptionGrid(
-                children: [
-                  _OptionCard(
-                    label: 'Not Lubricative',
-                    icon: Icons.do_not_disturb,
-                    subtitle: 'No slippery feeling',
-                    isSelected: _hasLubrication == false,
-                    onTap: () {
-                      setState(() {
-                        _hasLubrication = false;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Yes Lubrication',
-                    icon: Icons.clean_hands,
-                    subtitle: 'Slippery / lubricative feel',
-                    isSelected: _hasLubrication == true,
-                    onTap: () {
-                      setState(() {
-                        _hasLubrication = true;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
+        return SensationStepCard(
+          isLubricationStep: true,
+          hasLubrication: _hasLubrication,
+          onSelectLubrication: (lub) {
+            setState(() {
+              _hasLubrication = lub;
+            });
+            _nextStep();
+          },
         );
 
       case WizardStep.mucus:
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Mucus Observation',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Do you observe any visible mucus at this observation?',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 14),
-              _buildOptionGrid(
-                children: [
-                  _OptionCard(
-                    label: 'No Mucus',
-                    icon: Icons.block,
-                    subtitle: 'No visible mucus observed',
-                    isSelected: _hasMucus == false,
-                    onTap: () {
-                      setState(() {
-                        _hasMucus = false;
-                        _stretch = Stretch.none;
-                        _colorSelection = null;
-                        _isGummy = false;
-                        _isPasty = false;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Yes Mucus',
-                    icon: Icons.bubble_chart,
-                    subtitle: 'Visible mucus present',
-                    isSelected: _hasMucus == true,
-                    onTap: () {
-                      setState(() {
-                        _hasMucus = true;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
+        return MucusStepCard(
+          subStep: MucusSubStep.presence,
+          hasMucus: _hasMucus,
+          onSelectHasMucus: (has) {
+            setState(() {
+              _hasMucus = has;
+              if (!has) {
+                _stretch = Stretch.none;
+                _selectedColors = [];
+                _isGummy = false;
+                _isPasty = false;
+              }
+            });
+            _nextStep();
+          },
         );
 
       case WizardStep.mucusStretch:
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Finger Test Stretch',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'When performing the finger test, how far does the mucus stretch before breaking?',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  FractionallySizedBox(
-                    widthFactor: 0.5,
-                    child: _OptionCard(
-                      label: 'Sticky',
-                      icon: Icons.straighten,
-                      subtitle: '< 1/4 inch stretch',
-                      isSelected: _stretch == Stretch.sticky,
-                      onTap: () {
-                        setState(() {
-                          _stretch = Stretch.sticky;
-                        });
-                        _nextStep();
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  FractionallySizedBox(
-                    widthFactor: 0.75,
-                    child: _OptionCard(
-                      label: 'Tacky',
-                      icon: Icons.height,
-                      subtitle: '1/4 to 3/4 inch stretch',
-                      isSelected: _stretch == Stretch.tacky,
-                      onTap: () {
-                        setState(() {
-                          _stretch = Stretch.tacky;
-                        });
-                        _nextStep();
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  FractionallySizedBox(
-                    widthFactor: 1.0,
-                    child: _OptionCard(
-                      label: 'Stretchy (10)',
-                      icon: Icons.unfold_more,
-                      subtitle: '>= 1 inch stretch',
-                      isSelected: _stretch == Stretch.stretchy,
-                      onTap: () {
-                        setState(() {
-                          _stretch = Stretch.stretchy;
-                        });
-                        _nextStep();
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+        return MucusStepCard(
+          subStep: MucusSubStep.stretch,
+          stretch: _stretch,
+          onSelectStretch: (s) {
+            setState(() {
+              _stretch = s;
+            });
+            _nextStep();
+          },
         );
 
       case WizardStep.mucusColor:
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Mucus Color',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Select the observed color of the mucus:',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 10),
-              _buildOptionGrid(
-                childAspectRatio: 2.1,
-                children: [
-                  _OptionCard(
-                    label: 'Cloudy (C)',
-                    icon: Icons.cloud_outlined,
-                    subtitle: 'Opaque / off-white',
-                    isSelected: _colorSelection == 'cloudy',
-                    onTap: () {
-                      setState(() {
-                        _colorSelection = 'cloudy';
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Clear (K)',
-                    icon: Icons.water_drop_outlined,
-                    subtitle: 'Transparent egg-white',
-                    isSelected: _colorSelection == 'clear',
-                    onTap: () {
-                      setState(() {
-                        _colorSelection = 'clear';
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Cloudy/Clear (C/K)',
-                    icon: Icons.wb_cloudy_outlined,
-                    subtitle: 'Mix of clear & cloudy',
-                    isSelected: _colorSelection == 'cloudy_clear',
-                    onTap: () {
-                      setState(() {
-                        _colorSelection = 'cloudy_clear';
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Yellow (Y)',
-                    icon: Icons.circle_outlined,
-                    subtitle: 'Yellowish tinge',
-                    isSelected: _colorSelection == 'yellow',
-                    onTap: () {
-                      setState(() {
-                        _colorSelection = 'yellow';
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Red (R)',
-                    icon: Icons.water_drop,
-                    subtitle: 'Red-tinged / bleeding',
-                    isSelected: _colorSelection == 'red',
-                    onTap: () {
-                      setState(() {
-                        _colorSelection = 'red';
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Black/Brown (B)',
-                    icon: Icons.circle,
-                    subtitle: 'Brown or blackish',
-                    isSelected: _colorSelection == 'brown',
-                    onTap: () {
-                      setState(() {
-                        _colorSelection = 'brown';
-                      });
-                      _nextStep();
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
+        return MucusStepCard(
+          subStep: MucusSubStep.color,
+          selectedColors: _selectedColors,
+          onSelectColors: (colors) {
+            setState(() {
+              _selectedColors = colors;
+            });
+            _nextStep();
+          },
         );
 
       case WizardStep.mucusConsistency:
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Mucus Consistency',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Optionally select special physical characteristics of the mucus:',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 14),
-              _buildOptionGrid(
-                fullWidthIndexes: const [0],
-                children: [
-                  _OptionCard(
-                    label: 'Neither',
-                    icon: Icons.do_not_disturb_alt,
-                    subtitle: 'Standard mucus consistency',
-                    isSelected:
-                        !_isGummy && !_isPasty && _hasSelectedConsistency,
-                    onTap: () {
-                      setState(() {
-                        _isGummy = false;
-                        _isPasty = false;
-                        _hasSelectedConsistency = true;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Gummy (Gluey)',
-                    icon: Icons.bubble_chart_outlined,
-                    subtitle: 'Rubber-like or gluey texture',
-                    isSelected: _isGummy && !_isPasty,
-                    onTap: () {
-                      setState(() {
-                        _isGummy = true;
-                        _isPasty = false;
-                        _hasSelectedConsistency = true;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Pasty (Creamy)',
-                    icon: Icons.format_paint_outlined,
-                    subtitle: 'Creamy or pasty texture',
-                    isSelected: _isPasty && !_isGummy,
-                    onTap: () {
-                      setState(() {
-                        _isGummy = false;
-                        _isPasty = true;
-                        _hasSelectedConsistency = true;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
+        return MucusStepCard(
+          subStep: MucusSubStep.consistency,
+          isGummy: _isGummy,
+          isPasty: _isPasty,
+          hasSelectedConsistency: _hasSelectedConsistency,
+          onSelectConsistency: ({required isGummy, required isPasty}) {
+            setState(() {
+              _isGummy = isGummy;
+              _isPasty = isPasty;
+              _hasSelectedConsistency = true;
+            });
+            _nextStep();
+          },
         );
 
       case WizardStep.intercourse:
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Log Intercourse / Intimacy',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Record whether intercourse occurred at this observation time:',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 14),
-              _buildOptionGrid(
-                children: [
-                  _OptionCard(
-                    label: 'Intercourse (I)',
-                    icon: Icons.favorite,
-                    subtitle: 'Intercourse occurred',
-                    isSelected: _hasIntercourse == true,
-                    onTap: () {
-                      setState(() {
-                        _hasIntercourse = true;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'No Intercourse',
-                    icon: Icons.do_not_disturb_alt,
-                    subtitle: 'No intercourse recorded',
-                    isSelected: _hasIntercourse == false,
-                    onTap: () {
-                      setState(() {
-                        _hasIntercourse = false;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
+        return IntercourseStepCard(
+          hasIntercourse: _hasIntercourse,
+          onSelectIntercourse: (val) {
+            setState(() {
+              _hasIntercourse = val;
+            });
+            _nextStep();
+          },
         );
 
       case WizardStep.pain:
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Pain or Symptoms',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Are you experiencing any physical pain or cramps right now?',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 14),
-              _buildOptionGrid(
-                children: [
-                  _OptionCard(
-                    label: 'No Pain',
-                    icon: Icons.sentiment_satisfied_alt,
-                    subtitle: 'No discomfort experienced',
-                    isSelected: _hasPain == false,
-                    onTap: () {
-                      setState(() {
-                        _hasPain = false;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                  _OptionCard(
-                    label: 'Yes (Log Pain)',
-                    icon: Icons.healing,
-                    subtitle: 'Cramps, abdominal pain, etc.',
-                    isSelected: _hasPain == true,
-                    onTap: () {
-                      setState(() {
-                        _hasPain = true;
-                      });
-                      _nextStep();
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
+        return PainStepCard(
+          isDetailsStep: false,
+          hasPain: _hasPain,
+          onSelectHasPain: (has) {
+            setState(() {
+              _hasPain = has;
+            });
+            _nextStep();
+          },
         );
 
       case WizardStep.painDetails:
-        final isAbdominalSelected = _painTypes.contains('Abdominal Pain');
-
-        return SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Pain Location & Severity',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Select pain location and severity rating:',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                'Location / Type:',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children:
-                    [
-                      'Cramps',
-                      'Abdominal Pain',
-                      'Backache',
-                      'Headache',
-                      'Pelvic Pain',
-                    ].map((p) {
-                      final isSelected = _painTypes.contains(p);
-                      return FilterChip(
-                        showCheckmark: false,
-                        label: Text(p),
-                        selected: isSelected,
-                        onSelected: (val) {
-                          setState(() {
-                            if (val) {
-                              _painTypes.add(p);
-                            } else {
-                              _painTypes.remove(p);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
-              ),
-              if (isAbdominalSelected) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest.withValues(
-                      alpha: 0.4,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: theme.colorScheme.outlineVariant.withValues(
-                        alpha: 0.5,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        'Abdominal Side (Optional):',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      FilterChip(
-                        showCheckmark: false,
-                        label: const Text('Left'),
-                        selected: _abdominalLeft,
-                        onSelected: (val) {
-                          setState(() => _abdominalLeft = val);
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      FilterChip(
-                        showCheckmark: false,
-                        label: const Text('Right'),
-                        selected: _abdominalRight,
-                        onSelected: (val) {
-                          setState(() => _abdominalRight = val);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Text(
-                    'Severity Rating:',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Expanded(
-                    child: Slider(
-                      value: _painLevel,
-                      min: 1.0,
-                      max: 10.0,
-                      divisions: 9,
-                      label: '${_painLevel.toInt()}/10',
-                      onChanged: (val) => setState(() => _painLevel = val),
-                    ),
-                  ),
-                  Text(
-                    '${_painLevel.toInt()}/10',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+        return PainStepCard(
+          isDetailsStep: true,
+          painTypes: _painTypes,
+          abdominalLeft: _abdominalLeft,
+          abdominalRight: _abdominalRight,
+          painLevel: _painLevel,
+          onTogglePainType: (p, selected) {
+            setState(() {
+              if (selected) {
+                _painTypes.add(p);
+              } else {
+                _painTypes.remove(p);
+              }
+            });
+          },
+          onToggleAbdominalLeft: (val) {
+            setState(() => _abdominalLeft = val);
+          },
+          onToggleAbdominalRight: (val) {
+            setState(() => _abdominalRight = val);
+          },
+          onPainLevelChanged: (val) {
+            setState(() => _painLevel = val);
+          },
         );
 
       case WizardStep.comments:
@@ -1363,113 +617,25 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
             cat == ObservationCategory.full ||
             cat == ObservationCategory.intercourse;
 
-        final hasBleeding = _hasBleeding ?? false;
-        final flowLabel = _bleedingFlow != null
-            ? _bleedingFlow!.label
-            : 'Light';
-
-        String bleedingColorName = '';
-        if (_bleedingColor == 'R') bleedingColorName = 'Red';
-        if (_bleedingColor == 'B') bleedingColorName = 'Brown';
-        if (_bleedingColor == 'K') bleedingColorName = 'Black';
-
-        final hasMucus = _hasMucus ?? false;
-        final hasPain = _hasPain ?? false;
-        final hasLubrication = _hasLubrication ?? false;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Summary & Additional Notes',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Summary Badge Box
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.4,
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.fact_check_outlined,
-                        size: 18,
-                        color: theme.colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Observation Summary:',
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Date: ${DateFormat('MMM dd, yyyy • h:mm a').format(_combinedDateTime)}',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  if (showBleeding)
-                    Text(
-                      'Bleeding: ${hasBleeding ? "$flowLabel${bleedingColorName.isNotEmpty ? ', $bleedingColorName' : ''}" : "None"}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  if (showMucus) ...[
-                    Text(
-                      'Sensation: ${_sensation?.label ?? "Dry"}${hasLubrication ? " (Lubricative)" : ""}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    Text(
-                      'Mucus: ${hasMucus ? "${_stretch?.label ?? 'Sticky'}, ${_colorSelection ?? 'cloudy'}" : "None"}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                  if (showPain)
-                    Text(
-                      'Pain: ${hasPain ? "${_formattedPainTypes.isNotEmpty ? _formattedPainTypes.join(', ') : 'Logged'} (${_painLevel.toInt()}/10)" : "None"}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  if (showIntercourse && _hasIntercourse != null)
-                    Text(
-                      'Intercourse: ${_hasIntercourse == true ? "Yes" : "No"}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Comments / Notes (Optional):',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: TextField(
-                controller: _commentController,
-                maxLines: null,
-                minLines: null,
-                expands: true,
-                textAlignVertical: TextAlignVertical.top,
-                decoration: const InputDecoration(
-                  hintText: 'Add extra details or observations...',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ),
-          ],
+        return ObservationSummaryStepCard(
+          combinedDateTime: _combinedDateTime,
+          showBleeding: showBleeding,
+          hasBleeding: _hasBleeding ?? false,
+          bleedingFlow: _bleedingFlow,
+          bleedingColor: _bleedingColor,
+          showMucus: showMucus,
+          sensation: _sensation,
+          hasLubrication: _hasLubrication ?? false,
+          hasMucus: _hasMucus ?? false,
+          stretch: _stretch,
+          selectedColors: _selectedColors,
+          showPain: showPain,
+          hasPain: _hasPain ?? false,
+          formattedPainTypes: _formattedPainTypes,
+          painLevel: _painLevel,
+          showIntercourse: showIntercourse,
+          hasIntercourse: _hasIntercourse,
+          commentController: _commentController,
         );
     }
   }
@@ -1478,13 +644,11 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
     setState(() => _isSaving = true);
 
     final bool hasBleeding = _hasBleeding ?? false;
-    // Compute bleeding enum
     final Bleeding bleeding = hasBleeding
         ? (_bleedingFlow ?? Bleeding.light)
         : Bleeding.none;
     final String bleedingColorStr = hasBleeding ? (_bleedingColor ?? 'R') : '';
 
-    // Compute sensation, stretch, colors, consistencies
     Sensation sensation = Sensation.dry;
     Stretch stretch = Stretch.none;
     final List<MucusColor> colors = [];
@@ -1499,24 +663,10 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
 
       if (_hasMucus ?? false) {
         stretch = _stretch ?? Stretch.sticky;
+        colors.addAll(
+          _selectedColors.isNotEmpty ? _selectedColors : [MucusColor.cloudy],
+        );
 
-        // Color mapping
-        if (_colorSelection == 'cloudy') {
-          colors.add(MucusColor.cloudy);
-        } else if (_colorSelection == 'clear') {
-          colors.add(MucusColor.clear);
-        } else if (_colorSelection == 'cloudy_clear') {
-          colors.add(MucusColor.cloudy);
-          colors.add(MucusColor.clear);
-        } else if (_colorSelection == 'yellow') {
-          colors.add(MucusColor.yellow);
-        } else if (_colorSelection == 'red') {
-          colors.add(MucusColor.red);
-        } else if (_colorSelection == 'brown') {
-          colors.add(MucusColor.brown);
-        }
-
-        // Consistency mapping
         if (_isGummy) consistencies.add(Consistency.gummy);
         if (_isPasty) consistencies.add(Consistency.pasty);
       }
@@ -1569,113 +719,5 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         setState(() => _isSaving = false);
       }
     }
-  }
-}
-
-class _OptionCard extends StatelessWidget {
-  final String label;
-  final IconData? icon;
-  final String? subtitle;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _OptionCard({
-    required this.label,
-    this.icon,
-    this.subtitle,
-    this.isSelected = false,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Material(
-      color: isSelected
-          ? colorScheme.primaryContainer
-          : colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isSelected
-                  ? colorScheme.primary
-                  : colorScheme.outlineVariant.withValues(alpha: 0.5),
-              width: isSelected ? 2 : 1,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  if (icon != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? colorScheme.primary
-                            : colorScheme.surface,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        icon,
-                        size: 16,
-                        color: isSelected
-                            ? colorScheme.onPrimary
-                            : colorScheme.primary,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: isSelected
-                            ? colorScheme.onPrimaryContainer
-                            : colorScheme.onSurface,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (isSelected)
-                    Icon(
-                      Icons.check_circle_rounded,
-                      color: colorScheme.primary,
-                      size: 16,
-                    ),
-                ],
-              ),
-              if (subtitle != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  subtitle!,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 11,
-                    color: isSelected
-                        ? colorScheme.onPrimaryContainer.withValues(alpha: 0.85)
-                        : colorScheme.onSurfaceVariant,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }

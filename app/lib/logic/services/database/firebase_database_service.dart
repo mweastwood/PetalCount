@@ -1,8 +1,10 @@
 import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+
 import '../../app_config.dart';
 import '../../models/cycle.dart';
 import '../../models/daily_entry.dart';
@@ -79,11 +81,9 @@ class FirebaseDatabaseService implements DatabaseService {
         user = userCredential.user;
       } else {
         if (!_googleSignInInitialized) {
-          final String serverClientId =
-              AppConfig.environment == AppEnvironment.prod
-              ? '847947122489-kbpqd3e7m8b3aehd3ah9714rgsd10es3.apps.googleusercontent.com'
-              : '688587508865-fhe9rghlo1f909rn8t7vqjvld7km36sl.apps.googleusercontent.com';
-          await _googleSignIn.initialize(serverClientId: serverClientId);
+          await _googleSignIn.initialize(
+            serverClientId: AppConfig.googleServerClientId,
+          );
           _googleSignInInitialized = true;
         }
 

@@ -51,6 +51,7 @@ enum Bleeding {
   light('L', 'Light'),
   veryLight('VL', 'Very Light'),
   spotting('VL', 'Spotting'),
+  black('K', 'Black bleeding'),
   brown('B', 'Brown bleeding'),
   red('R', 'Red bleeding');
 
