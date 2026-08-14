@@ -34,24 +34,34 @@ void main() {
     'ChartScreen displays question mark for missing observation days and preserves day alignment',
     (WidgetTester tester) async {
       final startDate = DateTime(2026, 6, 1);
-      final day1 = DailyEntry(
+      final obs1 = Observation(
+        id: '1',
+        timestamp: startDate,
+        sensation: Sensation.damp,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        userId: 'test',
+      );
+      final day1 = CreightonLogic.resolveDailyEntry(
         date: startDate,
-        resolvedVdrsCode: '2',
-        stampType: StampType.green,
-        observations: const [],
-        painLevel: 0,
-        painTypes: const [],
-        comments: '',
+        observations: [obs1],
       );
       final day3Date = DateTime(2026, 6, 3);
-      final day3 = DailyEntry(
+      final obs3 = Observation(
+        id: '3',
+        timestamp: day3Date,
+        sensation: Sensation.wet,
+        stretch: Stretch.stretchy,
+        colors: [MucusColor.clear],
+        consistencies: [Consistency.lubricative],
+        bleeding: Bleeding.none,
+        userId: 'test',
+      );
+      final day3 = CreightonLogic.resolveDailyEntry(
         date: day3Date,
-        resolvedVdrsCode: '10KL',
-        stampType: StampType.whiteBaby,
-        observations: const [],
-        painLevel: 0,
-        painTypes: const [],
-        comments: '',
+        observations: [obs3],
       );
 
       final cycle = Cycle(
@@ -81,9 +91,9 @@ void main() {
       expect(find.text('Jun 02'), findsOneWidget);
       expect(find.text('Jun 03'), findsOneWidget);
 
-      // Verify VDRS codes for Day 1 ('2') and Day 3 ('10KL')
+      // Verify VDRS codes for Day 1 ('2') and Day 3 ('10WLK')
       expect(find.text('2'), findsOneWidget);
-      expect(find.text('10KL'), findsOneWidget);
+      expect(find.text('10WLK'), findsOneWidget);
 
       // Verify question marks exist for missing days (including Jun 02)
       expect(find.text('?'), findsWidgets);
@@ -100,24 +110,34 @@ void main() {
     'ChartScreen renders question mark on missing observation days golden',
     (WidgetTester tester) async {
       final startDate = DateTime(2026, 6, 1);
-      final day1 = DailyEntry(
+      final obs1 = Observation(
+        id: '1',
+        timestamp: startDate,
+        sensation: Sensation.damp,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        userId: 'test',
+      );
+      final day1 = CreightonLogic.resolveDailyEntry(
         date: startDate,
-        resolvedVdrsCode: '2',
-        stampType: StampType.green,
-        observations: const [],
-        painLevel: 0,
-        painTypes: const [],
-        comments: '',
+        observations: [obs1],
       );
       final day3Date = DateTime(2026, 6, 3);
-      final day3 = DailyEntry(
+      final obs3 = Observation(
+        id: '3',
+        timestamp: day3Date,
+        sensation: Sensation.wet,
+        stretch: Stretch.stretchy,
+        colors: [MucusColor.clear],
+        consistencies: [Consistency.lubricative],
+        bleeding: Bleeding.none,
+        userId: 'test',
+      );
+      final day3 = CreightonLogic.resolveDailyEntry(
         date: day3Date,
-        resolvedVdrsCode: '10KL',
-        stampType: StampType.whiteBaby,
-        observations: const [],
-        painLevel: 0,
-        painTypes: const [],
-        comments: '',
+        observations: [obs3],
       );
 
       final cycle = Cycle(

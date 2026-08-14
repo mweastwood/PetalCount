@@ -1,7 +1,95 @@
 import '../models/observation.dart';
 import '../models/daily_entry.dart';
 
+class ParsedVdrs {
+  final String? bleedingPart;
+  final String? mucusPart;
+
+  const ParsedVdrs({this.bleedingPart, this.mucusPart});
+}
+
 class CreightonLogic {
+  /// Parses a raw or resolved VDRS code into structured bleeding and mucus
+  /// components.
+  static ParsedVdrs parseVdrsCode(String code) {
+    final trimmed = code.trim();
+    if (trimmed.isEmpty) {
+      return const ParsedVdrs();
+    }
+
+    // Strip comments in parentheses or trailing semicolon comments
+    String cleanCode = trimmed.replaceAll(RegExp(r'\s*\(.*?\)\s*'), '').trim();
+    if (cleanCode.contains(';')) {
+      cleanCode = cleanCode.split(';')[0].trim();
+    }
+
+    if (cleanCode.isEmpty) {
+      return const ParsedVdrs();
+    }
+
+    final tokens = cleanCode.split(RegExp(r'\s+'));
+
+    String? bleedingPart;
+    String? mucusPart;
+
+    final bleedingRegex = RegExp(
+      r'^(H|M|L|VL|S|B|R)(-[A-Z]+)?$',
+      caseSensitive: false,
+    );
+    final mucusCategoryRegex = RegExp(
+      r'^(0|2W?|4|6|8|10)',
+      caseSensitive: false,
+    );
+    final mucusDescriptorRegex = RegExp(
+      r'^[CKGLPYBRWAD]+$',
+      caseSensitive: false,
+    );
+
+    bool isMucusToken(String token) {
+      return mucusCategoryRegex.hasMatch(token) ||
+          mucusDescriptorRegex.hasMatch(token);
+    }
+
+    for (final token in tokens) {
+      if (bleedingPart == null && bleedingRegex.hasMatch(token)) {
+        bleedingPart = token;
+      } else if (mucusPart == null && isMucusToken(token)) {
+        mucusPart = token;
+      } else if (mucusPart != null && isMucusToken(token)) {
+        mucusPart = '$mucusPart $token';
+      }
+    }
+
+    if (bleedingPart == null && mucusPart == null && tokens.isNotEmpty) {
+      final t = tokens[0];
+      if (t.contains(RegExp(r'\d')) || isMucusToken(t)) {
+        mucusPart = t;
+      } else {
+        bleedingPart = t;
+      }
+    }
+
+    return ParsedVdrs(bleedingPart: bleedingPart, mucusPart: mucusPart);
+  }
+
+  /// Parses a resolved VDRS code to check if it has Peak-type mucus properties.
+  /// Peak-type means: stretchy (10), clear (K), or lubricative (L) in the
+  /// mucus component.
+  static bool isPeakTypeCode(String code) {
+    final parsed = parseVdrsCode(code);
+    final mucusPart = parsed.mucusPart;
+    if (mucusPart == null || mucusPart.isEmpty) {
+      return false;
+    }
+
+    final upperMucus = mucusPart.toUpperCase();
+    final has10 = upperMucus.contains('10');
+    final hasK = upperMucus.contains('K');
+    final hasL = upperMucus.contains('L');
+
+    return has10 || hasK || hasL;
+  }
+
   // Helper values for comparing fertility levels of observations
   static int _stretchValue(Stretch s) {
     switch (s) {
@@ -65,8 +153,8 @@ class CreightonLogic {
     return 0;
   }
 
-  // Resolves a list of observations recorded on a single day to the most fertile one,
-  // while combining any bleeding records so they aren't lost.
+  // Resolves a list of observations recorded on a single day to the most
+  // fertile one, while combining any bleeding records so they aren't lost.
   static DailyEntry resolveDailyEntry({
     required DateTime date,
     required List<Observation> observations,
@@ -142,48 +230,25 @@ class CreightonLogic {
       }
     }
 
+    // Determine initial basic stamp type prior to full cycle recalculation
+    StampType initialStamp;
+    if (hasAnyBleeding) {
+      initialStamp = StampType.red;
+    } else if (bestObs.hasMucus) {
+      initialStamp = StampType.whiteBaby;
+    } else {
+      initialStamp = StampType.green;
+    }
+
     return DailyEntry(
       date: date,
       resolvedVdrsCode: resolvedCode,
-      stampType: StampType.green, // Will be computed in the cycle recalculation
+      stampType: initialStamp,
       observations: observations,
       painLevel: maxPainLevel,
       painTypes: allPainTypes.toList(),
       comments: commentsList.join('; '),
     );
-  }
-
-  // Parses a resolved VDRS code to check if it has Peak-type mucus properties.
-  // Peak-type means: stretchy (10), clear (K), or lubricative (L)
-  static bool isPeakTypeCode(String code) {
-    if (code.contains('10') || code.contains('K') || code.contains('L')) {
-      // Must verify it's not just a bleeding code containing L (Light bleeding)
-      // Standard Creighton Peak-type mucus has '10', 'K', or 'L' as a consistency.
-      // If code contains 'L' we must check if it represents Light Bleeding or Lubricative mucus.
-      // Light bleeding typically appears as "L" or "L-R" or "L-B" at the start.
-      // Lubricative mucus is represented by "10DL", "10SL", "10WL", or suffix "-L".
-
-      final parts = code.split(' ');
-      String mucusPart = parts.length > 1 ? parts[1] : parts[0];
-
-      // If there is no space, but it's a bleeding code like "L", "L-R", "L-B", it is NOT peak-type mucus.
-      if (parts.length == 1 &&
-          (code == 'L' ||
-              code == 'L-R' ||
-              code == 'L-B' ||
-              code == 'VL' ||
-              code == 'VL-R' ||
-              code == 'VL-B')) {
-        return false;
-      }
-
-      final has10 = mucusPart.contains('10');
-      final hasK = mucusPart.contains('K');
-      final hasL = mucusPart.contains('L');
-
-      return has10 || hasK || hasL;
-    }
-    return false;
   }
 
   // Recalculates stamps and Peak-Day labels for an entire cycle
@@ -205,20 +270,18 @@ class CreightonLogic {
 
     // --- STEP A: IDENTIFY THE PEAK DAY ---
     // The Peak Day is the last day of Peak-type mucus (10, K, or L)
-    // followed by a shift of at least 3 consecutive days of non-Peak/dry patterns.
+    // followed by a shift of at least 3 consecutive days of non-Peak/dry
+    // patterns.
     int peakIndex = -1;
 
     for (int i = sorted.length - 1; i >= 0; i--) {
-      final currentCode = sorted[i].resolvedVdrsCode;
-
-      if (isPeakTypeCode(currentCode)) {
+      if (sorted[i].isPeakType) {
         // Check if followed by at least 3 days of non-Peak observations
         bool has3DaysShift = true;
         int count = 0;
 
         for (int j = i + 1; j < sorted.length; j++) {
-          final nextCode = sorted[j].resolvedVdrsCode;
-          if (isPeakTypeCode(nextCode)) {
+          if (sorted[j].isPeakType) {
             has3DaysShift = false;
             break;
           }
@@ -237,7 +300,6 @@ class CreightonLogic {
     // --- STEP B: ASSIGN STAMPS AND LABELS ---
     for (int i = 0; i < sorted.length; i++) {
       final entry = sorted[i];
-      final code = entry.resolvedVdrsCode;
 
       // Determine Peak Day Label
       String? label;
@@ -256,50 +318,47 @@ class CreightonLogic {
       // Assign Stamp Color
       StampType stamp;
 
-      // Safe check: does the code represent bleeding?
-      bool isBleeding = entry.hasBleeding;
-
-      if (isBleeding) {
+      if (entry.hasBleeding) {
         stamp = StampType.red;
-      } else {
-        // Extract mucus-only portion
-        final parts = code.split(' ');
-        final mucusPart = parts.length > 1 ? parts[1] : parts[0];
-
-        final hasMucus =
-            mucusPart != '0' &&
-            mucusPart != '2' &&
-            mucusPart != '2W' &&
-            mucusPart != '4';
-
-        if (hasMucus) {
-          // If the mucus matches one of the user's BIP codes
-          final isBip = bipCodes.any((bip) => mucusPart.startsWith(bip));
-
-          if (isBip) {
-            // Under Yellow Stamp Protocol:
-            // BIP mucus gets a Yellow stamp (infertile)
-            // Unless it is the Peak Day or in the Peak+1/2/3 fertile window
-            if (label != null) {
-              // During the post-Peak window, even if it's BIP mucus, it's considered fertile
-              // In this window, it gets a White Baby stamp (or Yellow Baby)
-              stamp = StampType.whiteBaby;
-            } else {
-              stamp = StampType.yellow;
+      } else if (entry.hasMucus) {
+        Observation? bestObs;
+        for (final obs in entry.observations) {
+          if (obs.hasMucus) {
+            if (bestObs == null || compareFertility(obs, bestObs) > 0) {
+              bestObs = obs;
             }
-          } else {
-            // Mucus day representing potential fertility
+          }
+        }
+
+        final mucusPart =
+            bestObs?.mucusPart() ??
+            (parseVdrsCode(entry.resolvedVdrsCode).mucusPart ??
+                entry.resolvedVdrsCode);
+        final isBip = bipCodes.any((bip) => mucusPart.startsWith(bip));
+
+        if (isBip) {
+          // Under Yellow Stamp Protocol:
+          // BIP mucus gets a Yellow stamp (infertile)
+          // Unless it is the Peak Day or in the Peak+1/2/3 fertile window
+          if (label != null) {
+            // During the post-Peak window, even if it's BIP mucus, it's
+            // considered fertile
             stamp = StampType.whiteBaby;
+          } else {
+            stamp = StampType.yellow;
           }
         } else {
-          // Dry day (0, 2, 2W, 4)
-          // Is it in the post-Peak fertile window?
-          if (label != null && label != 'P') {
-            stamp =
-                StampType.greenBaby; // Dry but fertile (Green with baby symbol)
-          } else {
-            stamp = StampType.green; // Dry and infertile (Plain Green)
-          }
+          // Mucus day representing potential fertility
+          stamp = StampType.whiteBaby;
+        }
+      } else {
+        // Dry day (0, 2, 2W, 4)
+        // Is it in the post-Peak fertile window?
+        if (label != null && label != 'P') {
+          stamp =
+              StampType.greenBaby; // Dry but fertile (Green with baby symbol)
+        } else {
+          stamp = StampType.green; // Dry and infertile (Plain Green)
         }
       }
 

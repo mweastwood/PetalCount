@@ -1,3 +1,5 @@
+import '../services/creighton_logic.dart';
+import '../utils/date_utils.dart';
 import 'observation.dart';
 
 enum StampType {
@@ -11,13 +13,6 @@ enum StampType {
   final String name;
   final String label;
   const StampType(this.name, this.label);
-}
-
-extension DateTimeNormalizationX on DateTime {
-  /// Normalizes DateTime to local midnight (Year, Month, Day) with 00:00:00 time component
-  DateTime toNormalizedDate() {
-    return DateTime(year, month, day);
-  }
 }
 
 class DailyEntry {
@@ -42,7 +37,34 @@ class DailyEntry {
   }) : date = date.toNormalizedDate();
 
   bool get isPeakDay => peakDayLabel == 'P';
-  bool get hasBleeding => resolvedVdrsCode.contains(RegExp(r'[HMLVSRB]'));
+
+  bool get hasBleeding {
+    if (observations.isNotEmpty) {
+      return observations.any((o) => o.hasBleeding);
+    }
+    final parsed = CreightonLogic.parseVdrsCode(resolvedVdrsCode);
+    return parsed.bleedingPart != null;
+  }
+
+  bool get hasMucus {
+    if (observations.isNotEmpty) {
+      return observations.any((o) => o.hasMucus);
+    }
+    final parsed = CreightonLogic.parseVdrsCode(resolvedVdrsCode);
+    final m = parsed.mucusPart;
+    if (m == null || m.isEmpty) return false;
+    final trimmed = m.trim();
+    return !trimmed.startsWith('0') &&
+        !trimmed.startsWith('2') &&
+        !trimmed.startsWith('4');
+  }
+
+  bool get isPeakType {
+    if (observations.isNotEmpty) {
+      return observations.any((o) => o.isPeakType);
+    }
+    return CreightonLogic.isPeakTypeCode(resolvedVdrsCode);
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -59,12 +81,7 @@ class DailyEntry {
 
   factory DailyEntry.fromMap(Map<String, dynamic> map) {
     final dateStr = map['date'] as String;
-    final parts = dateStr.split('-');
-    final parsedDate = DateTime(
-      int.parse(parts[0]),
-      int.parse(parts[1]),
-      int.parse(parts[2]),
-    );
+    final parsedDate = parseIsoDate(dateStr);
 
     return DailyEntry(
       date: parsedDate,
