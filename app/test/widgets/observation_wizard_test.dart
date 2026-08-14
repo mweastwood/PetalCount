@@ -743,7 +743,7 @@ void main() {
                 showBleeding: true,
                 hasBleeding: true,
                 bleedingFlow: Bleeding.heavy,
-                bleedingColor: MucusColor.clear.code,
+                bleedingColor: Bleeding.black.code,
                 commentController: commentController,
               ),
             ),

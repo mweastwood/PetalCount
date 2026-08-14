@@ -59,7 +59,7 @@ class ObservationSummaryStepCard extends StatelessWidget {
     String bleedingColorName = '';
     if (bleedingColor == Bleeding.red.code) bleedingColorName = 'Red';
     if (bleedingColor == Bleeding.brown.code) bleedingColorName = 'Brown';
-    if (bleedingColor == MucusColor.clear.code) bleedingColorName = 'Black';
+    if (bleedingColor == Bleeding.black.code) bleedingColorName = 'Black';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
