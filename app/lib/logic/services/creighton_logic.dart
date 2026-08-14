@@ -83,9 +83,9 @@ class CreightonLogic {
     }
 
     final upperMucus = mucusPart.toUpperCase();
-    final has10 = upperMucus.contains('10');
-    final hasK = upperMucus.contains('K');
-    final hasL = upperMucus.contains('L');
+    final has10 = upperMucus.contains(Stretch.stretchy.code);
+    final hasK = upperMucus.contains(MucusColor.clear.code);
+    final hasL = upperMucus.contains(Consistency.lubricative.code);
 
     return has10 || hasK || hasL;
   }
@@ -201,9 +201,10 @@ class CreightonLogic {
     if (hasAnyBleeding) {
       final bCode = worstBleeding.code;
       final colorSuffix =
-          (worstBleedingColor.isNotEmpty && worstBleedingColor != 'R')
-          ? '-$worstBleedingColor'
-          : '';
+          (worstBleedingColor.isNotEmpty &&
+                  worstBleedingColor != MucusColor.red.code)
+              ? '-$worstBleedingColor'
+              : '';
       final bleedingPart = '$bCode$colorSuffix';
 
       if (bestObs.hasMucus) {
