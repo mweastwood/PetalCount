@@ -38,6 +38,15 @@ void main() {
     await subscription.cancel();
   });
 
+  test(
+    'authStateChanges immediately provides currentUser with synchronized currentChartId',
+    () async {
+      final firstUser = await db.authStateChanges.first;
+      expect(firstUser, isNotNull);
+      expect(db.currentChartId, 'mock_shared_chart');
+    },
+  );
+
   test('streamAvailableCharts streams all charts linked to user', () async {
     final chartsList = await db.streamAvailableCharts().first;
     expect(chartsList.length, 1);
