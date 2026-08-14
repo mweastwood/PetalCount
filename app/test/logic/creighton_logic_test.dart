@@ -128,6 +128,27 @@ void main() {
 
       expect(daily.resolvedVdrsCode, 'H 10K');
     });
+
+    test('Appends bleeding color suffix when bleeding is non-red', () {
+      final brownPeriodObs = Observation(
+        id: '1',
+        timestamp: DateTime(2026, 6, 28, 8, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.light,
+        bleedingColor: 'B',
+        userId: 'test_user',
+      );
+
+      final daily = CreightonLogic.resolveDailyEntry(
+        date: DateTime(2026, 6, 28),
+        observations: [brownPeriodObs],
+      );
+
+      expect(daily.resolvedVdrsCode, 'L-B');
+    });
   });
 
   group('Creighton Peak Detection and Stamp Assignment', () {

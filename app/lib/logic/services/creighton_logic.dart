@@ -202,7 +202,7 @@ class CreightonLogic {
       final bCode = worstBleeding.code;
       final colorSuffix =
           (worstBleedingColor.isNotEmpty &&
-              worstBleedingColor != MucusColor.red.code)
+              worstBleedingColor != Bleeding.red.code)
           ? '-$worstBleedingColor'
           : '';
       final bleedingPart = '$bCode$colorSuffix';

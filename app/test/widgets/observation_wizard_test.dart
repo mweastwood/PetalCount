@@ -543,5 +543,32 @@ void main() {
         expect(find.textContaining('Cramps'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'ObservationSummaryStepCard displays title-cased mucus color labels',
+      (tester) async {
+        final commentController = TextEditingController();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationSummaryStepCard(
+                combinedDateTime: DateTime(2026, 7, 27, 10, 30),
+                showMucus: true,
+                hasMucus: true,
+                stretch: Stretch.stretchy,
+                selectedColors: const [MucusColor.cloudy, MucusColor.clear],
+                commentController: commentController,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.textContaining('Mucus: Stretchy (1 inch or more), Cloudy/Clear'),
+          findsOneWidget,
+        );
+      },
+    );
   });
 }
