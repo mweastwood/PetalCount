@@ -47,26 +47,6 @@ class ObservationSummaryStepCard extends StatelessWidget {
 
   String _formatMucusColor() {
     if (selectedColors.isEmpty) return MucusColor.cloudy.label;
-    if (selectedColors.length == 2 &&
-        selectedColors.contains(MucusColor.cloudy) &&
-        selectedColors.contains(MucusColor.clear)) {
-      return 'Cloudy/Clear';
-    }
-    if (selectedColors.contains(MucusColor.clear)) {
-      return MucusColor.clear.label;
-    }
-    if (selectedColors.contains(MucusColor.cloudy)) {
-      return MucusColor.cloudy.label;
-    }
-    if (selectedColors.contains(MucusColor.yellow)) {
-      return MucusColor.yellow.label;
-    }
-    if (selectedColors.contains(MucusColor.red)) {
-      return MucusColor.red.label;
-    }
-    if (selectedColors.contains(MucusColor.brown)) {
-      return MucusColor.brown.label;
-    }
     return selectedColors.map((c) => c.label).join('/');
   }
 
@@ -77,9 +57,9 @@ class ObservationSummaryStepCard extends StatelessWidget {
     final flowLabel = bleedingFlow != null ? bleedingFlow!.label : 'Light';
 
     String bleedingColorName = '';
-    if (bleedingColor == 'R') bleedingColorName = 'Red';
-    if (bleedingColor == 'B') bleedingColorName = 'Brown';
-    if (bleedingColor == 'K') bleedingColorName = 'Black';
+    if (bleedingColor == Bleeding.red.code) bleedingColorName = 'Red';
+    if (bleedingColor == Bleeding.brown.code) bleedingColorName = 'Brown';
+    if (bleedingColor == MucusColor.clear.code) bleedingColorName = 'Black';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
