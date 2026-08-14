@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../logic/logic.dart';
 import '../widgets/cycle_options_dialog.dart';
 
@@ -357,9 +358,8 @@ class ObservationsScreen extends StatelessWidget {
                                   child: Text(
                                     isToday
                                         ? 'Today – ${DateFormat('EEEE, MMM dd, yyyy').format(item.date)}'
-                                        : DateFormat(
-                                            'EEEE, MMM dd, yyyy',
-                                          ).format(item.date),
+                                        : DateFormat('EEEE, MMM dd, yyyy')
+                                              .format(item.date),
                                     style: theme.textTheme.titleMedium
                                         ?.copyWith(
                                           fontWeight: isToday

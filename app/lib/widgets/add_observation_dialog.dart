@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../logic/logic.dart';
 import 'wizard/wizard.dart';
 
@@ -663,9 +664,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
       if (_hasMucus ?? false) {
         stretch = _stretch ?? Stretch.sticky;
         colors.addAll(
-          _selectedColors.isNotEmpty
-              ? _selectedColors
-              : [MucusColor.cloudy],
+          _selectedColors.isNotEmpty ? _selectedColors : [MucusColor.cloudy],
         );
 
         if (_isGummy) consistencies.add(Consistency.gummy);

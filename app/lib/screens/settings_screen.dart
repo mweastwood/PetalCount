@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../logic/logic.dart';
 
 class SettingsScreen extends StatefulWidget {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../logic/models/observation.dart';
 import 'option_card.dart';
 
@@ -249,8 +250,7 @@ class MucusStepCard extends StatelessWidget {
                     label: 'Neither',
                     icon: Icons.do_not_disturb_alt,
                     subtitle: 'Standard mucus consistency',
-                    isSelected:
-                        !isGummy && !isPasty && hasSelectedConsistency,
+                    isSelected: !isGummy && !isPasty && hasSelectedConsistency,
                     onTap: () => onSelectConsistency?.call(
                       isGummy: false,
                       isPasty: false,

@@ -256,28 +256,29 @@ void main() {
   });
 
   group('AddObservationDialog Comprehensive Unit & Widget Logic Tests', () {
-    testWidgets('Heavy bleeding skips sensation, lubrication, and mucus steps', (
-      tester,
-    ) async {
-      await tester.pumpWidgetBuilder(
-        buildWizardWidget(),
-        surfaceSize: const Size(600, 700),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'Heavy bleeding skips sensation, lubrication, and mucus steps',
+      (tester) async {
+        await tester.pumpWidgetBuilder(
+          buildWizardWidget(),
+          surfaceSize: const Size(600, 700),
+        );
+        await tester.pumpAndSettle();
 
-      // Select Heavy bleeding
-      await tester.tap(find.text('Heavy (H)'));
-      await tester.pumpAndSettle();
+        // Select Heavy bleeding
+        await tester.tap(find.text('Heavy (H)'));
+        await tester.pumpAndSettle();
 
-      // Should skip sensation/lubrication/mucus and land directly on blood color
-      expect(find.text('Blood Color'), findsOneWidget);
+        // Should skip sensation/lubrication/mucus and land directly on blood color
+        expect(find.text('Blood Color'), findsOneWidget);
 
-      await tester.tap(find.text('Red (R)'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Red (R)'));
+        await tester.pumpAndSettle();
 
-      // Should skip sensation/mucus and land on Pain
-      expect(find.text('Pain or Symptoms'), findsOneWidget);
-    });
+        // Should skip sensation/mucus and land on Pain
+        expect(find.text('Pain or Symptoms'), findsOneWidget);
+      },
+    );
 
     testWidgets('Dry sensation skips lubrication question', (tester) async {
       await tester.pumpWidgetBuilder(

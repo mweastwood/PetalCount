@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../../logic/models/observation.dart';
 
 class ObservationSummaryStepCard extends StatelessWidget {

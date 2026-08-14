@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../logic/models/daily_entry.dart';
 
 /// Centralized design tokens, color palettes, and layout dimensions for Creighton charting components.
