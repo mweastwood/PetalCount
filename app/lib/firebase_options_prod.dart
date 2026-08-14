@@ -67,8 +67,10 @@ class DefaultFirebaseOptions {
     messagingSenderId: '847947122489',
     projectId: 'petal-count-prod',
     storageBucket: 'petal-count-prod.firebasestorage.app',
-    androidClientId: '847947122489-lmlvlv3adao1ei6g5p0epditq75iugst.apps.googleusercontent.com',
-    iosClientId: '847947122489-lqclntaa5q06m2kjgjiqhtj5ppobhdo6.apps.googleusercontent.com',
+    androidClientId:
+        '847947122489-lmlvlv3adao1ei6g5p0epditq75iugst.apps.googleusercontent.com',
+    iosClientId:
+        '847947122489-lqclntaa5q06m2kjgjiqhtj5ppobhdo6.apps.googleusercontent.com',
     iosBundleId: 'com.mweastwood.petalCount',
   );
 

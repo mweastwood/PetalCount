@@ -181,8 +181,9 @@ class ChartScreen extends StatelessWidget {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      DateFormat('MMM dd')
-                                          .format(cycle.startDate),
+                                      DateFormat(
+                                        'MMM dd',
+                                      ).format(cycle.startDate),
                                       style: theme.textTheme.labelSmall
                                           ?.copyWith(
                                             fontWeight: FontWeight.bold,
@@ -217,8 +218,9 @@ class ChartScreen extends StatelessWidget {
                                 cycle.startDate.month,
                                 cycle.startDate.day + index,
                               );
-                              final dateKey = DateFormat('yyyy-MM-dd')
-                                  .format(dayDate);
+                              final dateKey = DateFormat(
+                                'yyyy-MM-dd',
+                              ).format(dayDate);
                               final entry = cycle.dailyEntries[dateKey];
                               return Container(
                                 margin: const EdgeInsets.only(bottom: kCellGap),

@@ -358,8 +358,9 @@ class ObservationsScreen extends StatelessWidget {
                                   child: Text(
                                     isToday
                                         ? 'Today – ${DateFormat('EEEE, MMM dd, yyyy').format(item.date)}'
-                                        : DateFormat('EEEE, MMM dd, yyyy')
-                                              .format(item.date),
+                                        : DateFormat(
+                                            'EEEE, MMM dd, yyyy',
+                                          ).format(item.date),
                                     style: theme.textTheme.titleMedium
                                         ?.copyWith(
                                           fontWeight: isToday

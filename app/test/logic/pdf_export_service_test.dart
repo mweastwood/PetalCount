@@ -67,49 +67,52 @@ void main() {
         expect(bytes.length, greaterThan(1000));
       },
     );
-    test('generatePdfBytes produces valid PDF bytes for cycle with missing observation days', () async {
-      final start = DateTime(2026, 6, 1);
-      final obs1 = Observation(
-        id: '1',
-        timestamp: start,
-        sensation: Sensation.dry,
-        stretch: Stretch.none,
-        colors: [],
-        consistencies: [],
-        bleeding: Bleeding.heavy,
-        comment: 'Period start',
-        userId: 'test',
-      );
-      final june5 = DateTime(2026, 6, 5);
-      final obs5 = Observation(
-        id: '5',
-        timestamp: june5,
-        sensation: Sensation.wet,
-        stretch: Stretch.stretchy,
-        colors: [MucusColor.clear],
-        consistencies: [Consistency.lubricative],
-        bleeding: Bleeding.none,
-        userId: 'test',
-      );
-      final cycle = Cycle(
-        id: '2026-06-01',
-        startDate: start,
-        bipCodes: const ['6C'],
-        dailyEntries: {
-          '2026-06-01': CreightonLogic.resolveDailyEntry(
-            date: start,
-            observations: [obs1],
-          ),
-          '2026-06-05': CreightonLogic.resolveDailyEntry(
-            date: june5,
-            observations: [obs5],
-          ),
-        },
-      );
+    test(
+      'generatePdfBytes produces valid PDF bytes for cycle with missing observation days',
+      () async {
+        final start = DateTime(2026, 6, 1);
+        final obs1 = Observation(
+          id: '1',
+          timestamp: start,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.heavy,
+          comment: 'Period start',
+          userId: 'test',
+        );
+        final june5 = DateTime(2026, 6, 5);
+        final obs5 = Observation(
+          id: '5',
+          timestamp: june5,
+          sensation: Sensation.wet,
+          stretch: Stretch.stretchy,
+          colors: [MucusColor.clear],
+          consistencies: [Consistency.lubricative],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+        final cycle = Cycle(
+          id: '2026-06-01',
+          startDate: start,
+          bipCodes: const ['6C'],
+          dailyEntries: {
+            '2026-06-01': CreightonLogic.resolveDailyEntry(
+              date: start,
+              observations: [obs1],
+            ),
+            '2026-06-05': CreightonLogic.resolveDailyEntry(
+              date: june5,
+              observations: [obs5],
+            ),
+          },
+        );
 
-      final bytes = await PdfExportService.generatePdfBytes([cycle]);
-      expect(bytes, isNotEmpty);
-      expect(bytes.length, greaterThan(500));
-    });
+        final bytes = await PdfExportService.generatePdfBytes([cycle]);
+        expect(bytes, isNotEmpty);
+        expect(bytes.length, greaterThan(500));
+      },
+    );
   });
 }
