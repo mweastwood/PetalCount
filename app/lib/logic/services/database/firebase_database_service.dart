@@ -476,47 +476,19 @@ class FirebaseDatabaseService implements DatabaseService {
         .toList();
     if (cycles.isEmpty) return;
 
-    cycles.sort((a, b) => a.startDate.compareTo(b.startDate));
-
-    final allEntries = <String, DailyEntry>{};
-    for (final cycle in cycles) {
-      allEntries.addAll(cycle.dailyEntries);
-    }
-
-    final updatedCyclesMap = <String, Cycle>{};
-    for (final cycle in cycles) {
-      updatedCyclesMap[cycle.id] = cycle.copyWith(dailyEntries: {});
-    }
-
-    allEntries.forEach((dateKey, entry) {
-      final entryDate = entry.date;
-      final eligible = cycles
-          .where((c) => c.startDate.compareTo(entryDate) <= 0)
-          .toList();
-      final targetCycle = eligible.isNotEmpty ? eligible.last : cycles.first;
-
-      final cycleEntries = Map<String, DailyEntry>.from(
-        updatedCyclesMap[targetCycle.id]!.dailyEntries,
-      );
-      cycleEntries[dateKey] = entry;
-      updatedCyclesMap[targetCycle.id] = updatedCyclesMap[targetCycle.id]!
-          .copyWith(dailyEntries: cycleEntries);
-    });
+    final updatedCycles = CreightonLogic.reallocateAndRecalculateCycles(cycles);
 
     final batch = _db.batch();
-    for (final cycleId in updatedCyclesMap.keys) {
-      final cycle = updatedCyclesMap[cycleId]!;
-      final updatedEntries = CreightonLogic.recalculateCycle(
-        entries: cycle.dailyEntries.values.toList(),
-        bipCodes: cycle.bipCodes,
-      );
+    for (final cycle in updatedCycles) {
       final ref = _db
           .collection('charts')
           .doc(chartId)
           .collection('cycles')
-          .doc(cycleId);
+          .doc(cycle.id);
       batch.update(ref, {
-        'dailyEntries': updatedEntries.map((k, v) => MapEntry(k, v.toMap())),
+        'dailyEntries': cycle.dailyEntries.map(
+          (k, v) => MapEntry(k, v.toMap()),
+        ),
       });
     }
     await batch.commit();
@@ -718,21 +690,9 @@ class FirebaseDatabaseService implements DatabaseService {
           .toList();
       if (eligible.isNotEmpty) {
         final latest = eligible.last;
-        final daysDiff = date.difference(latest.startDate).inDays;
-        if (daysDiff >= 16) {
-          DateTime newCycleStart = date;
-          DateTime checkDate = date.subtract(const Duration(days: 1));
-          while (checkDate.difference(latest.startDate).inDays >= 16) {
-            final checkKey = checkDate.toIso8601String().substring(0, 10);
-            final checkEntry = latest.dailyEntries[checkKey];
-            if (checkEntry != null && checkEntry.hasBleeding) {
-              newCycleStart = checkDate;
-              checkDate = checkDate.subtract(const Duration(days: 1));
-            } else {
-              break;
-            }
-          }
-          final dateStr = newCycleStart.toIso8601String().substring(0, 10);
+        final autoStart = CreightonLogic.evaluateAutoCycleStart(latest, date);
+        if (autoStart != null) {
+          final dateStr = autoStart.toIso8601String().substring(0, 10);
           final existingDoc = await _db
               .collection('charts')
               .doc(chartId)
@@ -742,7 +702,7 @@ class FirebaseDatabaseService implements DatabaseService {
           if (!existingDoc.exists) {
             final newCycle = Cycle(
               id: dateStr,
-              startDate: newCycleStart,
+              startDate: autoStart,
               bipCodes: latest.bipCodes,
               dailyEntries: {},
             );

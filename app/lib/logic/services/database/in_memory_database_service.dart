@@ -514,46 +514,10 @@ class InMemoryDatabaseService implements DatabaseService {
     if (chartCyclesData == null || chartCyclesData.isEmpty) return;
 
     final cycles = chartCyclesData.values.map((d) => Cycle.fromMap(d)).toList();
-    cycles.sort((a, b) => a.startDate.compareTo(b.startDate));
+    final updatedCycles = CreightonLogic.reallocateAndRecalculateCycles(cycles);
 
-    // Gather all daily entries across all cycles
-    final allEntries = <String, DailyEntry>{};
-    for (final cycle in cycles) {
-      allEntries.addAll(cycle.dailyEntries);
-    }
-
-    // Clear entries on each cycle object
-    final updatedCyclesMap = <String, Cycle>{};
-    for (final cycle in cycles) {
-      updatedCyclesMap[cycle.id] = cycle.copyWith(dailyEntries: {});
-    }
-
-    // Re-assign each daily entry to the latest cycle starting on or before entry.date
-    allEntries.forEach((dateKey, entry) {
-      final entryDate = entry.date;
-      final eligible = cycles
-          .where((c) => c.startDate.compareTo(entryDate) <= 0)
-          .toList();
-      final targetCycle = eligible.isNotEmpty ? eligible.last : cycles.first;
-
-      final cycleEntries = Map<String, DailyEntry>.from(
-        updatedCyclesMap[targetCycle.id]!.dailyEntries,
-      );
-      cycleEntries[dateKey] = entry;
-      updatedCyclesMap[targetCycle.id] = updatedCyclesMap[targetCycle.id]!
-          .copyWith(dailyEntries: cycleEntries);
-    });
-
-    // Recalculate Creighton stamps/Peak for each cycle
-    for (final cycleId in updatedCyclesMap.keys) {
-      final cycle = updatedCyclesMap[cycleId]!;
-      final updatedEntries = CreightonLogic.recalculateCycle(
-        entries: cycle.dailyEntries.values.toList(),
-        bipCodes: cycle.bipCodes,
-      );
-      _cycles[chartId]![cycleId] = cycle
-          .copyWith(dailyEntries: updatedEntries)
-          .toMap();
+    for (final cycle in updatedCycles) {
+      _cycles[chartId]![cycle.id] = cycle.toMap();
     }
 
     _emitCycles();
@@ -703,26 +667,13 @@ class InMemoryDatabaseService implements DatabaseService {
           .toList();
       if (eligible.isNotEmpty) {
         final latest = eligible.last;
-        final daysDiff = date.difference(latest.startDate).inDays;
-        if (daysDiff >= 16) {
-          // Check for pre-menstrual light bleeding rollback leading into H/M flow
-          DateTime newCycleStart = date;
-          DateTime checkDate = date.subtract(const Duration(days: 1));
-          while (checkDate.difference(latest.startDate).inDays >= 16) {
-            final checkKey = checkDate.toIso8601String().substring(0, 10);
-            final checkEntry = latest.dailyEntries[checkKey];
-            if (checkEntry != null && checkEntry.hasBleeding) {
-              newCycleStart = checkDate;
-              checkDate = checkDate.subtract(const Duration(days: 1));
-            } else {
-              break;
-            }
-          }
-          final dateStr = newCycleStart.toIso8601String().substring(0, 10);
+        final autoStart = CreightonLogic.evaluateAutoCycleStart(latest, date);
+        if (autoStart != null) {
+          final dateStr = autoStart.toIso8601String().substring(0, 10);
           if (!_cycles[chartId]!.containsKey(dateStr)) {
             final newCycle = Cycle(
               id: dateStr,
-              startDate: newCycleStart,
+              startDate: autoStart,
               bipCodes: latest.bipCodes,
               dailyEntries: {},
             );
