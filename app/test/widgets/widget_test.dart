@@ -131,4 +131,44 @@ void main() {
       expect(find.text('10K'), findsWidgets);
     },
   );
+
+  testWidgets(
+    'Vertical Timeline displays month headers above the first day of the month and not above the last day of the month',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify AUGUST 2026 header is positioned above August 1
+      final augustHeader = find.text('AUGUST 2026');
+      final aug1Finder = find.textContaining('Aug 01, 2026');
+      expect(augustHeader, findsOneWidget);
+      expect(aug1Finder, findsOneWidget);
+      final augHeaderY = tester.getTopLeft(augustHeader).dy;
+      final aug1Y = tester.getTopLeft(aug1Finder).dy;
+      expect(augHeaderY, lessThan(aug1Y));
+
+      // Verify July 31 date entry is present without a month header
+      final jul31Finder = find.textContaining('Jul 31, 2026');
+      expect(jul31Finder, findsOneWidget);
+
+      // Scroll up to reveal July 1 and JULY 2026 header
+      await tester.scrollUntilVisible(
+        find.text('JULY 2026'),
+        300,
+        scrollable: find.byType(Scrollable),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify JULY 2026 header is positioned above July 1
+      final julyHeader = find.text('JULY 2026');
+      final jul1Finder = find.textContaining('Jul 01, 2026');
+      expect(julyHeader, findsOneWidget);
+      expect(jul1Finder, findsOneWidget);
+      final julHeaderY = tester.getTopLeft(julyHeader).dy;
+      final jul1Y = tester.getTopLeft(jul1Finder).dy;
+      expect(julHeaderY, lessThan(jul1Y));
+    },
+  );
 }

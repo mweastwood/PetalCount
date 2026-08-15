@@ -169,8 +169,8 @@ class ObservationsScreen extends StatelessWidget {
             item.date.day == today.day;
 
         final isMonthStart =
-            index == 0 ||
-            DateFormat('MMMM yyyy').format(reversedItems[index - 1].date) !=
+            index == reversedItems.length - 1 ||
+            DateFormat('MMMM yyyy').format(reversedItems[index + 1].date) !=
                 DateFormat('MMMM yyyy').format(item.date);
 
         final bleedingSummary = entry != null ? _getBleedingSummary(entry) : '';
