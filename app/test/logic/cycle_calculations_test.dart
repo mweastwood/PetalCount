@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:petal_count/logic/models/cycle.dart';
-import 'package:petal_count/logic/models/daily_entry.dart';
-import 'package:petal_count/logic/services/creighton_logic.dart';
+import 'package:petal_count/logic/logic.dart';
 
 void main() {
   group('Cycle Calculations and Helper Unit Tests', () {
@@ -115,7 +113,18 @@ void main() {
               date: DateTime(2026, 5, 20),
               resolvedVdrsCode: 'VL',
               stampType: StampType.red,
-              observations: const [],
+              observations: [
+                Observation(
+                  id: 'obs_20',
+                  timestamp: DateTime(2026, 5, 20),
+                  sensation: Sensation.dry,
+                  stretch: Stretch.none,
+                  colors: const [],
+                  consistencies: const [],
+                  bleeding: Bleeding.veryLight,
+                  userId: 'test',
+                ),
+              ],
               painLevel: 0,
               painTypes: const [],
               comments: '',
@@ -124,7 +133,18 @@ void main() {
               date: DateTime(2026, 5, 21),
               resolvedVdrsCode: 'L',
               stampType: StampType.red,
-              observations: const [],
+              observations: [
+                Observation(
+                  id: 'obs_21',
+                  timestamp: DateTime(2026, 5, 21),
+                  sensation: Sensation.dry,
+                  stretch: Stretch.none,
+                  colors: const [],
+                  consistencies: const [],
+                  bleeding: Bleeding.light,
+                  userId: 'test',
+                ),
+              ],
               painLevel: 0,
               painTypes: const [],
               comments: '',
@@ -161,7 +181,18 @@ void main() {
               date: DateTime(2026, 1, 5),
               resolvedVdrsCode: '0',
               stampType: StampType.green,
-              observations: const [],
+              observations: [
+                Observation(
+                  id: 'obs_1',
+                  timestamp: DateTime(2026, 1, 5),
+                  sensation: Sensation.dry,
+                  stretch: Stretch.none,
+                  colors: const [],
+                  consistencies: const [],
+                  bleeding: Bleeding.none,
+                  userId: 'test',
+                ),
+              ],
               painLevel: 0,
               painTypes: const [],
               comments: '',
@@ -171,7 +202,18 @@ void main() {
               date: DateTime(2026, 2, 5),
               resolvedVdrsCode: 'H',
               stampType: StampType.red,
-              observations: const [],
+              observations: [
+                Observation(
+                  id: 'obs_2',
+                  timestamp: DateTime(2026, 2, 5),
+                  sensation: Sensation.dry,
+                  stretch: Stretch.none,
+                  colors: const [],
+                  consistencies: const [],
+                  bleeding: Bleeding.heavy,
+                  userId: 'test',
+                ),
+              ],
               painLevel: 0,
               painTypes: const [],
               comments: '',
