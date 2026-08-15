@@ -10,12 +10,14 @@ class ChartSelectionScreen extends StatefulWidget {
 }
 
 class _ChartSelectionScreenState extends State<ChartSelectionScreen> {
+  late final Stream<List<Map<String, dynamic>>> _chartsStream;
   bool _isLoading = false;
   List<Map<String, dynamic>> _pendingInvites = [];
 
   @override
   void initState() {
     super.initState();
+    _chartsStream = Services.db.streamAvailableCharts();
     _loadInvitations();
   }
 
@@ -144,7 +146,7 @@ class _ChartSelectionScreenState extends State<ChartSelectionScreen> {
         ],
       ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: Services.db.streamAvailableCharts(),
+        stream: _chartsStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

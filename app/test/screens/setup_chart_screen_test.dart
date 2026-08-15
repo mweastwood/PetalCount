@@ -43,6 +43,14 @@ class TestDatabaseService extends InMemoryDatabaseService {
     overrideChartId = 'chart_123';
     emitUser(testUser);
   }
+
+  int streamAvailableChartsCallCount = 0;
+
+  @override
+  Stream<List<Map<String, dynamic>>> streamAvailableCharts() {
+    streamAvailableChartsCallCount++;
+    return super.streamAvailableCharts();
+  }
 }
 
 void main() {
@@ -116,6 +124,26 @@ void main() {
         find.textContaining('Simulated Firestore write failure'),
         findsOneWidget,
       );
+    },
+  );
+
+  testWidgets(
+    'ChartSelectionScreen caches stream and does not recreate it on rebuilds',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(
+        PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+      );
+      testDb.emitUser(testDb.testUser);
+      await tester.pumpAndSettle();
+
+      // Verify we are on ChartSelectionScreen and stream was only requested once
+      expect(find.text('Select Chart'), findsOneWidget);
+      expect(testDb.streamAvailableChartsCallCount, equals(1));
+
+      // Trigger additional frame settling and rebuilds to ensure stream is not recreated
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
+      expect(testDb.streamAvailableChartsCallCount, equals(1));
     },
   );
 }
