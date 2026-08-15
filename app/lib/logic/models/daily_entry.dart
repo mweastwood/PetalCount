@@ -1,4 +1,3 @@
-import '../services/creighton_logic.dart';
 import '../utils/date_utils.dart';
 import 'observation.dart';
 
@@ -38,33 +37,11 @@ class DailyEntry {
 
   bool get isPeakDay => peakDayLabel == 'P';
 
-  bool get hasBleeding {
-    if (observations.isNotEmpty) {
-      return observations.any((o) => o.hasBleeding);
-    }
-    final parsed = CreightonLogic.parseVdrsCode(resolvedVdrsCode);
-    return parsed.bleedingPart != null;
-  }
+  bool get hasBleeding => observations.any((o) => o.hasBleeding);
 
-  bool get hasMucus {
-    if (observations.isNotEmpty) {
-      return observations.any((o) => o.hasMucus);
-    }
-    final parsed = CreightonLogic.parseVdrsCode(resolvedVdrsCode);
-    final m = parsed.mucusPart;
-    if (m == null || m.isEmpty) return false;
-    final trimmed = m.trim();
-    return !trimmed.startsWith('0') &&
-        !trimmed.startsWith('2') &&
-        !trimmed.startsWith('4');
-  }
+  bool get hasMucus => observations.any((o) => o.hasMucus);
 
-  bool get isPeakType {
-    if (observations.isNotEmpty) {
-      return observations.any((o) => o.isPeakType);
-    }
-    return CreightonLogic.isPeakTypeCode(resolvedVdrsCode);
-  }
+  bool get isPeakType => observations.any((o) => o.isPeakType);
 
   Map<String, dynamic> toMap() {
     return {
