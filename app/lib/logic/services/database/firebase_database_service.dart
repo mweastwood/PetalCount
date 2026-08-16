@@ -10,6 +10,7 @@ import '../../models/cycle.dart';
 import '../../models/daily_entry.dart';
 import '../../models/observation.dart';
 import '../creighton_logic.dart';
+import '../services.dart';
 import 'database_service_interface.dart';
 
 class FirebaseDatabaseService implements DatabaseService {
@@ -698,116 +699,167 @@ class FirebaseDatabaseService implements DatabaseService {
   }) async {
     final chartId = currentChartId;
     final user = currentUser;
-    if (chartId == null || user == null) return;
+    if (chartId == null || user == null) {
+      Services.logger.warning(
+        'saveObservation invoked without active user or chart',
+        category: 'observation',
+        metadata: {
+          'chartId': chartId,
+          'userId': user?.uid,
+          'date': date.toIso8601String(),
+        },
+      );
+      return;
+    }
 
-    final dateStr = date.toIso8601String().substring(0, 10);
-    final cyclesCol = _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('cycles');
+    Services.logger.info(
+      'Attempting to save observation',
+      category: 'observation',
+      metadata: {
+        'chartId': chartId,
+        'userId': user.uid,
+        'date': date.toIso8601String(),
+        'sensation': sensation.name,
+        'stretch': stretch.name,
+        'bleeding': bleeding.name,
+      },
+    );
 
-    // Query specifically for the target cycle interval [startDate <= date] limit(1)
-    final eligibleSnap = await cyclesCol
-        .where('startDate', isLessThanOrEqualTo: dateStr)
-        .orderBy('startDate', descending: true)
-        .limit(1)
-        .get();
+    try {
+      final dateStr = date.toIso8601String().substring(0, 10);
+      final cyclesCol = _db
+          .collection('charts')
+          .doc(chartId)
+          .collection('cycles');
 
-    final isHeavyOrModerate =
-        bleeding == Bleeding.heavy || bleeding == Bleeding.moderate;
+      // Query specifically for the target cycle interval [startDate <= date] limit(1)
+      final eligibleSnap = await cyclesCol
+          .where('startDate', isLessThanOrEqualTo: dateStr)
+          .orderBy('startDate', descending: true)
+          .limit(1)
+          .get();
 
-    Cycle? targetCycle;
+      final isHeavyOrModerate =
+          bleeding == Bleeding.heavy || bleeding == Bleeding.moderate;
 
-    if (eligibleSnap.docs.isEmpty) {
-      final anySnap = await cyclesCol.orderBy('startDate').limit(1).get();
-      if (anySnap.docs.isEmpty) {
-        final newCycle = Cycle(
-          id: dateStr,
-          startDate: date,
-          bipCodes: const ['6C'],
-          dailyEntries: {},
-        );
-        await cyclesCol.doc(dateStr).set(newCycle.toMap());
-        targetCycle = newCycle;
+      Cycle? targetCycle;
+
+      if (eligibleSnap.docs.isEmpty) {
+        final anySnap = await cyclesCol.orderBy('startDate').limit(1).get();
+        if (anySnap.docs.isEmpty) {
+          final newCycle = Cycle(
+            id: dateStr,
+            startDate: date,
+            bipCodes: const ['6C'],
+            dailyEntries: {},
+          );
+          await cyclesCol.doc(dateStr).set(newCycle.toMap());
+          targetCycle = newCycle;
+        } else {
+          targetCycle = Cycle.fromMap(anySnap.docs.first.data());
+        }
       } else {
-        targetCycle = Cycle.fromMap(anySnap.docs.first.data());
-      }
-    } else {
-      final latest = Cycle.fromMap(eligibleSnap.docs.first.data());
-      if (isHeavyOrModerate) {
-        final autoStart = CreightonLogic.evaluateAutoCycleStart(latest, date);
-        if (autoStart != null) {
-          final autoStartStr = autoStart.toIso8601String().substring(0, 10);
-          final existingDoc = await cyclesCol.doc(autoStartStr).get();
-          if (!existingDoc.exists) {
-            final newCycle = Cycle(
-              id: autoStartStr,
-              startDate: autoStart,
-              bipCodes: latest.bipCodes,
-              dailyEntries: {},
-            );
-            await cyclesCol.doc(autoStartStr).set(newCycle.toMap());
-            await _reallocateAndRecalculate(chartId);
-            targetCycle = newCycle;
+        final latest = Cycle.fromMap(eligibleSnap.docs.first.data());
+        if (isHeavyOrModerate) {
+          final autoStart = CreightonLogic.evaluateAutoCycleStart(latest, date);
+          if (autoStart != null) {
+            final autoStartStr = autoStart.toIso8601String().substring(0, 10);
+            final existingDoc = await cyclesCol.doc(autoStartStr).get();
+            if (!existingDoc.exists) {
+              final newCycle = Cycle(
+                id: autoStartStr,
+                startDate: autoStart,
+                bipCodes: latest.bipCodes,
+                dailyEntries: {},
+              );
+              await cyclesCol.doc(autoStartStr).set(newCycle.toMap());
+              await _reallocateAndRecalculate(chartId);
+              targetCycle = newCycle;
+            } else {
+              targetCycle = Cycle.fromMap(existingDoc.data()!);
+            }
           } else {
-            targetCycle = Cycle.fromMap(existingDoc.data()!);
+            targetCycle = latest;
           }
         } else {
           targetCycle = latest;
         }
-      } else {
-        targetCycle = latest;
       }
+
+      final targetCycleId = targetCycle.id;
+      final dateKey = dateStr;
+
+      final newObs = Observation(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        timestamp: DateTime.now(),
+        sensation: sensation,
+        stretch: stretch,
+        colors: colors,
+        consistencies: consistencies,
+        bleeding: bleeding,
+        bleedingColor: bleedingColor,
+        painLevel: painLevel,
+        painTypes: painTypes,
+        comment: comment,
+        userId: user.uid,
+        isVdrsExplicit: isVdrsExplicit,
+      );
+
+      final currentEntries = Map<String, DailyEntry>.from(
+        targetCycle.dailyEntries,
+      );
+      final existingEntry = currentEntries[dateKey];
+      List<Observation> observations = existingEntry != null
+          ? (List<Observation>.from(existingEntry.observations)..add(newObs))
+          : [newObs];
+
+      final resolved = CreightonLogic.resolveDailyEntry(
+        date: date,
+        observations: observations,
+      );
+      currentEntries[dateKey] = resolved;
+
+      final updated = CreightonLogic.recalculateCycle(
+        entries: currentEntries.values.toList(),
+        bipCodes: targetCycle.bipCodes,
+      );
+
+      final batch = _db.batch();
+      final cycleRef = cyclesCol.doc(targetCycleId);
+      batch.update(cycleRef, {
+        'dailyEntries': updated.map((k, v) => MapEntry(k, v.toMap())),
+      });
+
+      final subRef = cycleRef.collection('dailyEntries').doc(dateKey);
+      batch.set(subRef, resolved.toMap());
+
+      await batch.commit();
+
+      Services.logger.info(
+        'Observation saved successfully',
+        category: 'observation',
+        metadata: {
+          'chartId': chartId,
+          'targetCycleId': targetCycleId,
+          'date': dateKey,
+          'obsId': newObs.id,
+        },
+      );
+    } catch (e, st) {
+      Services.logger.error(
+        'Failed to save observation to Firestore',
+        category: 'observation',
+        metadata: {
+          'chartId': chartId,
+          'userId': user.uid,
+          'userEmail': user.email,
+          'targetDate': date.toIso8601String(),
+        },
+        error: e,
+        stackTrace: st,
+      );
+      rethrow;
     }
-
-    final targetCycleId = targetCycle.id;
-    final dateKey = dateStr;
-
-    final newObs = Observation(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      timestamp: DateTime.now(),
-      sensation: sensation,
-      stretch: stretch,
-      colors: colors,
-      consistencies: consistencies,
-      bleeding: bleeding,
-      bleedingColor: bleedingColor,
-      painLevel: painLevel,
-      painTypes: painTypes,
-      comment: comment,
-      userId: user.uid,
-      isVdrsExplicit: isVdrsExplicit,
-    );
-
-    final currentEntries = Map<String, DailyEntry>.from(
-      targetCycle.dailyEntries,
-    );
-    final existingEntry = currentEntries[dateKey];
-    List<Observation> observations = existingEntry != null
-        ? (List<Observation>.from(existingEntry.observations)..add(newObs))
-        : [newObs];
-
-    final resolved = CreightonLogic.resolveDailyEntry(
-      date: date,
-      observations: observations,
-    );
-    currentEntries[dateKey] = resolved;
-
-    final updated = CreightonLogic.recalculateCycle(
-      entries: currentEntries.values.toList(),
-      bipCodes: targetCycle.bipCodes,
-    );
-
-    final batch = _db.batch();
-    final cycleRef = cyclesCol.doc(targetCycleId);
-    batch.update(cycleRef, {
-      'dailyEntries': updated.map((k, v) => MapEntry(k, v.toMap())),
-    });
-
-    final subRef = cycleRef.collection('dailyEntries').doc(dateKey);
-    batch.set(subRef, resolved.toMap());
-
-    await batch.commit();
   }
 
   @override

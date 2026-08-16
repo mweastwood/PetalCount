@@ -364,10 +364,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
               ),
             ],
-            const SizedBox(height: 40),
-            const Divider(),
-            const SizedBox(height: 24),
-
             // Logout Button
             OutlinedButton.icon(
               onPressed: () {
@@ -381,6 +377,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.red),
+              ),
+            ),
+            const SizedBox(height: 40),
+            const Divider(),
+            const SizedBox(height: 24),
+
+            // Debug & Diagnostics Card
+            Text(
+              'Debug & Diagnostics',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Export a complete, structured JSON diagnostic snapshot containing current Firestore documents, auth state, rule permission checks, and in-memory event logs to assist with troubleshooting.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              elevation: 0,
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.5,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    FilledButton.tonalIcon(
+                      onPressed: () =>
+                          AppStateExporter.instance.shareDebugState(context),
+                      icon: const Icon(Icons.bug_report_outlined),
+                      label: const Text('Export Debug State (JSON)'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
