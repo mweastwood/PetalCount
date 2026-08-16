@@ -672,4 +672,72 @@ void main() {
       });
     },
   );
+
+  group('Daylight Saving Time (DST) & Calendar Day Transition Tests', () {
+    test(
+      'evaluateAutoCycleStart triggers correctly on exactly the 16-day threshold across DST spring-forward',
+      () {
+        // Cycle starts March 1, 2026. March 8 is DST spring forward (23h).
+        // Day 17 is March 17 (16 calendar days difference from March 1).
+        final cycleStart = DateTime(2026, 3, 1);
+        final cycle = Cycle(
+          id: '2026-03-01',
+          startDate: cycleStart,
+          dailyEntries: const {},
+        );
+
+        // Day 16 (March 16, 15 days diff) -> null
+        expect(
+          CreightonLogic.evaluateAutoCycleStart(cycle, DateTime(2026, 3, 16)),
+          isNull,
+        );
+
+        // Day 17 (March 17, 16 days diff) -> returns March 17 as new cycle start
+        final autoStart = CreightonLogic.evaluateAutoCycleStart(
+          cycle,
+          DateTime(2026, 3, 17),
+        );
+        expect(autoStart, DateTime(2026, 3, 17));
+      },
+    );
+
+    test(
+      'evaluateAutoCycleStart rolls back across DST transition boundary accurately',
+      () {
+        // If cycle started Feb 20, 2026, Day 17 is March 9 (across DST on March 8).
+        // Bleeding on March 8 (Day 17 - 16 days diff from Feb 20) and March 9 (Day 18 - 17 days diff).
+        final febCycle = Cycle(
+          id: '2026-02-20',
+          startDate: DateTime(2026, 2, 20),
+          dailyEntries: {
+            '2026-03-08': DailyEntry(
+              date: DateTime(2026, 3, 8),
+              resolvedVdrsCode: 'L',
+              stampType: StampType.red,
+              observations: [
+                Observation(
+                  id: 'obs_mar8',
+                  timestamp: DateTime(2026, 3, 8),
+                  sensation: Sensation.dry,
+                  stretch: Stretch.none,
+                  colors: const [],
+                  consistencies: const [],
+                  bleeding: Bleeding.light,
+                  userId: 'test',
+                ),
+              ],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+          },
+        );
+        final febAutoStart = CreightonLogic.evaluateAutoCycleStart(
+          febCycle,
+          DateTime(2026, 3, 9),
+        );
+        expect(febAutoStart, DateTime(2026, 3, 8));
+      },
+    );
+  });
 }

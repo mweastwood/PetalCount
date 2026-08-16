@@ -103,7 +103,7 @@ class ObservationsScreen extends StatelessWidget {
           nextStart.year,
           nextStart.month,
           nextStart.day,
-        ).subtract(const Duration(days: 1));
+        ).subtractCalendarDays(1);
       } else {
         // Active/latest cycle ends at max(today, maxEntryDate)
         DateTime maxEntryDate = cycleStart;
@@ -120,11 +120,11 @@ class ObservationsScreen extends StatelessWidget {
         cycleEnd = maxEntryDate.isAfter(today) ? maxEntryDate : today;
       }
 
-      int totalDays = cycleEnd.difference(cycleStart).inDays;
+      int totalDays = calendarDaysBetween(cycleStart, cycleEnd);
       if (totalDays < 0) totalDays = 0;
 
       for (int dayOffset = 0; dayOffset <= totalDays; dayOffset++) {
-        final date = cycleStart.add(Duration(days: dayOffset));
+        final date = cycleStart.addCalendarDays(dayOffset);
         final dateKey = date.dateKey;
         final entry = cycle.dailyEntries[dateKey];
 
