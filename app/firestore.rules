@@ -29,6 +29,10 @@ service cloud.firestore {
         match /observations/{observationId} {
           allow read, write: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/charts/$(chartId)).data.userIds;
         }
+
+        match /dailyEntries/{entryId} {
+          allow read, write: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/charts/$(chartId)).data.userIds;
+        }
       }
     }
 
