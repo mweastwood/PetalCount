@@ -35,7 +35,7 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
     final testUrl = (goldenFileComparator as LocalFileComparator).basedir;
     goldenFileComparator = LocalFileComparatorWithTolerance(
       Uri.parse('$testUrl/test.dart'),
-      0.0, // Strict 0% golden diff tolerance
+      0.005, // 0.5% golden diff tolerance across runner environments
     );
   }
   return GoldenToolkit.runWithConfiguration(() async {

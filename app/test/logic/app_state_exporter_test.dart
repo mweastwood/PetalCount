@@ -24,6 +24,8 @@ void main() {
         't***t@example.com',
       );
       expect(AppStateExporter.maskEmail('ab@example.com'), 'a***@example.com');
+      expect(AppStateExporter.maskEmail('a@example.com'), 'a***@example.com');
+      expect(AppStateExporter.maskEmail('@example.com'), '***@example.com');
       expect(AppStateExporter.maskEmail('no-at-sign'), '***');
     });
 

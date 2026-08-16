@@ -33,6 +33,7 @@ class AppStateExporter {
     final parts = email.split('@');
     final name = parts[0];
     final domain = parts[1];
+    if (name.isEmpty) return '***@$domain';
     if (name.length <= 2) {
       return '${name[0]}***@$domain';
     }
@@ -334,7 +335,10 @@ class AppStateExporter {
         stackTrace: st,
       );
       if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
+        final navigator = Navigator.of(context, rootNavigator: true);
+        if (navigator.canPop()) {
+          navigator.pop();
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to generate export: $e'),
@@ -347,7 +351,10 @@ class AppStateExporter {
 
     // Dismiss loading dialog before file saving/sharing to avoid double-pop bugs
     if (context.mounted) {
-      Navigator.of(context, rootNavigator: true).pop();
+      final navigator = Navigator.of(context, rootNavigator: true);
+      if (navigator.canPop()) {
+        navigator.pop();
+      }
     }
 
     final timestampStr = DateTime.now()
