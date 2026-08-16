@@ -9,6 +9,7 @@ import '../../app_config.dart';
 import '../../models/cycle.dart';
 import '../../models/daily_entry.dart';
 import '../../models/observation.dart';
+import '../../utils/date_utils.dart';
 import '../creighton_logic.dart';
 import '../services.dart';
 import 'database_service_interface.dart';
@@ -513,9 +514,7 @@ class FirebaseDatabaseService implements DatabaseService {
         ),
       });
       for (final entry in cycle.dailyEntries.values) {
-        final subRef = ref
-            .collection('dailyEntries')
-            .doc(entry.date.toIso8601String().substring(0, 10));
+        final subRef = ref.collection('dailyEntries').doc(entry.date.dateKey);
         batch.set(subRef, entry.toMap());
       }
     }
@@ -527,7 +526,7 @@ class FirebaseDatabaseService implements DatabaseService {
     final chartId = currentChartId;
     if (chartId == null) return;
 
-    final dateStr = startDate.toIso8601String().substring(0, 10);
+    final dateStr = startDate.dateKey;
     final cycleRef = _db
         .collection('charts')
         .doc(chartId)
@@ -588,7 +587,7 @@ class FirebaseDatabaseService implements DatabaseService {
     if (oldCycleIndex == -1) return;
 
     final oldCycle = cycles[oldCycleIndex];
-    final newDateStr = newStartDate.toIso8601String().substring(0, 10);
+    final newDateStr = newStartDate.dateKey;
 
     if (cycleId != newDateStr) {
       await _db
@@ -675,7 +674,7 @@ class FirebaseDatabaseService implements DatabaseService {
     for (final entry in updatedEntries.values) {
       final subRef = cycleRef
           .collection('dailyEntries')
-          .doc(entry.date.toIso8601String().substring(0, 10));
+          .doc(entry.date.dateKey);
       batch.set(subRef, entry.toMap());
     }
 
@@ -726,7 +725,7 @@ class FirebaseDatabaseService implements DatabaseService {
     );
 
     try {
-      final dateStr = date.toIso8601String().substring(0, 10);
+      final dateStr = date.dateKey;
       final cyclesCol = _db
           .collection('charts')
           .doc(chartId)
@@ -763,7 +762,7 @@ class FirebaseDatabaseService implements DatabaseService {
         if (isHeavyOrModerate) {
           final autoStart = CreightonLogic.evaluateAutoCycleStart(latest, date);
           if (autoStart != null) {
-            final autoStartStr = autoStart.toIso8601String().substring(0, 10);
+            final autoStartStr = autoStart.dateKey;
             final existingDoc = await cyclesCol.doc(autoStartStr).get();
             if (!existingDoc.exists) {
               final newCycle = Cycle(
@@ -881,7 +880,7 @@ class FirebaseDatabaseService implements DatabaseService {
     if (!doc.exists) return;
 
     final cycle = Cycle.fromMap(doc.data()!);
-    final dateKey = date.toIso8601String().substring(0, 10);
+    final dateKey = date.dateKey;
 
     final currentEntries = Map<String, DailyEntry>.from(cycle.dailyEntries);
     final existingEntry = currentEntries[dateKey];

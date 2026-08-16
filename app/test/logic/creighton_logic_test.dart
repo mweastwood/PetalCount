@@ -249,26 +249,11 @@ void main() {
           bipCodes: [],
         );
 
-        final day10Key = start
-            .add(const Duration(days: 9))
-            .toIso8601String()
-            .substring(0, 10);
-        final day11Key = start
-            .add(const Duration(days: 10))
-            .toIso8601String()
-            .substring(0, 10);
-        final day12Key = start
-            .add(const Duration(days: 11))
-            .toIso8601String()
-            .substring(0, 10);
-        final day13Key = start
-            .add(const Duration(days: 12))
-            .toIso8601String()
-            .substring(0, 10);
-        final day14Key = start
-            .add(const Duration(days: 13))
-            .toIso8601String()
-            .substring(0, 10);
+        final day10Key = start.add(const Duration(days: 9)).dateKey;
+        final day11Key = start.add(const Duration(days: 10)).dateKey;
+        final day12Key = start.add(const Duration(days: 11)).dateKey;
+        final day13Key = start.add(const Duration(days: 12)).dateKey;
+        final day14Key = start.add(const Duration(days: 13)).dateKey;
 
         // Verify Day 10 is Peak (P)
         expect(recalculated[day10Key]?.peakDayLabel, 'P');
@@ -315,7 +300,7 @@ void main() {
           bipCodes: ['6C'],
         );
 
-        final dateKey = start.toIso8601String().substring(0, 10);
+        final dateKey = start.dateKey;
         expect(recalculated[dateKey]?.stampType, StampType.yellow);
       },
     );
@@ -382,10 +367,10 @@ void main() {
         bipCodes: ['6C'],
       );
 
-      final keyMay31 = endOfMonth.toIso8601String().substring(0, 10);
-      final keyJun1 = jun1.toIso8601String().substring(0, 10);
-      final keyJun2 = jun2.toIso8601String().substring(0, 10);
-      final keyJun3 = jun3.toIso8601String().substring(0, 10);
+      final keyMay31 = endOfMonth.dateKey;
+      final keyJun1 = jun1.dateKey;
+      final keyJun2 = jun2.dateKey;
+      final keyJun3 = jun3.dateKey;
 
       expect(recalculated[keyMay31]?.isPeakDay, isTrue);
       expect(recalculated[keyJun1]?.peakDayLabel, '1');

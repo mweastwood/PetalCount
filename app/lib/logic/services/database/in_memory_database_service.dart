@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/cycle.dart';
 import '../../models/daily_entry.dart';
 import '../../models/observation.dart';
+import '../../utils/date_utils.dart';
 import '../creighton_logic.dart';
 import 'database_service_interface.dart';
 
@@ -55,7 +56,7 @@ class InMemoryDatabaseService implements DatabaseService {
     // Prepopulate with a mock cycle so the app opens with data immediately
     final mockCycleStart = DateTime(2026, 6, 1);
     final mockCycle = Cycle(
-      id: mockCycleStart.toIso8601String().substring(0, 10),
+      id: mockCycleStart.dateKey,
       startDate: mockCycleStart,
       bipCodes: const ['6C'],
       dailyEntries: {},
@@ -210,7 +211,7 @@ class InMemoryDatabaseService implements DatabaseService {
   ) {
     final cycleData = _cycles['mock_shared_chart']![cycleId]!;
     final cycle = Cycle.fromMap(cycleData);
-    final dateKey = date.toIso8601String().substring(0, 10);
+    final dateKey = date.dateKey;
 
     final obs = Observation(
       id: dateKey + DateTime.now().microsecondsSinceEpoch.toString(),
@@ -530,7 +531,7 @@ class InMemoryDatabaseService implements DatabaseService {
     final chartId = _chartId;
     if (chartId == null) return;
 
-    final dateStr = startDate.toIso8601String().substring(0, 10);
+    final dateStr = startDate.dateKey;
     final cycle = Cycle(
       id: dateStr,
       startDate: startDate,
@@ -557,7 +558,7 @@ class InMemoryDatabaseService implements DatabaseService {
     final oldCycle = Cycle.fromMap(cycleData);
     _cycles[chartId]!.remove(cycleId);
 
-    final newDateStr = newStartDate.toIso8601String().substring(0, 10);
+    final newDateStr = newStartDate.dateKey;
     final updatedCycle = Cycle(
       id: newDateStr,
       startDate: newStartDate,
@@ -654,7 +655,7 @@ class InMemoryDatabaseService implements DatabaseService {
         bleeding == Bleeding.heavy || bleeding == Bleeding.moderate;
 
     if (cycles.isEmpty) {
-      final dateStr = date.toIso8601String().substring(0, 10);
+      final dateStr = date.dateKey;
       final newCycle = Cycle(
         id: dateStr,
         startDate: date,
@@ -671,7 +672,7 @@ class InMemoryDatabaseService implements DatabaseService {
         final latest = eligible.last;
         final autoStart = CreightonLogic.evaluateAutoCycleStart(latest, date);
         if (autoStart != null) {
-          final dateStr = autoStart.toIso8601String().substring(0, 10);
+          final dateStr = autoStart.dateKey;
           if (!_cycles[chartId]!.containsKey(dateStr)) {
             final newCycle = Cycle(
               id: dateStr,
@@ -700,7 +701,7 @@ class InMemoryDatabaseService implements DatabaseService {
         : updatedCycles.first;
     final targetCycleId = targetCycle.id;
 
-    final dateKey = date.toIso8601String().substring(0, 10);
+    final dateKey = date.dateKey;
 
     final newObs = Observation(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -756,7 +757,7 @@ class InMemoryDatabaseService implements DatabaseService {
     if (cycleData == null) return;
 
     final cycle = Cycle.fromMap(cycleData);
-    final dateKey = date.toIso8601String().substring(0, 10);
+    final dateKey = date.dateKey;
 
     final currentEntries = Map<String, DailyEntry>.from(cycle.dailyEntries);
     final existingEntry = currentEntries[dateKey];

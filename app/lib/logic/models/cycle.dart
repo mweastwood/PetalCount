@@ -88,8 +88,8 @@ class Cycle {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'startDate': startDate.toIso8601String().substring(0, 10),
-      'endDate': endDate?.toIso8601String().substring(0, 10),
+      'startDate': startDate.dateKey,
+      'endDate': endDate?.dateKey,
       'bipCodes': bipCodes,
       'dailyEntries': dailyEntries.map((k, v) => MapEntry(k, v.toMap())),
     };

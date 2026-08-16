@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../logic/logic.dart';
 import '../widgets/creighton_stamp_widget.dart';
@@ -126,7 +125,7 @@ class ObservationsScreen extends StatelessWidget {
 
       for (int dayOffset = 0; dayOffset <= totalDays; dayOffset++) {
         final date = cycleStart.add(Duration(days: dayOffset));
-        final dateKey = DateFormat('yyyy-MM-dd').format(date);
+        final dateKey = date.dateKey;
         final entry = cycle.dailyEntries[dateKey];
 
         timelineItems.add(
@@ -170,8 +169,8 @@ class ObservationsScreen extends StatelessWidget {
 
         final isMonthStart =
             index == reversedItems.length - 1 ||
-            DateFormat('MMMM yyyy').format(reversedItems[index + 1].date) !=
-                DateFormat('MMMM yyyy').format(item.date);
+            AppDateFormats.monthYear.format(reversedItems[index + 1].date) !=
+                AppDateFormats.monthYear.format(item.date);
 
         final bleedingSummary = entry != null ? _getBleedingSummary(entry) : '';
         final mucusSummary = entry != null ? _getMucusSummary(entry) : '';
@@ -274,10 +273,10 @@ class ObservationsScreen extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     isToday
-                                        ? 'Today – ${DateFormat('EEEE, MMM dd, yyyy').format(item.date)}'
-                                        : DateFormat(
-                                            'EEEE, MMM dd, yyyy',
-                                          ).format(item.date),
+                                        ? 'Today – ${AppDateFormats.fullDate.format(item.date)}'
+                                        : AppDateFormats.fullDate.format(
+                                            item.date,
+                                          ),
                                     style: theme.textTheme.titleMedium
                                         ?.copyWith(
                                           fontWeight: isToday
@@ -353,7 +352,7 @@ class ObservationsScreen extends StatelessWidget {
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        'Cycle starting ${DateFormat('MMMM dd, yyyy').format(item.date)}',
+                                        'Cycle starting ${AppDateFormats.monthDayYear.format(item.date)}',
                                         style: TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.bold,
@@ -523,7 +522,7 @@ class ObservationsScreen extends StatelessWidget {
     int totalCount,
   ) {
     final theme = Theme.of(context);
-    final timeStr = DateFormat('h:mm a').format(obs.timestamp);
+    final timeStr = AppDateFormats.timeOfDay.format(obs.timestamp);
     final code = obs.vdrsCode;
 
     final bleedingText = obs.hasBleeding
@@ -675,7 +674,7 @@ class ObservationsScreen extends StatelessWidget {
 
   Widget _buildMonthHeader(BuildContext context, DateTime date) {
     final theme = Theme.of(context);
-    final monthYearStr = DateFormat('MMMM yyyy').format(date).toUpperCase();
+    final monthYearStr = AppDateFormats.monthYear.format(date).toUpperCase();
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,

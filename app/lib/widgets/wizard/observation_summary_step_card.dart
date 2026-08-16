@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../logic/models/observation.dart';
+import '../../logic/utils/date_utils.dart';
 
 class ObservationSummaryStepCard extends StatelessWidget {
   final DateTime combinedDateTime;
@@ -101,7 +101,7 @@ class ObservationSummaryStepCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'Date: ${DateFormat('MMM dd, yyyy • h:mm a').format(combinedDateTime)}',
+                'Date: ${AppDateFormats.dateTimeWithTime.format(combinedDateTime)}',
                 style: const TextStyle(fontSize: 12),
               ),
               if (showBleeding)

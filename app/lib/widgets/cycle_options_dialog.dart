@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../logic/models/cycle.dart';
 import '../logic/services/services.dart';
+import '../logic/utils/date_utils.dart';
 
 class CycleOptionsDialog extends StatelessWidget {
   final Cycle cycle;
@@ -43,7 +43,7 @@ class CycleOptionsDialog extends StatelessWidget {
 
     final isFirstCycle =
         sortedCycles.isNotEmpty && sortedCycles.first.id == cycle.id;
-    final formattedDate = DateFormat('MMMM dd, yyyy').format(cycle.startDate);
+    final formattedDate = AppDateFormats.monthDayYear.format(cycle.startDate);
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -80,15 +80,14 @@ class CycleOptionsDialog extends StatelessWidget {
               ),
               const Divider(height: 24),
               if (targetDate != null &&
-                  DateFormat('yyyy-MM-dd').format(targetDate!) !=
-                      DateFormat('yyyy-MM-dd').format(cycle.startDate)) ...[
+                  targetDate!.dateKey != cycle.startDate.dateKey) ...[
                 ListTile(
                   leading: Icon(
                     Icons.add_circle_outline,
                     color: theme.colorScheme.primary,
                   ),
                   title: Text(
-                    'Start New Cycle on ${DateFormat('MMM dd, yyyy').format(targetDate!)}',
+                    'Start New Cycle on ${AppDateFormats.shortMonthDayYear.format(targetDate!)}',
                   ),
                   subtitle: const Text(
                     'Splits cycle and starts a new cycle boundary on this date',
@@ -103,7 +102,7 @@ class CycleOptionsDialog extends StatelessWidget {
                     messenger.showSnackBar(
                       SnackBar(
                         content: Text(
-                          'New cycle started on ${DateFormat('MMM dd, yyyy').format(targetDate!)}',
+                          'New cycle started on ${AppDateFormats.shortMonthDayYear.format(targetDate!)}',
                         ),
                       ),
                     );
@@ -133,7 +132,7 @@ class CycleOptionsDialog extends StatelessWidget {
                     messenger.showSnackBar(
                       SnackBar(
                         content: Text(
-                          'Cycle start date updated to ${DateFormat('MMM dd, yyyy').format(picked)}',
+                          'Cycle start date updated to ${AppDateFormats.shortMonthDayYear.format(picked)}',
                         ),
                       ),
                     );

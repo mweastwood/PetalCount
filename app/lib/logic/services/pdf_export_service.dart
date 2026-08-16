@@ -5,16 +5,15 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:intl/intl.dart';
 
 import '../models/cycle.dart';
 import '../models/daily_entry.dart';
+import '../utils/date_utils.dart';
 import 'web_download_helper.dart';
 
 class PdfExportService {
   static Future<Uint8List> generatePdfBytes(List<Cycle> cycles) async {
     final pdf = pw.Document();
-    final dateFormat = DateFormat('MMM dd');
 
     pdf.addPage(
       pw.MultiPage(
@@ -35,7 +34,7 @@ class PdfExportService {
                   ),
                 ),
                 pw.Text(
-                  'Generated on: ${DateFormat('yyyy-MM-dd').format(DateTime.now())}',
+                  'Generated on: ${DateTime.now().dateKey}',
                   style: const pw.TextStyle(
                     fontSize: 10,
                     color: PdfColors.grey700,
@@ -47,7 +46,7 @@ class PdfExportService {
 
             // Loop through each cycle and draw a row
             for (var cycle in cycles) ...[
-              _buildCycleRow(cycle, dateFormat),
+              _buildCycleRow(cycle),
               pw.SizedBox(height: 24),
             ],
 
@@ -91,7 +90,7 @@ class PdfExportService {
     }
   }
 
-  static pw.Widget _buildCycleRow(Cycle cycle, DateFormat dateFormat) {
+  static pw.Widget _buildCycleRow(Cycle cycle) {
     const int daysPerRow = 35;
     final int cycleMaxDay = cycle.maxDayNumber;
     final int displayDays = cycleMaxDay < daysPerRow ? daysPerRow : cycleMaxDay;
@@ -107,7 +106,7 @@ class PdfExportService {
         cycle.startDate.month,
         cycle.startDate.day + i,
       );
-      final dateKey = DateFormat('yyyy-MM-dd').format(dayDate);
+      final dateKey = dayDate.dateKey;
       final entry = cycle.dailyEntries[dateKey];
       final dayNum = i + 1;
 
@@ -217,7 +216,7 @@ class PdfExportService {
 
               // 4. Date
               pw.Text(
-                dateFormat.format(dayDate),
+                AppDateFormats.shortMonthDay.format(dayDate),
                 style: const pw.TextStyle(
                   fontSize: 6,
                   color: PdfColors.grey500,
@@ -275,7 +274,7 @@ class PdfExportService {
       children: [
         // Cycle Metadata Header
         pw.Text(
-          'Cycle Starting: ${DateFormat('yyyy-MM-dd').format(cycle.startDate)}  |  BIP: ${cycle.bipCodes.isEmpty ? 'None' : cycle.bipCodes.join(', ')}',
+          'Cycle Starting: ${cycle.startDate.dateKey}  |  BIP: ${cycle.bipCodes.isEmpty ? 'None' : cycle.bipCodes.join(', ')}',
           style: pw.TextStyle(
             fontSize: 10,
             fontWeight: pw.FontWeight.bold,
