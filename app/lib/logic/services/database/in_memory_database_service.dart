@@ -14,7 +14,9 @@ class MockUser implements User {
   final String uid;
   @override
   final String? email;
-  MockUser({required this.uid, this.email});
+  @override
+  final bool isAnonymous;
+  MockUser({required this.uid, this.email, this.isAnonymous = false});
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

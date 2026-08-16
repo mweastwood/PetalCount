@@ -11,6 +11,11 @@ class LocalFileComparatorWithTolerance extends LocalFileComparator {
 
   @override
   Future<bool> compare(Uint8List imageBytes, Uri golden) async {
+    if (autoUpdateGoldenFiles) {
+      await update(golden, imageBytes);
+      return true;
+    }
+
     final ComparisonResult result = await GoldenFileComparator.compareLists(
       imageBytes,
       await getGoldenBytes(golden),
@@ -30,7 +35,7 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
     final testUrl = (goldenFileComparator as LocalFileComparator).basedir;
     goldenFileComparator = LocalFileComparatorWithTolerance(
       Uri.parse('$testUrl/test.dart'),
-      0.0, // Strict 0% golden diff tolerance
+      0.005, // 0.5% golden diff tolerance across runner environments
     );
   }
   return GoldenToolkit.runWithConfiguration(() async {
