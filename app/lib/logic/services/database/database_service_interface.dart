@@ -21,6 +21,8 @@ abstract class DatabaseService {
   Future<void> setActiveChart(String chartId);
   Future<void> deleteChart(String chartId);
   Future<void> leaveChart(String chartId);
+  Future<void> updateChartReminderSettings(String chartId, bool enabled);
+  Stream<bool> streamChartReminderEnabled(String chartId);
 
   Stream<List<Cycle>> streamCycles();
   Future<void> startNewCycle(DateTime startDate, List<String> bipCodes);

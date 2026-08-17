@@ -51,6 +51,7 @@ class InMemoryDatabaseService implements DatabaseService {
       'id': 'mock_shared_chart',
       'userIds': ['husband_uid', 'wife_uid'],
       'emails': ['husband@example.com', 'wife@example.com'],
+      'reminderEnabled': true,
     };
 
     // Prepopulate with a mock cycle so the app opens with data immediately
@@ -300,6 +301,7 @@ class InMemoryDatabaseService implements DatabaseService {
       'id': chartId,
       'userIds': [_currentUser!.uid],
       'emails': [_currentUser!.email],
+      'reminderEnabled': true,
     };
 
     _users[_currentUser!.uid]!['chartId'] = chartId;
@@ -478,6 +480,25 @@ class InMemoryDatabaseService implements DatabaseService {
     _emitCharts();
   }
 
+  @override
+  Future<void> updateChartReminderSettings(String chartId, bool enabled) async {
+    if (_charts.containsKey(chartId)) {
+      _charts[chartId]!['reminderEnabled'] = enabled;
+      _emitCharts();
+    }
+  }
+
+  @override
+  Stream<bool> streamChartReminderEnabled(String chartId) {
+    return streamAvailableCharts().map((charts) {
+      final chart = charts.firstWhere(
+        (c) => c['id'] == chartId,
+        orElse: () => <String, dynamic>{},
+      );
+      return (chart['reminderEnabled'] as bool?) ?? true;
+    });
+  }
+
   // Stream emulation
   final _cyclesController = StreamController<List<Cycle>>.broadcast();
 
@@ -496,7 +517,7 @@ class InMemoryDatabaseService implements DatabaseService {
 
   @override
   Stream<List<Cycle>> streamCycles() {
-    return _buildCyclesStream();
+    return _buildCyclesStream().asBroadcastStream();
   }
 
   Stream<List<Cycle>> _buildCyclesStream() async* {
