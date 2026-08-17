@@ -829,8 +829,12 @@ class FirebaseDatabaseService implements DatabaseService {
         'dailyEntries': updated.map((k, v) => MapEntry(k, v.toMap())),
       });
 
-      final subRef = cycleRef.collection('dailyEntries').doc(dateKey);
-      batch.set(subRef, resolved.toMap());
+      for (final entry in updated.values) {
+        final subRef = cycleRef
+            .collection('dailyEntries')
+            .doc(entry.date.toIso8601String().substring(0, 10));
+        batch.set(subRef, entry.toMap());
+      }
 
       await batch.commit();
 
@@ -902,7 +906,6 @@ class FirebaseDatabaseService implements DatabaseService {
         observations: observations,
       );
       currentEntries[dateKey] = resolvedDaily;
-      batch.set(subRef, resolvedDaily.toMap());
     }
 
     // Recalculate stamps
@@ -914,6 +917,13 @@ class FirebaseDatabaseService implements DatabaseService {
     batch.update(cycleRef, {
       'dailyEntries': updatedEntries.map((k, v) => MapEntry(k, v.toMap())),
     });
+
+    for (final entry in updatedEntries.values) {
+      final sRef = cycleRef
+          .collection('dailyEntries')
+          .doc(entry.date.toIso8601String().substring(0, 10));
+      batch.set(sRef, entry.toMap());
+    }
 
     await batch.commit();
   }
