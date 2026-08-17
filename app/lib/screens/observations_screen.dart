@@ -127,8 +127,8 @@ class ObservationsScreen extends StatelessWidget {
 
         final isMonthStart =
             index == reversedItems.length - 1 ||
-            AppDateFormats.monthYear.format(reversedItems[index + 1].date) !=
-                AppDateFormats.monthYear.format(item.date);
+            reversedItems[index + 1].date.year != item.date.year ||
+            reversedItems[index + 1].date.month != item.date.month;
 
         final timelineRowWidget = IntrinsicHeight(
           child: Row(
