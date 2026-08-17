@@ -239,5 +239,95 @@ void main() {
         expect(reallocated[1].dailyEntries.containsKey('2026-02-05'), isTrue);
       },
     );
+
+    test(
+      'CreightonLogic.reallocateAndRecalculateCycles handles empty list',
+      () {
+        final reallocated = CreightonLogic.reallocateAndRecalculateCycles([]);
+        expect(reallocated, isEmpty);
+      },
+    );
+
+    test(
+      'CreightonLogic.reallocateAndRecalculateCycles allocates pre-start entries to first cycle and handles boundary dates',
+      () {
+        DailyEntry makeEntry(DateTime date) {
+          return DailyEntry(
+            date: date,
+            resolvedVdrsCode: '0',
+            stampType: StampType.green,
+            observations: [
+              Observation(
+                id: 'obs_${date.toIso8601String()}',
+                timestamp: date,
+                sensation: Sensation.dry,
+                stretch: Stretch.none,
+                colors: const [],
+                consistencies: const [],
+                bleeding: Bleeding.none,
+                userId: 'test',
+              ),
+            ],
+            painLevel: 0,
+            painTypes: const [],
+            comments: '',
+          );
+        }
+
+        final cycle1 = Cycle(
+          id: '2026-02-01',
+          startDate: DateTime(2026, 2, 1),
+          bipCodes: const ['6C'],
+          dailyEntries: {
+            '2026-01-15': makeEntry(DateTime(2026, 1, 15)),
+            '2026-02-01': makeEntry(DateTime(2026, 2, 1)),
+            '2026-03-10': makeEntry(DateTime(2026, 3, 10)),
+          },
+        );
+
+        final cycle2 = Cycle(
+          id: '2026-03-01',
+          startDate: DateTime(2026, 3, 1),
+          bipCodes: const ['6C'],
+          dailyEntries: {
+            '2026-03-01': makeEntry(DateTime(2026, 3, 1)),
+            '2026-04-05': makeEntry(DateTime(2026, 4, 5)),
+          },
+        );
+
+        final cycle3 = Cycle(
+          id: '2026-04-01',
+          startDate: DateTime(2026, 4, 1),
+          bipCodes: const ['6C'],
+          dailyEntries: {'2026-04-01': makeEntry(DateTime(2026, 4, 1))},
+        );
+
+        final reallocated = CreightonLogic.reallocateAndRecalculateCycles([
+          cycle3,
+          cycle1,
+          cycle2,
+        ]);
+
+        expect(reallocated.length, 3);
+        expect(reallocated[0].startDate, DateTime(2026, 2, 1));
+        expect(reallocated[1].startDate, DateTime(2026, 3, 1));
+        expect(reallocated[2].startDate, DateTime(2026, 4, 1));
+
+        expect(reallocated[0].dailyEntries.keys.toList()..sort(), [
+          '2026-01-15',
+          '2026-02-01',
+        ]);
+
+        expect(reallocated[1].dailyEntries.keys.toList()..sort(), [
+          '2026-03-01',
+          '2026-03-10',
+        ]);
+
+        expect(reallocated[2].dailyEntries.keys.toList()..sort(), [
+          '2026-04-01',
+          '2026-04-05',
+        ]);
+      },
+    );
   });
 }

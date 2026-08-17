@@ -321,36 +321,30 @@ class CreightonLogic {
       allEntries.addAll(cycle.dailyEntries);
     }
 
-    final updatedCyclesMap = <String, Cycle>{};
-    for (final cycle in sortedCycles) {
-      updatedCyclesMap[cycle.id] = cycle.copyWith(dailyEntries: {});
-    }
+    final cycleEntriesMap = <String, Map<String, DailyEntry>>{
+      for (final cycle in sortedCycles) cycle.id: <String, DailyEntry>{},
+    };
 
     allEntries.forEach((dateKey, entry) {
       final entryDate = entry.date;
-      final eligible = sortedCycles
-          .where((c) => c.startDate.compareTo(entryDate) <= 0)
-          .toList();
-      final targetCycle = eligible.isNotEmpty
-          ? eligible.last
-          : sortedCycles.first;
+      Cycle targetCycle = sortedCycles.first;
+      for (int i = sortedCycles.length - 1; i >= 0; i--) {
+        if (sortedCycles[i].startDate.compareTo(entryDate) <= 0) {
+          targetCycle = sortedCycles[i];
+          break;
+        }
+      }
 
-      final cycleEntries = Map<String, DailyEntry>.from(
-        updatedCyclesMap[targetCycle.id]!.dailyEntries,
-      );
-      cycleEntries[dateKey] = entry;
-      updatedCyclesMap[targetCycle.id] = updatedCyclesMap[targetCycle.id]!
-          .copyWith(dailyEntries: cycleEntries);
+      cycleEntriesMap[targetCycle.id]![dateKey] = entry;
     });
 
     final result = <Cycle>[];
     for (final cycle in sortedCycles) {
-      final cycleWithEntries = updatedCyclesMap[cycle.id]!;
       final updatedEntries = recalculateCycle(
-        entries: cycleWithEntries.dailyEntries.values.toList(),
-        bipCodes: cycleWithEntries.bipCodes,
+        entries: cycleEntriesMap[cycle.id]!.values.toList(),
+        bipCodes: cycle.bipCodes,
       );
-      result.add(cycleWithEntries.copyWith(dailyEntries: updatedEntries));
+      result.add(cycle.copyWith(dailyEntries: updatedEntries));
     }
     return result;
   }
