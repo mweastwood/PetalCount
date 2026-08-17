@@ -652,12 +652,34 @@ class FirebaseDatabaseService implements DatabaseService {
     final targetIndex = cycles.indexWhere((c) => c.id == cycleId);
     if (targetIndex <= 0) return;
 
+    final targetCycle = cycles[targetIndex];
+    final prevCycle = cycles[targetIndex - 1];
+
+    final mergedEntries = Map<String, DailyEntry>.from(prevCycle.dailyEntries)
+      ..addAll(targetCycle.dailyEntries);
+
+    final updatedPrevCycle = prevCycle.copyWith(dailyEntries: mergedEntries);
     await _db
         .collection('charts')
         .doc(chartId)
         .collection('cycles')
-        .doc(cycleId)
-        .delete();
+        .doc(prevCycle.id)
+        .set(updatedPrevCycle.toMap());
+
+    final cycleRef = _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('cycles')
+        .doc(cycleId);
+
+    final List<DocumentReference> toDelete = [];
+    final dailySnapshot = await cycleRef.collection('dailyEntries').get();
+    for (final dailyDoc in dailySnapshot.docs) {
+      toDelete.add(dailyDoc.reference);
+    }
+    toDelete.add(cycleRef);
+
+    await _deleteDocumentsInBatches(toDelete);
 
     await _reallocateAndRecalculate(chartId);
   }
