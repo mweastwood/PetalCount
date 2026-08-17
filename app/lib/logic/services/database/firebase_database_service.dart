@@ -853,7 +853,7 @@ class FirebaseDatabaseService implements DatabaseService {
       for (final entry in updated.values) {
         final subRef = cycleRef
             .collection('dailyEntries')
-            .doc(entry.date.toIso8601String().substring(0, 10));
+            .doc(entry.date.dateKey);
         batch.set(subRef, entry.toMap());
       }
 
@@ -940,9 +940,7 @@ class FirebaseDatabaseService implements DatabaseService {
     });
 
     for (final entry in updatedEntries.values) {
-      final sRef = cycleRef
-          .collection('dailyEntries')
-          .doc(entry.date.toIso8601String().substring(0, 10));
+      final sRef = cycleRef.collection('dailyEntries').doc(entry.date.dateKey);
       batch.set(sRef, entry.toMap());
     }
 
