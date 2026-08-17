@@ -212,19 +212,22 @@ class CreightonLogic {
     }
 
     // --- STEP B: ASSIGN STAMPS AND LABELS ---
+    final peakDate = peakIndex != -1 ? sorted[peakIndex].date : null;
+
     for (int i = 0; i < sorted.length; i++) {
       final entry = sorted[i];
 
       // Determine Peak Day Label
       String? label;
-      if (peakIndex != -1) {
-        if (i == peakIndex) {
+      if (peakDate != null) {
+        final daysSincePeak = calendarDaysBetween(peakDate, entry.date);
+        if (daysSincePeak == 0) {
           label = 'P';
-        } else if (i == peakIndex + 1) {
+        } else if (daysSincePeak == 1) {
           label = '1';
-        } else if (i == peakIndex + 2) {
+        } else if (daysSincePeak == 2) {
           label = '2';
-        } else if (i == peakIndex + 3) {
+        } else if (daysSincePeak == 3) {
           label = '3';
         }
       }
