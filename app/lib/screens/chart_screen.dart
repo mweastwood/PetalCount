@@ -180,10 +180,8 @@ class ChartScreen extends StatelessWidget {
                             // Cells for Day 1 .. Day N going DOWN
                             ...List.generate(maxDays, (index) {
                               final dayNum = index + 1;
-                              final dayDate = DateTime(
-                                cycle.startDate.year,
-                                cycle.startDate.month,
-                                cycle.startDate.day + index,
+                              final dayDate = cycle.startDate.addCalendarDays(
+                                index,
                               );
                               final dateKey = dayDate.dateKey;
                               final entry = cycle.dailyEntries[dateKey];
@@ -411,11 +409,7 @@ class ChartScreen extends StatelessWidget {
         // Day Stamp Cells for Day 1 .. Day N going ACROSS
         ...List.generate(maxDays, (index) {
           final dayNum = index + 1;
-          final dayDate = DateTime(
-            cycle.startDate.year,
-            cycle.startDate.month,
-            cycle.startDate.day + index,
-          );
+          final dayDate = cycle.startDate.addCalendarDays(index);
           final dateKey = dayDate.dateKey;
           final entry = cycle.dailyEntries[dateKey];
           return Container(
