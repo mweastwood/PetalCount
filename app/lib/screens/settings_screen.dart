@@ -281,6 +281,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const Divider(),
               const SizedBox(height: 24),
               Text(
+                'Notifications & Reminders',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Configure automated daily reminders to stay consistent with your Creighton Model charting.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Card(
+                elevation: 0,
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.5,
+                ),
+                child: StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: Services.db.streamAvailableCharts(),
+                  builder: (context, snapshot) {
+                    final charts = snapshot.data ?? [];
+                    final activeChart = charts.firstWhere(
+                      (c) => c['id'] == chartId,
+                      orElse: () => <String, dynamic>{},
+                    );
+                    final isEnabled =
+                        (activeChart['reminderEnabled'] as bool?) ?? true;
+
+                    return SwitchListTile(
+                      key: const Key('switch_daily_reminder'),
+                      title: const Text(
+                        'Daily 9:00 PM Reminder',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: const Text(
+                        'Send a reminder notification at 9:00 PM if no observations have been logged for today.',
+                      ),
+                      secondary: Icon(
+                        isEnabled
+                            ? Icons.notifications_active
+                            : Icons.notifications_off_outlined,
+                        color: isEnabled ? theme.colorScheme.primary : null,
+                      ),
+                      value: isEnabled,
+                      onChanged: (bool newValue) async {
+                        await Services.db.updateChartReminderSettings(
+                          chartId,
+                          newValue,
+                        );
+                        if (newValue) {
+                          await Services.notifications.requestPermissions();
+                        }
+                        final todayKey = DateTime.now().dateKey;
+                        final isTodayLogged =
+                            widget
+                                .activeCycle
+                                ?.dailyEntries[todayKey]
+                                ?.observations
+                                .isNotEmpty ==
+                            true;
+                        await Services.notifications.syncReminderSchedule(
+                          chartId: chartId,
+                          reminderEnabled: newValue,
+                          isTodayLogged: isTodayLogged,
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 40),
+              const Divider(),
+              const SizedBox(height: 24),
+              Text(
                 'Danger Zone',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,

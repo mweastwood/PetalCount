@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../logic/logic.dart';
@@ -17,8 +18,10 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
   late final Stream<List<Cycle>> _cyclesStream;
+  StreamSubscription<List<Cycle>>? _cyclesSubscription;
   late final AppRouteManager _routeManager;
   ViewMode _viewMode = ViewMode.observations;
   bool _isSpeedDialOpen = false;
@@ -26,7 +29,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _cyclesStream = Services.db.streamCycles();
+    _cyclesSubscription = _cyclesStream.listen((cycles) {
+      _syncReminderStatus(cycles);
+    });
     _routeManager = AppRouteManager(mockUri: widget.mockUri);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _routeManager.handleUrlParameters(
@@ -40,6 +47,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
         currentViewMode: _viewMode,
       );
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _cyclesSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshAndSyncReminders();
+    }
+  }
+
+  void _syncReminderStatus(List<Cycle> cycles) {
+    final chartId = Services.db.currentChartId;
+    if (chartId == null) return;
+    final todayKey = (widget.todayOverride ?? DateTime.now()).dateKey;
+    final isTodayLogged = cycles.any(
+      (cycle) => cycle.dailyEntries[todayKey]?.observations.isNotEmpty == true,
+    );
+    Services.db
+        .streamChartReminderEnabled(chartId)
+        .first
+        .then((enabled) {
+          Services.notifications.syncReminderSchedule(
+            chartId: chartId,
+            reminderEnabled: enabled,
+            isTodayLogged: isTodayLogged,
+            now: widget.todayOverride,
+          );
+        })
+        .catchError((_) {});
+  }
+
+  Future<void> _refreshAndSyncReminders() async {
+    try {
+      final cycles = await Services.db.streamCycles().first;
+      _syncReminderStatus(cycles);
+    } catch (_) {}
   }
 
   void _toggleSpeedDial() {

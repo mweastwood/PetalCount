@@ -149,6 +149,7 @@ class FirebaseDatabaseService implements DatabaseService {
       'id': chartId,
       'userIds': [user.uid],
       'emails': [user.email],
+      'reminderEnabled': true,
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -428,6 +429,22 @@ class FirebaseDatabaseService implements DatabaseService {
       _cachedChartId = null;
       _authController.add(user);
     }
+  }
+
+  @override
+  Future<void> updateChartReminderSettings(String chartId, bool enabled) async {
+    await _db.collection('charts').doc(chartId).set({
+      'reminderEnabled': enabled,
+    }, SetOptions(merge: true));
+  }
+
+  @override
+  Stream<bool> streamChartReminderEnabled(String chartId) {
+    return _db
+        .collection('charts')
+        .doc(chartId)
+        .snapshots()
+        .map((doc) => (doc.data()?['reminderEnabled'] as bool?) ?? true);
   }
 
   @override
