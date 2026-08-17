@@ -1,6 +1,7 @@
 import '../models/cycle.dart';
 import '../models/observation.dart';
 import '../models/daily_entry.dart';
+import '../utils/date_utils.dart';
 
 class CreightonLogic {
   // Helper values for comparing fertility levels of observations
@@ -178,8 +179,7 @@ class CreightonLogic {
 
     // Initialize map of dates to entries
     final map = <String, DailyEntry>{
-      for (var entry in sorted)
-        entry.date.toIso8601String().substring(0, 10): entry,
+      for (var entry in sorted) entry.date.dateKey: entry,
     };
 
     // --- STEP A: IDENTIFY THE PEAK DAY ---
@@ -279,7 +279,7 @@ class CreightonLogic {
         stampType: stamp,
         peakDayLabel: label,
       );
-      map[entry.date.toIso8601String().substring(0, 10)] = updatedEntry;
+      map[entry.date.dateKey] = updatedEntry;
     }
 
     return map;
@@ -294,7 +294,7 @@ class CreightonLogic {
       DateTime newCycleStart = date;
       DateTime checkDate = date.subtract(const Duration(days: 1));
       while (checkDate.difference(latestCycle.startDate).inDays >= 16) {
-        final checkKey = checkDate.toIso8601String().substring(0, 10);
+        final checkKey = checkDate.dateKey;
         final checkEntry = latestCycle.dailyEntries[checkKey];
         if (checkEntry != null && checkEntry.hasBleeding) {
           newCycleStart = checkDate;

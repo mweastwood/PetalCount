@@ -45,7 +45,7 @@ class DailyEntry {
 
   Map<String, dynamic> toMap() {
     return {
-      'date': date.toIso8601String().substring(0, 10),
+      'date': date.dateKey,
       'resolvedVdrsCode': resolvedVdrsCode,
       'stampType': stampType.name,
       'observations': observations.map((o) => o.toMap()).toList(),

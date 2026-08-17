@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../logic/logic.dart';
 import '../widgets/creighton_stamp_widget.dart';
@@ -149,9 +148,9 @@ class ChartScreen extends StatelessWidget {
                                 children: [
                                   Expanded(
                                     child: Text(
-                                      DateFormat(
-                                        'MMM dd',
-                                      ).format(cycle.startDate),
+                                      AppDateFormats.shortMonthDay.format(
+                                        cycle.startDate,
+                                      ),
                                       style: theme.textTheme.labelSmall
                                           ?.copyWith(
                                             fontWeight: FontWeight.bold,
@@ -186,9 +185,7 @@ class ChartScreen extends StatelessWidget {
                                 cycle.startDate.month,
                                 cycle.startDate.day + index,
                               );
-                              final dateKey = DateFormat(
-                                'yyyy-MM-dd',
-                              ).format(dayDate);
+                              final dateKey = dayDate.dateKey;
                               final entry = cycle.dailyEntries[dateKey];
                               return Container(
                                 margin: const EdgeInsets.only(bottom: kCellGap),
@@ -359,7 +356,9 @@ class ChartScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            DateFormat('MMM dd').format(cycle.startDate),
+                            AppDateFormats.shortMonthDay.format(
+                              cycle.startDate,
+                            ),
                             style: theme.textTheme.labelLarge?.copyWith(
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
@@ -417,7 +416,7 @@ class ChartScreen extends StatelessWidget {
             cycle.startDate.month,
             cycle.startDate.day + index,
           );
-          final dateKey = DateFormat('yyyy-MM-dd').format(dayDate);
+          final dateKey = dayDate.dateKey;
           final entry = cycle.dailyEntries[dateKey];
           return Container(
             margin: const EdgeInsets.only(right: kCellGap),
@@ -490,7 +489,7 @@ class ChartScreen extends StatelessWidget {
                     children: [
                       // Date Label (Larger font: 10px bold)
                       Text(
-                        DateFormat('MMM dd').format(dayDate),
+                        AppDateFormats.shortMonthDay.format(dayDate),
                         style: theme.textTheme.labelSmall?.copyWith(
                           fontSize: 10,
                           fontWeight: FontWeight.bold,

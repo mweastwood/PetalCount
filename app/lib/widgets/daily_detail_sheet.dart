@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../logic/logic.dart';
 import 'add_observation_dialog.dart';
@@ -31,7 +30,7 @@ class DailyDetailSheet extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Observations for ${DateFormat('EEEE, MMM dd').format(entry.date)}',
+                'Observations for ${AppDateFormats.weekdayMonthDay.format(entry.date)}',
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -122,7 +121,7 @@ class DailyDetailSheet extends StatelessWidget {
                         if (obs.comment.isNotEmpty)
                           Text('Notes: ${obs.comment}'),
                         Text(
-                          'Logged at ${DateFormat('hh:mm a').format(obs.timestamp)} by ${obs.userId == "husband_uid" ? "Husband" : "Wife"}',
+                          'Logged at ${AppDateFormats.timeOfDayPadded.format(obs.timestamp)} by ${obs.userId == "husband_uid" ? "Husband" : "Wife"}',
                           style: theme.textTheme.bodySmall?.copyWith(
                             fontSize: 9,
                           ),

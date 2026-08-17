@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../logic/logic.dart';
 import 'wizard/wizard.dart';
@@ -309,7 +308,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        DateFormat('EEEE, MMM dd, yyyy').format(_selectedDate),
+                        AppDateFormats.fullDate.format(_selectedDate),
                         style: theme.textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: theme.colorScheme.primary,

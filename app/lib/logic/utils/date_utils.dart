@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+
 // Utility functions and extensions for DateTime operations and ISO date
 // parsing.
 
@@ -12,6 +14,29 @@ extension DateTimeNormalizationX on DateTime {
   /// Safely parses an ISO 8601 date string or YYYY-MM-DD date string with
   /// fallback handling.
   static DateTime parseIso(String dateStr) => parseIsoDate(dateStr);
+}
+
+/// Extension providing standardized date key formatting for [DateTime] instances.
+extension DateFormattingX on DateTime {
+  /// Returns a standardized 'yyyy-MM-dd' string key for cycle daily entry maps.
+  String get dateKey =>
+      '${year.toString().padLeft(4, '0')}-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+}
+
+/// Consolidated static cache of [DateFormat] singletons across the application.
+class AppDateFormats {
+  static final DateFormat isoDate = DateFormat('yyyy-MM-dd');
+  static final DateFormat shortMonthDay = DateFormat('MMM dd');
+  static final DateFormat monthYear = DateFormat('MMMM yyyy');
+  static final DateFormat fullDate = DateFormat('EEEE, MMM dd, yyyy');
+  static final DateFormat monthDayYear = DateFormat('MMMM dd, yyyy');
+  static final DateFormat shortMonthDayYear = DateFormat('MMM dd, yyyy');
+  static final DateFormat weekdayMonthDay = DateFormat('EEEE, MMM dd');
+  static final DateFormat dateTimeWithTime = DateFormat(
+    'MMM dd, yyyy • h:mm a',
+  );
+  static final DateFormat timeOfDay = DateFormat('h:mm a');
+  static final DateFormat timeOfDayPadded = DateFormat('hh:mm a');
 }
 
 /// Safely parses an ISO 8601 date string or YYYY-MM-DD date string with
