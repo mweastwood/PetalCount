@@ -101,11 +101,7 @@ class PdfExportService {
     final commentsList = <Map<String, String>>[];
 
     for (int i = 0; i < displayDays; i++) {
-      final dayDate = DateTime(
-        cycle.startDate.year,
-        cycle.startDate.month,
-        cycle.startDate.day + i,
-      );
+      final dayDate = cycle.startDate.addCalendarDays(i);
       final dateKey = dayDate.dateKey;
       final entry = cycle.dailyEntries[dateKey];
       final dayNum = i + 1;
