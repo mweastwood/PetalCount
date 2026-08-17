@@ -337,5 +337,50 @@ void main() {
       expect(cycles.length, 1);
       expect(cycles.first.startDate, start1);
     });
+
+    test('mergeCycleWithPrevious merges entries into previous cycle', () async {
+      await db.createChart();
+
+      final start1 = DateTime(2026, 1, 1);
+      await db.startNewCycle(start1, ['6C']);
+      await db.saveObservation(
+        date: start1,
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.heavy,
+        bleedingColor: 'R',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Cycle 1 Entry',
+      );
+
+      final start2 = DateTime(2026, 2, 1);
+      await db.startNewCycle(start2, ['6C']);
+      await db.saveObservation(
+        date: start2,
+        sensation: Sensation.wet,
+        stretch: Stretch.stretchy,
+        colors: [MucusColor.clear],
+        consistencies: [Consistency.lubricative],
+        bleeding: Bleeding.none,
+        bleedingColor: '',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Cycle 2 Entry',
+      );
+
+      var cycles = await db.streamCycles().first;
+      expect(cycles.length, 2);
+
+      await db.mergeCycleWithPrevious(start2.dateKey);
+
+      cycles = await db.streamCycles().first;
+      expect(cycles.length, 1);
+      expect(cycles.first.startDate, start1);
+      expect(cycles.first.dailyEntries.containsKey('2026-01-01'), isTrue);
+      expect(cycles.first.dailyEntries.containsKey('2026-02-01'), isTrue);
+    });
   });
 }
