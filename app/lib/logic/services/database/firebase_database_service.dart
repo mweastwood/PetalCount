@@ -790,7 +790,11 @@ class FirebaseDatabaseService implements DatabaseService {
               );
               await cyclesCol.doc(autoStartStr).set(newCycle.toMap());
               await _reallocateAndRecalculate(chartId);
-              targetCycle = newCycle;
+
+              final reloadedDoc = await cyclesCol.doc(autoStartStr).get();
+              targetCycle = reloadedDoc.exists && reloadedDoc.data() != null
+                  ? Cycle.fromMap(reloadedDoc.data()!)
+                  : newCycle;
             } else {
               targetCycle = Cycle.fromMap(existingDoc.data()!);
             }
