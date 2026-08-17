@@ -60,6 +60,40 @@ void main() {
     });
 
     test(
+      'Cycle day calculations across DST spring-forward and fall-back boundaries',
+      () {
+        final cycle = Cycle(
+          id: '2026-03-01',
+          startDate: DateTime(2026, 3, 1),
+          dailyEntries: {
+            '2026-03-08': DailyEntry(
+              date: DateTime(2026, 3, 8),
+              resolvedVdrsCode: '0',
+              stampType: StampType.green,
+              observations: const [],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+            '2026-03-09': DailyEntry(
+              date: DateTime(2026, 3, 9),
+              resolvedVdrsCode: '0',
+              stampType: StampType.green,
+              observations: const [],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+          },
+        );
+
+        expect(cycle.dayNumberFor(DateTime(2026, 3, 8)), 8);
+        expect(cycle.dayNumberFor(DateTime(2026, 3, 9)), 9);
+        expect(cycle.maxDayNumber, 9);
+      },
+    );
+
+    test(
       'Cycle.calculateMaxDisplayDays calculates max across cycles with minDays',
       () {
         final cycle1 = Cycle(

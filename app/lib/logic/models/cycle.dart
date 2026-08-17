@@ -27,30 +27,15 @@ class Cycle {
   /// Calculates the maximum 1-based day index reached by entries or [endDate]
   /// relative to [startDate].
   int get maxDayNumber {
-    final cycleStart = DateTime.utc(
-      startDate.year,
-      startDate.month,
-      startDate.day,
-    );
     int cycleMaxDay = 0;
     for (final entry in sortedEntries) {
-      final entryDate = DateTime.utc(
-        entry.date.year,
-        entry.date.month,
-        entry.date.day,
-      );
-      final dayNum = entryDate.difference(cycleStart).inDays + 1;
+      final dayNum = calendarDaysBetween(startDate, entry.date) + 1;
       if (dayNum > cycleMaxDay) {
         cycleMaxDay = dayNum;
       }
     }
     if (endDate != null) {
-      final endClean = DateTime.utc(
-        endDate!.year,
-        endDate!.month,
-        endDate!.day,
-      );
-      final endDayNum = endClean.difference(cycleStart).inDays + 1;
+      final endDayNum = calendarDaysBetween(startDate, endDate!) + 1;
       if (endDayNum > cycleMaxDay) {
         cycleMaxDay = endDayNum;
       }
@@ -60,13 +45,7 @@ class Cycle {
 
   /// Returns the 1-based day index for a specific date within the cycle.
   int dayNumberFor(DateTime date) {
-    final cycleStart = DateTime.utc(
-      startDate.year,
-      startDate.month,
-      startDate.day,
-    );
-    final targetDate = DateTime.utc(date.year, date.month, date.day);
-    return targetDate.difference(cycleStart).inDays + 1;
+    return calendarDaysBetween(startDate, date) + 1;
   }
 
   /// Calculates the global maximum display days across a collection of cycles,

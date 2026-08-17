@@ -11,6 +11,36 @@ extension DateTimeNormalizationX on DateTime {
     return DateTime(year, month, day);
   }
 
+  /// Normalizes DateTime to UTC midnight (Year, Month, Day) with 00:00:00Z
+  /// time component.
+  DateTime toUtcDate() {
+    return DateTime.utc(year, month, day);
+  }
+
+  /// Computes calendar days from [other] to this date (`this - other`).
+  int calendarDaysSince(DateTime other) {
+    return calendarDaysBetween(other, this);
+  }
+
+  /// Computes calendar days from this date to [other] (`other - this`).
+  int calendarDaysTo(DateTime other) {
+    return calendarDaysBetween(this, other);
+  }
+
+  /// Adds [days] calendar days without clock drift or DST 23/25-hour duration issues.
+  DateTime addCalendarDays(int days) {
+    return isUtc
+        ? DateTime.utc(year, month, day + days)
+        : DateTime(year, month, day + days);
+  }
+
+  /// Subtracts [days] calendar days without clock drift or DST 23/25-hour duration issues.
+  DateTime subtractCalendarDays(int days) {
+    return isUtc
+        ? DateTime.utc(year, month, day - days)
+        : DateTime(year, month, day - days);
+  }
+
   /// Safely parses an ISO 8601 date string or YYYY-MM-DD date string with
   /// fallback handling.
   static DateTime parseIso(String dateStr) => parseIsoDate(dateStr);
@@ -37,6 +67,17 @@ class AppDateFormats {
   );
   static final DateFormat timeOfDay = DateFormat('h:mm a');
   static final DateFormat timeOfDayPadded = DateFormat('hh:mm a');
+}
+
+/// Calculates the number of calendar days between [from] and [to] (e.g. from
+/// 2026-03-01 to 2026-03-02 is 1).
+///
+/// Normalizes both [DateTime] instances to UTC midnight (`DateTime.utc(year, month, day)`)
+/// to prevent Daylight Saving Time (DST) 23-hour / 25-hour day truncation bugs.
+int calendarDaysBetween(DateTime from, DateTime to) {
+  final fromUtc = DateTime.utc(from.year, from.month, from.day);
+  final toUtc = DateTime.utc(to.year, to.month, to.day);
+  return toUtc.difference(fromUtc).inDays;
 }
 
 /// Safely parses an ISO 8601 date string or YYYY-MM-DD date string with

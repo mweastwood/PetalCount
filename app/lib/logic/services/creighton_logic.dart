@@ -289,16 +289,16 @@ class CreightonLogic {
   /// Creighton bleeding rules (16+ days since previous cycle start, rolling back
   /// over consecutive prior days with bleeding).
   static DateTime? evaluateAutoCycleStart(Cycle latestCycle, DateTime date) {
-    final daysDiff = date.difference(latestCycle.startDate).inDays;
+    final daysDiff = calendarDaysBetween(latestCycle.startDate, date);
     if (daysDiff >= 16) {
       DateTime newCycleStart = date;
-      DateTime checkDate = date.subtract(const Duration(days: 1));
-      while (checkDate.difference(latestCycle.startDate).inDays >= 16) {
+      DateTime checkDate = date.subtractCalendarDays(1);
+      while (calendarDaysBetween(latestCycle.startDate, checkDate) >= 16) {
         final checkKey = checkDate.dateKey;
         final checkEntry = latestCycle.dailyEntries[checkKey];
         if (checkEntry != null && checkEntry.hasBleeding) {
           newCycleStart = checkDate;
-          checkDate = checkDate.subtract(const Duration(days: 1));
+          checkDate = checkDate.subtractCalendarDays(1);
         } else {
           break;
         }
