@@ -377,6 +377,206 @@ void main() {
       expect(recalculated[keyJun2]?.peakDayLabel, '2');
       expect(recalculated[keyJun3]?.peakDayLabel, '3');
     });
+
+    test(
+      'recalculateCycle assigns Peak labels using calendar days since Peak when days are unlogged/skipped',
+      () {
+        final jun15 = DateTime(2026, 6, 15);
+        // jun16 is unlogged / missing
+        final jun17 = DateTime(2026, 6, 17);
+        final jun18 = DateTime(2026, 6, 18);
+        final jun19 = DateTime(2026, 6, 19);
+
+        final peakObs = Observation(
+          id: 'peak_15',
+          timestamp: jun15,
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: [MucusColor.clear],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final dryObs17 = Observation(
+          id: 'dry_17',
+          timestamp: jun17,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final dryObs18 = Observation(
+          id: 'dry_18',
+          timestamp: jun18,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final dryObs19 = Observation(
+          id: 'dry_19',
+          timestamp: jun19,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final entries = <DailyEntry>[
+          CreightonLogic.resolveDailyEntry(
+            date: jun15,
+            observations: [peakObs],
+          ),
+          CreightonLogic.resolveDailyEntry(
+            date: jun17,
+            observations: [dryObs17],
+          ),
+          CreightonLogic.resolveDailyEntry(
+            date: jun18,
+            observations: [dryObs18],
+          ),
+          CreightonLogic.resolveDailyEntry(
+            date: jun19,
+            observations: [dryObs19],
+          ),
+        ];
+
+        final recalculated = CreightonLogic.recalculateCycle(
+          entries: entries,
+          bipCodes: [],
+        );
+
+        final keyJun15 = jun15.dateKey;
+        final keyJun17 = jun17.dateKey;
+        final keyJun18 = jun18.dateKey;
+        final keyJun19 = jun19.dateKey;
+
+        // Day P (June 15)
+        expect(recalculated[keyJun15]?.peakDayLabel, 'P');
+        expect(recalculated[keyJun15]?.stampType, StampType.whiteBaby);
+
+        // Day P+2 (June 17, missing June 16) -> labeled '2', greenBaby
+        expect(recalculated[keyJun17]?.peakDayLabel, '2');
+        expect(recalculated[keyJun17]?.stampType, StampType.greenBaby);
+
+        // Day P+3 (June 18) -> labeled '3', greenBaby
+        expect(recalculated[keyJun18]?.peakDayLabel, '3');
+        expect(recalculated[keyJun18]?.stampType, StampType.greenBaby);
+
+        // Day P+4 (June 19) -> labeled null (post-fertile window), green
+        expect(recalculated[keyJun19]?.peakDayLabel, isNull);
+        expect(recalculated[keyJun19]?.stampType, StampType.green);
+      },
+    );
+
+    test(
+      'recalculateCycle handles post-peak BIP mucus accurately based on calendar days since Peak',
+      () {
+        final jun15 = DateTime(2026, 6, 15);
+        // jun16 is unlogged / missing
+        final jun17 = DateTime(2026, 6, 17);
+        final jun18 = DateTime(2026, 6, 18);
+        final jun19 = DateTime(2026, 6, 19);
+
+        final peakObs = Observation(
+          id: 'peak_15',
+          timestamp: jun15,
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: [MucusColor.clear],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final bipObs17 = Observation(
+          id: 'bip_17',
+          timestamp: jun17,
+          sensation: Sensation.damp,
+          stretch: Stretch.sticky,
+          colors: [MucusColor.cloudy],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final bipObs18 = Observation(
+          id: 'bip_18',
+          timestamp: jun18,
+          sensation: Sensation.damp,
+          stretch: Stretch.sticky,
+          colors: [MucusColor.cloudy],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final bipObs19 = Observation(
+          id: 'bip_19',
+          timestamp: jun19,
+          sensation: Sensation.damp,
+          stretch: Stretch.sticky,
+          colors: [MucusColor.cloudy],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final entries = <DailyEntry>[
+          CreightonLogic.resolveDailyEntry(
+            date: jun15,
+            observations: [peakObs],
+          ),
+          CreightonLogic.resolveDailyEntry(
+            date: jun17,
+            observations: [bipObs17],
+          ),
+          CreightonLogic.resolveDailyEntry(
+            date: jun18,
+            observations: [bipObs18],
+          ),
+          CreightonLogic.resolveDailyEntry(
+            date: jun19,
+            observations: [bipObs19],
+          ),
+        ];
+
+        final recalculated = CreightonLogic.recalculateCycle(
+          entries: entries,
+          bipCodes: ['6C'],
+        );
+
+        final keyJun15 = jun15.dateKey;
+        final keyJun17 = jun17.dateKey;
+        final keyJun18 = jun18.dateKey;
+        final keyJun19 = jun19.dateKey;
+
+        // Day P (June 15)
+        expect(recalculated[keyJun15]?.peakDayLabel, 'P');
+        expect(recalculated[keyJun15]?.stampType, StampType.whiteBaby);
+
+        // Day P+2 (June 17, missing June 16) -> labeled '2', whiteBaby (fertile window override of BIP)
+        expect(recalculated[keyJun17]?.peakDayLabel, '2');
+        expect(recalculated[keyJun17]?.stampType, StampType.whiteBaby);
+
+        // Day P+3 (June 18) -> labeled '3', whiteBaby (fertile window override of BIP)
+        expect(recalculated[keyJun18]?.peakDayLabel, '3');
+        expect(recalculated[keyJun18]?.stampType, StampType.whiteBaby);
+
+        // Day P+4 (June 19) -> labeled null, yellow (BIP protocol applies outside post-peak window)
+        expect(recalculated[keyJun19]?.peakDayLabel, isNull);
+        expect(recalculated[keyJun19]?.stampType, StampType.yellow);
+      },
+    );
   });
 
   group(
