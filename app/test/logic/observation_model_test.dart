@@ -151,5 +151,60 @@ void main() {
         expect(restored.isVdrsExplicit, original.isVdrsExplicit);
       },
     );
+
+    test(
+      'safely deserializes colors and consistencies when unknown or corrupt enum strings are present',
+      () {
+        final map = {
+          'id': 'obs_unknown_enums',
+          'timestamp': DateTime(2026, 8, 16, 10, 0, 0),
+          'sensation': 'wet',
+          'stretch': 'stretchy',
+          'colors': ['clear', 'neonGreen', 'unknown_color', 'cloudy'],
+          'consistencies': ['gummy', 'super_liquid', 'pasty', 'invalid_enum'],
+          'bleeding': 'none',
+          'userId': 'user_123',
+        };
+
+        final obs = Observation.fromMap(map);
+        expect(obs.colors, [MucusColor.clear, MucusColor.cloudy]);
+        expect(obs.consistencies, [Consistency.gummy, Consistency.pasty]);
+      },
+    );
+
+    test(
+      'handles empty and null lists for colors and consistencies gracefully',
+      () {
+        final mapWithNulls = {
+          'id': 'obs_null_lists',
+          'timestamp': DateTime(2026, 8, 16, 10, 0, 0),
+          'sensation': 'dry',
+          'stretch': 'none',
+          'colors': null,
+          'consistencies': null,
+          'bleeding': 'none',
+          'userId': 'user_123',
+        };
+
+        final obsNull = Observation.fromMap(mapWithNulls);
+        expect(obsNull.colors, isEmpty);
+        expect(obsNull.consistencies, isEmpty);
+
+        final mapWithEmpty = {
+          'id': 'obs_empty_lists',
+          'timestamp': DateTime(2026, 8, 16, 10, 0, 0),
+          'sensation': 'dry',
+          'stretch': 'none',
+          'colors': [],
+          'consistencies': [],
+          'bleeding': 'none',
+          'userId': 'user_123',
+        };
+
+        final obsEmpty = Observation.fromMap(mapWithEmpty);
+        expect(obsEmpty.colors, isEmpty);
+        expect(obsEmpty.consistencies, isEmpty);
+      },
+    );
   });
 }

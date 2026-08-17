@@ -224,10 +224,22 @@ class Observation {
       orElse: () => Stretch.none,
     );
     final colors = ((map['colors'] as List?) ?? [])
-        .map((item) => MucusColor.values.firstWhere((e) => e.name == item))
+        .map(
+          (item) => MucusColor.values.cast<MucusColor?>().firstWhere(
+            (e) => e?.name == item,
+            orElse: () => null,
+          ),
+        )
+        .whereType<MucusColor>()
         .toList();
     final consistencies = ((map['consistencies'] as List?) ?? [])
-        .map((item) => Consistency.values.firstWhere((e) => e.name == item))
+        .map(
+          (item) => Consistency.values.cast<Consistency?>().firstWhere(
+            (e) => e?.name == item,
+            orElse: () => null,
+          ),
+        )
+        .whereType<Consistency>()
         .toList();
     final bleeding = Bleeding.values.firstWhere(
       (e) => e.name == map['bleeding'],
