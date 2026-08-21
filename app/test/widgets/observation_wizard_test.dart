@@ -754,4 +754,24 @@ void main() {
       },
     );
   });
+
+  group('WizardStep isSelfAdvancing tests', () {
+    test(
+      'verifies self-advancing and non-self-advancing step classification',
+      () {
+        expect(WizardStep.bleedingFlow.isSelfAdvancing, isTrue);
+        expect(WizardStep.bleedingColor.isSelfAdvancing, isTrue);
+        expect(WizardStep.sensation.isSelfAdvancing, isTrue);
+        expect(WizardStep.lubrication.isSelfAdvancing, isTrue);
+        expect(WizardStep.mucus.isSelfAdvancing, isTrue);
+        expect(WizardStep.mucusStretch.isSelfAdvancing, isTrue);
+        expect(WizardStep.mucusColor.isSelfAdvancing, isTrue);
+        expect(WizardStep.mucusConsistency.isSelfAdvancing, isTrue);
+        expect(WizardStep.intercourse.isSelfAdvancing, isTrue);
+        expect(WizardStep.pain.isSelfAdvancing, isTrue);
+        expect(WizardStep.painDetails.isSelfAdvancing, isFalse);
+        expect(WizardStep.comments.isSelfAdvancing, isFalse);
+      },
+    );
+  });
 }
