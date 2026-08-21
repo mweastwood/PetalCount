@@ -64,12 +64,14 @@ jobs:
           npx --yes firebase-tools@15.22.3 deploy --only firestore:rules --project petal-count-prod
 
       - name: Deploy Cloud Functions
+        working-directory: .
         env:
           FIREBASE_SERVICE_ACCOUNT_PROD: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_PROD }}
         run: |
           echo "$FIREBASE_SERVICE_ACCOUNT_PROD" > service-account.json
           export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/service-account.json
           npx --yes firebase-tools@15.22.3 deploy --only functions --project petal-count-prod
+          rm -f service-account.json
 
       - name: Build Web App
         run: flutter build web --release --target lib/main_prod.dart --build-name=$VERSION_NAME --build-number=$VERSION_CODE
