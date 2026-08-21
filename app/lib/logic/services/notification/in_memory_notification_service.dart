@@ -1,3 +1,4 @@
+import '../../utils/date_utils.dart';
 import 'notification_service_interface.dart';
 
 class InMemoryNotificationService implements NotificationService {
@@ -33,13 +34,13 @@ class InMemoryNotificationService implements NotificationService {
   }) {
     final today9pm = DateTime(now.year, now.month, now.day, 21, 0, 0);
     if (isTodayLogged) {
-      final tomorrow = now.add(const Duration(days: 1));
+      final tomorrow = now.addCalendarDays(1);
       return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 21, 0, 0);
     } else {
       if (now.isBefore(today9pm)) {
         return today9pm;
       } else {
-        final tomorrow = now.add(const Duration(days: 1));
+        final tomorrow = now.addCalendarDays(1);
         return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 21, 0, 0);
       }
     }

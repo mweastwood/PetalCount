@@ -80,6 +80,63 @@ void main() {
 
       expect(nextTime, DateTime(2027, 1, 1, 21, 0));
     });
+
+    test(
+      'handles late-night calculations (23:30) ensuring tomorrow at 21:00 is returned',
+      () {
+        final now = DateTime(2026, 8, 17, 23, 30);
+        final nextTimeNotLogged = notificationService.calculateNextReminderTime(
+          now: now,
+          isTodayLogged: false,
+        );
+        final nextTimeLogged = notificationService.calculateNextReminderTime(
+          now: now,
+          isTodayLogged: true,
+        );
+
+        expect(nextTimeNotLogged, DateTime(2026, 8, 18, 21, 0));
+        expect(nextTimeLogged, DateTime(2026, 8, 18, 21, 0));
+      },
+    );
+
+    test(
+      'handles DST autumn fall-back transition dates correctly without scheduling in past',
+      () {
+        // Nov 1, 2026 DST fall-back day at 23:30
+        final now = DateTime(2026, 11, 1, 23, 30);
+        final nextTime = notificationService.calculateNextReminderTime(
+          now: now,
+          isTodayLogged: false,
+        );
+
+        expect(nextTime, DateTime(2026, 11, 2, 21, 0));
+        expect(nextTime.isAfter(now), isTrue);
+        expect(nextTime.day, 2);
+        expect(nextTime.month, 11);
+        expect(nextTime.year, 2026);
+        expect(nextTime.hour, 21);
+      },
+    );
+
+    test(
+      'LocalNotificationService calculateNextReminderTime matches InMemoryNotificationService',
+      () {
+        final localService = LocalNotificationService();
+        final nowLate = DateTime(2026, 11, 1, 23, 30);
+
+        final inMemoryResult = notificationService.calculateNextReminderTime(
+          now: nowLate,
+          isTodayLogged: false,
+        );
+        final localResult = localService.calculateNextReminderTime(
+          now: nowLate,
+          isTodayLogged: false,
+        );
+
+        expect(localResult, inMemoryResult);
+        expect(localResult, DateTime(2026, 11, 2, 21, 0));
+      },
+    );
   });
 
   group('NotificationService - syncReminderSchedule', () {
