@@ -12,6 +12,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  late final Stream<List<Map<String, dynamic>>> _chartsStream;
   final _inviteEmailController = TextEditingController();
   bool _isInviting = false;
   String _inviteStatus = '';
@@ -23,6 +24,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    _chartsStream = Services.db.streamAvailableCharts();
     if (widget.activeCycle != null) {
       _selectedBips = List<String>.from(widget.activeCycle!.bipCodes);
     }
@@ -276,169 +278,163 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ],
-            if (chartId != null) ...[
-              const SizedBox(height: 40),
-              const Divider(),
-              const SizedBox(height: 24),
-              Text(
-                'Notifications & Reminders',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Configure automated daily reminders to stay consistent with your Creighton Model charting.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Card(
-                elevation: 0,
-                color: theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.5,
-                ),
-                child: StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: Services.db.streamAvailableCharts(),
-                  builder: (context, snapshot) {
-                    final charts = snapshot.data ?? [];
-                    final activeChart = charts.firstWhere(
-                      (c) => c['id'] == chartId,
-                      orElse: () => <String, dynamic>{},
-                    );
-                    final isEnabled =
-                        (activeChart['reminderEnabled'] as bool?) ?? true;
-
-                    return SwitchListTile(
-                      key: const Key('switch_daily_reminder'),
-                      title: const Text(
-                        'Daily 9:00 PM Reminder',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      subtitle: const Text(
-                        'Send a reminder notification at 9:00 PM if no observations have been logged for today.',
-                      ),
-                      secondary: Icon(
-                        isEnabled
-                            ? Icons.notifications_active
-                            : Icons.notifications_off_outlined,
-                        color: isEnabled ? theme.colorScheme.primary : null,
-                      ),
-                      value: isEnabled,
-                      onChanged: (bool newValue) async {
-                        await Services.db.updateChartReminderSettings(
-                          chartId,
-                          newValue,
-                        );
-                        if (newValue) {
-                          await Services.notifications.requestPermissions();
-                        }
-                        final todayKey = DateTime.now().dateKey;
-                        final isTodayLogged =
-                            widget
-                                .activeCycle
-                                ?.dailyEntries[todayKey]
-                                ?.observations
-                                .isNotEmpty ==
-                            true;
-                        await Services.notifications.syncReminderSchedule(
-                          chartId: chartId,
-                          reminderEnabled: newValue,
-                          isTodayLogged: isTodayLogged,
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 40),
-              const Divider(),
-              const SizedBox(height: 24),
-              Text(
-                'Danger Zone',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.error,
-                ),
-              ),
-              const SizedBox(height: 8),
+            if (chartId != null)
               StreamBuilder<List<Map<String, dynamic>>>(
-                stream: Services.db.streamAvailableCharts(),
+                stream: _chartsStream,
                 builder: (context, snapshot) {
                   final charts = snapshot.data ?? [];
                   final activeChart = charts.firstWhere(
                     (c) => c['id'] == chartId,
                     orElse: () => <String, dynamic>{},
                   );
+                  final isEnabled =
+                      (activeChart['reminderEnabled'] as bool?) ?? true;
                   final userIds = List<String>.from(
                     activeChart['userIds'] ?? [],
                   );
                   final hasOtherCollaborators = userIds.length > 1;
 
-                  return Card(
-                    color: theme.colorScheme.errorContainer.withValues(
-                      alpha: 0.1,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      side: BorderSide(
-                        color: theme.colorScheme.error.withValues(alpha: 0.5),
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 40),
+                      const Divider(),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Notifications & Reminders',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            'Permanently delete this chart and all associated cycle logs and observations. This action is destructive and cannot be undone.',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onErrorContainer,
+                      const SizedBox(height: 8),
+                      Text(
+                        'Configure automated daily reminders to stay consistent with your Creighton Model charting.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Card(
+                        elevation: 0,
+                        color: theme.colorScheme.surfaceContainerHighest
+                            .withValues(alpha: 0.5),
+                        child: SwitchListTile(
+                          key: const Key('switch_daily_reminder'),
+                          title: const Text(
+                            'Daily 9:00 PM Reminder',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: const Text(
+                            'Send a reminder notification at 9:00 PM if no observations have been logged for today.',
+                          ),
+                          secondary: Icon(
+                            isEnabled
+                                ? Icons.notifications_active
+                                : Icons.notifications_off_outlined,
+                            color: isEnabled ? theme.colorScheme.primary : null,
+                          ),
+                          value: isEnabled,
+                          onChanged: (bool newValue) async {
+                            await Services.db.updateChartReminderSettings(
+                              chartId,
+                              newValue,
+                            );
+                            if (newValue) {
+                              await Services.notifications.requestPermissions();
+                            }
+                            final todayKey = DateTime.now().dateKey;
+                            final isTodayLogged =
+                                widget
+                                    .activeCycle
+                                    ?.dailyEntries[todayKey]
+                                    ?.observations
+                                    .isNotEmpty ==
+                                true;
+                            await Services.notifications.syncReminderSchedule(
+                              chartId: chartId,
+                              reminderEnabled: newValue,
+                              isTodayLogged: isTodayLogged,
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 40),
+                      const Divider(),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Danger Zone',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.error,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Card(
+                        color: theme.colorScheme.errorContainer.withValues(
+                          alpha: 0.1,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          side: BorderSide(
+                            color: theme.colorScheme.error.withValues(
+                              alpha: 0.5,
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          FilledButton.icon(
-                            onPressed: () =>
-                                _confirmDeleteChart(context, chartId),
-                            icon: const Icon(Icons.delete_forever),
-                            label: const Text('Delete Chart'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: theme.colorScheme.error,
-                              foregroundColor: theme.colorScheme.onError,
-                            ),
-                          ),
-                          if (hasOtherCollaborators) ...[
-                            const SizedBox(height: 16),
-                            const Divider(),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Leave this chart. You will lose access to its observations, but the data will remain active for other collaborators.',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onErrorContainer,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            OutlinedButton.icon(
-                              onPressed: () =>
-                                  _confirmLeaveChart(context, chartId),
-                              icon: const Icon(Icons.exit_to_app),
-                              label: const Text('Leave Chart'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: theme.colorScheme.error,
-                                side: BorderSide(
-                                  color: theme.colorScheme.error,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                'Permanently delete this chart and all associated cycle logs and observations. This action is destructive and cannot be undone.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onErrorContainer,
                                 ),
                               ),
-                            ),
-                          ],
-                        ],
+                              const SizedBox(height: 12),
+                              FilledButton.icon(
+                                onPressed: () =>
+                                    _confirmDeleteChart(context, chartId),
+                                icon: const Icon(Icons.delete_forever),
+                                label: const Text('Delete Chart'),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: theme.colorScheme.error,
+                                  foregroundColor: theme.colorScheme.onError,
+                                ),
+                              ),
+                              if (hasOtherCollaborators) ...[
+                                const SizedBox(height: 16),
+                                const Divider(),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Leave this chart. You will lose access to its observations, but the data will remain active for other collaborators.',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onErrorContainer,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                OutlinedButton.icon(
+                                  onPressed: () =>
+                                      _confirmLeaveChart(context, chartId),
+                                  icon: const Icon(Icons.exit_to_app),
+                                  label: const Text('Leave Chart'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: theme.colorScheme.error,
+                                    side: BorderSide(
+                                      color: theme.colorScheme.error,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   );
                 },
               ),
-            ],
             // Logout Button
             OutlinedButton.icon(
               onPressed: () {
