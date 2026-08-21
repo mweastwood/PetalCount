@@ -15,26 +15,30 @@ void main() {
   });
 
   testWidgets(
-    'SettingsScreen displays Notifications & Reminders section with switch',
+    'SettingsScreen displays Notifications & Reminders section with all switches',
     (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
-
       await tester.pumpAndSettle();
 
       expect(find.text('Notifications & Reminders'), findsOneWidget);
       expect(find.text('Daily 9:00 PM Reminder'), findsOneWidget);
+      expect(find.text('Fertile Pattern & Phase Alerts'), findsOneWidget);
       expect(
-        find.text(
-          'Send a reminder notification at 9:00 PM if no observations have been logged for today.',
-        ),
+        find.text('Spousal Support & Kindness Suggestions'),
         findsOneWidget,
       );
 
-      final switchFinder = find.byKey(const Key('switch_daily_reminder'));
-      expect(switchFinder, findsOneWidget);
+      final dailyFinder = find.byKey(const Key('switch_daily_reminder'));
+      final fertileFinder = find.byKey(const Key('switch_fertile_pattern'));
+      final supportFinder = find.byKey(const Key('switch_partner_support'));
 
-      final switchTile = tester.widget<SwitchListTile>(switchFinder);
-      expect(switchTile.value, isTrue);
+      expect(dailyFinder, findsOneWidget);
+      expect(fertileFinder, findsOneWidget);
+      expect(supportFinder, findsOneWidget);
+
+      expect(tester.widget<SwitchListTile>(dailyFinder).value, isTrue);
+      expect(tester.widget<SwitchListTile>(fertileFinder).value, isTrue);
+      expect(tester.widget<SwitchListTile>(supportFinder).value, isTrue);
     },
   );
 
@@ -42,7 +46,6 @@ void main() {
     'Toggling Daily Reminder switch updates database and syncs NotificationService',
     (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
-
       await tester.pumpAndSettle();
 
       final switchFinder = find.byKey(const Key('switch_daily_reminder'));
@@ -74,4 +77,55 @@ void main() {
       expect(notifications.scheduleCount, greaterThanOrEqualTo(1));
     },
   );
+
+  testWidgets(
+    'Toggling Fertile Pattern and Partner Support switches updates NotificationPreferences in database',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+      await tester.pumpAndSettle();
+
+      final fertileFinder = find.byKey(const Key('switch_fertile_pattern'));
+      final supportFinder = find.byKey(const Key('switch_partner_support'));
+
+      await tester.ensureVisible(fertileFinder);
+      await tester.tap(fertileFinder);
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(supportFinder);
+      await tester.tap(supportFinder);
+      await tester.pumpAndSettle();
+
+      final chartId = db.currentChartId!;
+      final prefs = await db.streamNotificationPreferences(chartId).first;
+      expect(prefs.fertilePatternAlerts, isFalse);
+      expect(prefs.partnerSupportReminders, isFalse);
+      expect(prefs.dailyLoggingReminder, isTrue);
+    },
+  );
+
+  testWidgets('Selecting Partner Role changes role in database', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: SettingsScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('role_segmented_button')), findsOneWidget);
+    expect(find.text('Wife / Tracker'), findsOneWidget);
+    expect(find.text('Husband / Partner'), findsOneWidget);
+
+    // Initial role is husband
+    expect(await db.streamUserRole().first, 'husband');
+
+    // Tap Wife segment
+    await tester.tap(find.text('Wife / Tracker'));
+    await tester.pumpAndSettle();
+
+    expect(await db.streamUserRole().first, 'wife');
+
+    // Tap Husband segment back
+    await tester.tap(find.text('Husband / Partner'));
+    await tester.pumpAndSettle();
+
+    expect(await db.streamUserRole().first, 'husband');
+  });
 }

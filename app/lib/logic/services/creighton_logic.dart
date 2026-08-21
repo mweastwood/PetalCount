@@ -351,4 +351,29 @@ class CreightonLogic {
     }
     return result;
   }
+
+  /// Evaluates whether a daily entry exhibits a fertile mucus pattern (peak-type
+  /// mucus or non-BIP mucus on a non-bleeding day).
+  static bool isFertileMucusPattern({
+    required DailyEntry entry,
+    required List<String> bipCodes,
+  }) {
+    if (entry.hasBleeding) return false;
+    if (!entry.hasMucus) return false;
+    if (entry.isPeakType) return true;
+    for (final obs in entry.observations) {
+      if (obs.hasMucus) {
+        final isBip = bipCodes.any((bip) => obs.mucusPart().startsWith(bip));
+        if (!isBip) return true;
+      }
+    }
+    return entry.stampType == StampType.whiteBaby ||
+        entry.stampType == StampType.yellowBaby;
+  }
+
+  /// Evaluates whether a daily entry marks a cycle phase transition (e.g.
+  /// Peak day, post-peak count P+1..P+3, or start of bleeding).
+  static bool isPhaseTransition(DailyEntry entry) {
+    return entry.isPeakDay || entry.peakDayLabel != null || entry.hasBleeding;
+  }
 }
