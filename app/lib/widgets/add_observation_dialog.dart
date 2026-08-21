@@ -30,6 +30,10 @@ enum WizardStep {
 
   final String title;
   const WizardStep(this.title);
+
+  /// Card-driven selection steps that automatically advance upon option selection.
+  bool get isSelfAdvancing =>
+      this != WizardStep.painDetails && this != WizardStep.comments;
 }
 
 class AddObservationDialog extends StatefulWidget {
@@ -366,17 +370,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
               if (!isFirstStep ||
                   step == WizardStep.painDetails ||
                   isLastStep ||
-                  (step != WizardStep.bleedingFlow &&
-                      step != WizardStep.bleedingColor &&
-                      step != WizardStep.sensation &&
-                      step != WizardStep.lubrication &&
-                      step != WizardStep.mucus &&
-                      step != WizardStep.mucusStretch &&
-                      step != WizardStep.mucusColor &&
-                      step != WizardStep.mucusConsistency &&
-                      step != WizardStep.intercourse &&
-                      step != WizardStep.pain &&
-                      step != WizardStep.painDetails)) ...[
+                  !step.isSelfAdvancing) ...[
                 const SizedBox(height: 12),
                 // Footer Navigation
                 Row(
@@ -403,17 +397,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
                               icon: const Icon(Icons.check),
                               label: const Text('Save Observation'),
                             )
-                    else if (step != WizardStep.bleedingFlow &&
-                        step != WizardStep.bleedingColor &&
-                        step != WizardStep.sensation &&
-                        step != WizardStep.lubrication &&
-                        step != WizardStep.mucus &&
-                        step != WizardStep.mucusStretch &&
-                        step != WizardStep.mucusColor &&
-                        step != WizardStep.mucusConsistency &&
-                        step != WizardStep.intercourse &&
-                        step != WizardStep.pain &&
-                        step != WizardStep.painDetails)
+                    else if (!step.isSelfAdvancing)
                       TextButton(
                         onPressed: _nextStep,
                         child: const Text('Skip / Next'),
