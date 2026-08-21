@@ -288,7 +288,8 @@ class _ChartSelectionScreenState extends State<ChartSelectionScreen> {
                                       as String;
                               final chartId = invite['chartId'] as String;
                               final senderEmail =
-                                  invite['senderEmail'] as String;
+                                  (invite['senderEmail'] as String?) ??
+                                  'Unknown';
 
                               return Card(
                                 child: ListTile(
