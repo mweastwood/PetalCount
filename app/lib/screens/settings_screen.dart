@@ -13,6 +13,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late final Stream<List<Map<String, dynamic>>> _chartsStream;
+  late final Stream<String?> _roleStream;
   final _inviteEmailController = TextEditingController();
   bool _isInviting = false;
   String _inviteStatus = '';
@@ -25,6 +26,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _chartsStream = Services.db.streamAvailableCharts();
+    _roleStream = Services.db.streamUserRole();
     if (widget.activeCycle != null) {
       _selectedBips = List<String>.from(widget.activeCycle!.bipCodes);
     }
@@ -181,22 +183,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Active Profile',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text('Email: ${user?.email ?? "Offline Mode"}'),
-                    Text(
-                      'Role: ${user?.uid == "husband_uid" ? "Husband" : "Wife"}',
-                    ),
-                    Text('Shared Chart ID: ${chartId ?? "Not linked"}'),
-                  ],
+                child: StreamBuilder<String?>(
+                  stream: _roleStream,
+                  builder: (context, roleSnapshot) {
+                    final currentRole = UserRole.fromString(
+                      roleSnapshot.data ??
+                          (user?.uid == "husband_uid" ? "husband" : "wife"),
+                    );
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Active Profile',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text('Email: ${user?.email ?? "Offline Mode"}'),
+                        Text('Role: ${currentRole.displayName}'),
+                        Text('Shared Chart ID: ${chartId ?? "Not linked"}'),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Partner Role',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        SegmentedButton<UserRole>(
+                          key: const Key('role_segmented_button'),
+                          segments: const [
+                            ButtonSegment<UserRole>(
+                              value: UserRole.wife,
+                              label: Text('Wife / Tracker'),
+                              icon: Icon(Icons.female),
+                            ),
+                            ButtonSegment<UserRole>(
+                              value: UserRole.husband,
+                              label: Text('Husband / Partner'),
+                              icon: Icon(Icons.male),
+                            ),
+                          ],
+                          selected: {currentRole},
+                          onSelectionChanged:
+                              (Set<UserRole> newSelection) async {
+                                final selected = newSelection.first;
+                                await Services.db.updateUserRole(selected.code);
+                              },
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -308,56 +346,165 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Configure automated daily reminders to stay consistent with your Creighton Model charting.',
+                        'Configure automated daily reminders and cycle phase alerts to stay consistent and supportive.',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Card(
-                        elevation: 0,
-                        color: theme.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.5),
-                        child: SwitchListTile(
-                          key: const Key('switch_daily_reminder'),
-                          title: const Text(
-                            'Daily 9:00 PM Reminder',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          subtitle: const Text(
-                            'Send a reminder notification at 9:00 PM if no observations have been logged for today.',
-                          ),
-                          secondary: Icon(
-                            isEnabled
-                                ? Icons.notifications_active
-                                : Icons.notifications_off_outlined,
-                            color: isEnabled ? theme.colorScheme.primary : null,
-                          ),
-                          value: isEnabled,
-                          onChanged: (bool newValue) async {
-                            await Services.db.updateChartReminderSettings(
-                              chartId,
-                              newValue,
-                            );
-                            if (newValue) {
-                              await Services.notifications.requestPermissions();
-                            }
-                            final todayKey = DateTime.now().dateKey;
-                            final isTodayLogged =
-                                widget
-                                    .activeCycle
-                                    ?.dailyEntries[todayKey]
-                                    ?.observations
-                                    .isNotEmpty ==
-                                true;
-                            await Services.notifications.syncReminderSchedule(
-                              chartId: chartId,
-                              reminderEnabled: newValue,
-                              isTodayLogged: isTodayLogged,
-                            );
-                          },
-                        ),
+                      Builder(
+                        builder: (context) {
+                          final rawPrefs =
+                              activeChart['notificationPreferences'];
+                          final prefs = NotificationPreferences.fromMap(
+                            rawPrefs != null
+                                ? Map<String, dynamic>.from(rawPrefs)
+                                : {'reminderEnabled': isEnabled},
+                          );
+
+                          return Column(
+                            children: [
+                              Card(
+                                elevation: 0,
+                                color: theme.colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.5),
+                                child: SwitchListTile(
+                                  key: const Key('switch_daily_reminder'),
+                                  title: const Text(
+                                    'Daily 9:00 PM Reminder',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  subtitle: const Text(
+                                    'Send a reminder notification at 9:00 PM if no observations have been logged for today.',
+                                  ),
+                                  secondary: Icon(
+                                    prefs.dailyLoggingReminder
+                                        ? Icons.notifications_active
+                                        : Icons.notifications_off_outlined,
+                                    color: prefs.dailyLoggingReminder
+                                        ? theme.colorScheme.primary
+                                        : null,
+                                  ),
+                                  value: prefs.dailyLoggingReminder,
+                                  onChanged: (bool newValue) async {
+                                    final updatedPrefs = prefs.copyWith(
+                                      dailyLoggingReminder: newValue,
+                                    );
+                                    await Services.db
+                                        .updateNotificationPreferences(
+                                          chartId,
+                                          updatedPrefs,
+                                        );
+                                    if (newValue) {
+                                      await Services.notifications
+                                          .requestPermissions();
+                                    }
+                                    final todayKey = DateTime.now().dateKey;
+                                    final isTodayLogged =
+                                        widget
+                                            .activeCycle
+                                            ?.dailyEntries[todayKey]
+                                            ?.observations
+                                            .isNotEmpty ==
+                                        true;
+                                    await Services.notifications
+                                        .syncReminderSchedule(
+                                          chartId: chartId,
+                                          reminderEnabled: newValue,
+                                          isTodayLogged: isTodayLogged,
+                                        );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Card(
+                                elevation: 0,
+                                color: theme.colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.5),
+                                child: SwitchListTile(
+                                  key: const Key('switch_fertile_pattern'),
+                                  title: const Text(
+                                    'Fertile Pattern & Phase Alerts',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  subtitle: const Text(
+                                    'Receive notifications when fertile mucus patterns or peak days are detected.',
+                                  ),
+                                  secondary: Icon(
+                                    prefs.fertilePatternAlerts
+                                        ? Icons.local_florist
+                                        : Icons.local_florist_outlined,
+                                    color: prefs.fertilePatternAlerts
+                                        ? theme.colorScheme.primary
+                                        : null,
+                                  ),
+                                  value: prefs.fertilePatternAlerts,
+                                  onChanged: (bool newValue) async {
+                                    final updatedPrefs = prefs.copyWith(
+                                      fertilePatternAlerts: newValue,
+                                    );
+                                    await Services.db
+                                        .updateNotificationPreferences(
+                                          chartId,
+                                          updatedPrefs,
+                                        );
+                                    if (newValue) {
+                                      await Services.notifications
+                                          .requestPermissions();
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Card(
+                                elevation: 0,
+                                color: theme.colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.5),
+                                child: SwitchListTile(
+                                  key: const Key('switch_partner_support'),
+                                  title: const Text(
+                                    'Spousal Support & Kindness Suggestions',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  subtitle: const Text(
+                                    'Receive phase support tips, kindness reminders, and flower suggestions tailored for your partner role.',
+                                  ),
+                                  secondary: Icon(
+                                    prefs.partnerSupportReminders
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color: prefs.partnerSupportReminders
+                                        ? theme.colorScheme.primary
+                                        : null,
+                                  ),
+                                  value: prefs.partnerSupportReminders,
+                                  onChanged: (bool newValue) async {
+                                    final updatedPrefs = prefs.copyWith(
+                                      partnerSupportReminders: newValue,
+                                    );
+                                    await Services.db
+                                        .updateNotificationPreferences(
+                                          chartId,
+                                          updatedPrefs,
+                                        );
+                                    if (newValue) {
+                                      await Services.notifications
+                                          .requestPermissions();
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
+
                       const SizedBox(height: 40),
                       const Divider(),
                       const SizedBox(height: 24),

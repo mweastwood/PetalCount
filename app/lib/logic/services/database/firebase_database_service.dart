@@ -8,7 +8,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../app_config.dart';
 import '../../models/cycle.dart';
 import '../../models/daily_entry.dart';
+import '../../models/notification_preferences.dart';
 import '../../models/observation.dart';
+import '../../models/user_role.dart';
 import '../../utils/date_utils.dart';
 import '../creighton_logic.dart';
 import '../services.dart';
@@ -435,6 +437,7 @@ class FirebaseDatabaseService implements DatabaseService {
   Future<void> updateChartReminderSettings(String chartId, bool enabled) async {
     await _db.collection('charts').doc(chartId).set({
       'reminderEnabled': enabled,
+      'notificationPreferences': {'dailyLoggingReminder': enabled},
     }, SetOptions(merge: true));
   }
 
@@ -445,6 +448,57 @@ class FirebaseDatabaseService implements DatabaseService {
         .doc(chartId)
         .snapshots()
         .map((doc) => (doc.data()?['reminderEnabled'] as bool?) ?? true);
+  }
+
+  @override
+  Future<void> updateNotificationPreferences(
+    String chartId,
+    NotificationPreferences preferences,
+  ) async {
+    await _db.collection('charts').doc(chartId).set({
+      'reminderEnabled': preferences.dailyLoggingReminder,
+      'notificationPreferences': preferences.toMap(),
+    }, SetOptions(merge: true));
+  }
+
+  @override
+  Stream<NotificationPreferences> streamNotificationPreferences(
+    String chartId,
+  ) {
+    return _db.collection('charts').doc(chartId).snapshots().map((doc) {
+      final data = doc.data();
+      if (data == null) return const NotificationPreferences();
+      final raw = data['notificationPreferences'];
+      if (raw != null) {
+        return NotificationPreferences.fromMap(Map<String, dynamic>.from(raw));
+      }
+      final reminder = (data['reminderEnabled'] as bool?) ?? true;
+      return NotificationPreferences(dailyLoggingReminder: reminder);
+    });
+  }
+
+  @override
+  Future<void> updateUserRole(String role) async {
+    final user = currentUser;
+    if (user == null) return;
+    try {
+      await _db.collection('users').doc(user.uid).set({
+        'role': role,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error updating user role: $e');
+    }
+  }
+
+  @override
+  Stream<String?> streamUserRole() {
+    final user = currentUser;
+    if (user == null) return Stream.value(null);
+    return _db
+        .collection('users')
+        .doc(user.uid)
+        .snapshots()
+        .map((doc) => doc.data()?['role'] as String? ?? 'wife');
   }
 
   @override
@@ -919,6 +973,41 @@ class FirebaseDatabaseService implements DatabaseService {
       }
 
       await batch.commit();
+
+      final resolvedDaily = updated[dateKey] ?? resolved;
+      final isFertile = CreightonLogic.isFertileMucusPattern(
+        entry: resolvedDaily,
+        bipCodes: targetCycle.bipCodes,
+      );
+      final peakLabel = resolvedDaily.peakDayLabel;
+
+      try {
+        final userDoc = await _db.collection('users').doc(user.uid).get();
+        final userRoleStr = userDoc.data()?['role'] as String?;
+        final userRole = UserRole.fromString(userRoleStr);
+
+        final chartDoc = await _db.collection('charts').doc(chartId).get();
+        final rawPrefs = chartDoc.data()?['notificationPreferences'];
+        final preferences = NotificationPreferences.fromMap(
+          rawPrefs != null ? Map<String, dynamic>.from(rawPrefs) : null,
+        );
+
+        if (preferences.fertilePatternAlerts && isFertile) {
+          await Services.notifications.notifyFertilePattern(role: userRole);
+        }
+        if (preferences.fertilePatternAlerts && peakLabel != null) {
+          await Services.notifications.notifyPeakDay(
+            role: userRole,
+            peakLabel: peakLabel,
+          );
+        }
+        if (preferences.partnerSupportReminders &&
+            (isFertile || peakLabel != null || resolvedDaily.isPeakDay)) {
+          await Services.notifications.notifyKindnessSupport(role: userRole);
+        }
+      } catch (notifErr) {
+        debugPrint('Warning: Notification dispatch error: $notifErr');
+      }
 
       Services.logger.info(
         'Observation saved successfully',

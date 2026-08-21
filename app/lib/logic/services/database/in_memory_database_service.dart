@@ -4,9 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/cycle.dart';
 import '../../models/daily_entry.dart';
+import '../../models/notification_preferences.dart';
 import '../../models/observation.dart';
+import '../../models/user_role.dart';
 import '../../utils/date_utils.dart';
 import '../creighton_logic.dart';
+import '../services.dart';
 import 'database_service_interface.dart';
 
 // Local mock user object matching Firebase structure
@@ -27,6 +30,7 @@ class InMemoryDatabaseService implements DatabaseService {
   final _authController = StreamController<User?>.broadcast();
   final _chartsController =
       StreamController<List<Map<String, dynamic>>>.broadcast();
+  final _roleController = StreamController<String?>.broadcast();
   User? _currentUser;
   String? _chartId;
 
@@ -43,6 +47,13 @@ class InMemoryDatabaseService implements DatabaseService {
     _users['husband_uid'] = {
       'uid': 'husband_uid',
       'email': 'husband@example.com',
+      'role': 'husband',
+      'chartId': 'mock_shared_chart',
+    };
+    _users['wife_uid'] = {
+      'uid': 'wife_uid',
+      'email': 'wife@example.com',
+      'role': 'wife',
       'chartId': 'mock_shared_chart',
     };
     _chartId = 'mock_shared_chart';
@@ -52,6 +63,11 @@ class InMemoryDatabaseService implements DatabaseService {
       'userIds': ['husband_uid', 'wife_uid'],
       'emails': ['husband@example.com', 'wife@example.com'],
       'reminderEnabled': true,
+      'notificationPreferences': {
+        'fertilePatternAlerts': true,
+        'partnerSupportReminders': true,
+        'dailyLoggingReminder': true,
+      },
     };
 
     // Prepopulate with a mock cycle so the app opens with data immediately
@@ -484,6 +500,11 @@ class InMemoryDatabaseService implements DatabaseService {
   Future<void> updateChartReminderSettings(String chartId, bool enabled) async {
     if (_charts.containsKey(chartId)) {
       _charts[chartId]!['reminderEnabled'] = enabled;
+      final rawPrefs = _charts[chartId]!['notificationPreferences'];
+      final prefs = NotificationPreferences.fromMap(
+        rawPrefs != null ? Map<String, dynamic>.from(rawPrefs) : null,
+      ).copyWith(dailyLoggingReminder: enabled);
+      _charts[chartId]!['notificationPreferences'] = prefs.toMap();
       _emitCharts();
     }
   }
@@ -497,6 +518,59 @@ class InMemoryDatabaseService implements DatabaseService {
       );
       return (chart['reminderEnabled'] as bool?) ?? true;
     });
+  }
+
+  @override
+  Future<void> updateNotificationPreferences(
+    String chartId,
+    NotificationPreferences preferences,
+  ) async {
+    if (_charts.containsKey(chartId)) {
+      _charts[chartId]!['notificationPreferences'] = preferences.toMap();
+      _charts[chartId]!['reminderEnabled'] = preferences.dailyLoggingReminder;
+      _emitCharts();
+    }
+  }
+
+  @override
+  Stream<NotificationPreferences> streamNotificationPreferences(
+    String chartId,
+  ) {
+    return streamAvailableCharts().map((charts) {
+      final chart = charts.firstWhere(
+        (c) => c['id'] == chartId,
+        orElse: () => <String, dynamic>{},
+      );
+      final raw = chart['notificationPreferences'];
+      if (raw != null) {
+        return NotificationPreferences.fromMap(Map<String, dynamic>.from(raw));
+      }
+      final reminder = (chart['reminderEnabled'] as bool?) ?? true;
+      return NotificationPreferences(dailyLoggingReminder: reminder);
+    });
+  }
+
+  @override
+  Future<void> updateUserRole(String role) async {
+    final user = _currentUser;
+    if (user == null) return;
+    _users[user.uid] ??= {'uid': user.uid, 'email': user.email};
+    _users[user.uid]!['role'] = role;
+    _roleController.add(role);
+  }
+
+  @override
+  Stream<String?> streamUserRole() => _buildUserRoleStream();
+
+  Stream<String?> _buildUserRoleStream() async* {
+    final user = _currentUser;
+    if (user != null) {
+      yield _users[user.uid]?['role'] as String? ??
+          (user.uid == 'husband_uid' ? 'husband' : 'wife');
+    } else {
+      yield null;
+    }
+    yield* _roleController.stream;
   }
 
   // Stream emulation
@@ -763,6 +837,39 @@ class InMemoryDatabaseService implements DatabaseService {
         .copyWith(dailyEntries: updated)
         .toMap();
     _emitCycles();
+
+    final resolvedDaily = updated[dateKey] ?? resolved;
+    final isFertile = CreightonLogic.isFertileMucusPattern(
+      entry: resolvedDaily,
+      bipCodes: targetCycle.bipCodes,
+    );
+    final peakLabel = resolvedDaily.peakDayLabel;
+
+    final userRoleStr = _users[user.uid]?['role'] as String?;
+    final userRole = UserRole.fromString(
+      userRoleStr ?? (user.uid == 'husband_uid' ? 'husband' : 'wife'),
+    );
+
+    final chartPreferencesRaw = _charts[chartId]?['notificationPreferences'];
+    final preferences = NotificationPreferences.fromMap(
+      chartPreferencesRaw != null
+          ? Map<String, dynamic>.from(chartPreferencesRaw)
+          : null,
+    );
+
+    if (preferences.fertilePatternAlerts && isFertile) {
+      await Services.notifications.notifyFertilePattern(role: userRole);
+    }
+    if (preferences.fertilePatternAlerts && peakLabel != null) {
+      await Services.notifications.notifyPeakDay(
+        role: userRole,
+        peakLabel: peakLabel,
+      );
+    }
+    if (preferences.partnerSupportReminders &&
+        (isFertile || peakLabel != null || resolvedDaily.isPeakDay)) {
+      await Services.notifications.notifyKindnessSupport(role: userRole);
+    }
   }
 
   @override

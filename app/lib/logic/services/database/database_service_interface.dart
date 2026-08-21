@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/cycle.dart';
+import '../../models/notification_preferences.dart';
 import '../../models/observation.dart';
 
 abstract class DatabaseService {
@@ -23,6 +24,13 @@ abstract class DatabaseService {
   Future<void> leaveChart(String chartId);
   Future<void> updateChartReminderSettings(String chartId, bool enabled);
   Stream<bool> streamChartReminderEnabled(String chartId);
+  Future<void> updateNotificationPreferences(
+    String chartId,
+    NotificationPreferences preferences,
+  );
+  Stream<NotificationPreferences> streamNotificationPreferences(String chartId);
+  Future<void> updateUserRole(String role);
+  Stream<String?> streamUserRole();
   Future<void> saveFcmToken(String token);
   Future<void> removeFcmToken(String token);
   Future<void> updateUserTimezone(String timezone);

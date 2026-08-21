@@ -6,21 +6,33 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../../models/user_role.dart';
 import '../../utils/date_utils.dart';
 import '../services.dart';
+import 'cycle_notification_formatter.dart';
 import 'notification_service_interface.dart';
 
 class LocalNotificationService implements NotificationService {
   static const int dailyReminderNotificationId = 900;
+  static const int fertilePatternNotificationId = 901;
+  static const int peakDayNotificationId = 902;
+  static const int kindnessSupportNotificationId = 903;
+
   static const String notificationChannelId = 'daily_logging_reminders';
   static const String notificationChannelName = 'Daily Logging Reminders';
   static const String notificationChannelDescription =
       'Reminders to log daily Creighton observations by 9:00 PM';
 
+  static const String cycleAlertChannelId = 'cycle_pattern_alerts';
+  static const String cycleAlertChannelName = 'Cycle & Phase Alerts';
+  static const String cycleAlertChannelDescription =
+      'Notifications for fertile mucus patterns, peak day shifts, and partner support';
+
   final FlutterLocalNotificationsPlugin _notificationsPlugin;
   bool _isInitialized = false;
   bool _isReminderScheduled = false;
   DateTime? _scheduledReminderTime;
+  final Set<String> _sentNotificationKeys = {};
 
   LocalNotificationService({
     FlutterLocalNotificationsPlugin? notificationsPlugin,
@@ -135,7 +147,10 @@ class LocalNotificationService implements NotificationService {
   }
 
   @override
-  Future<void> scheduleDailyReminder({required DateTime triggerTime}) async {
+  Future<void> scheduleDailyReminder({
+    required DateTime triggerTime,
+    UserRole role = UserRole.wife,
+  }) async {
     _scheduledReminderTime = triggerTime;
     _isReminderScheduled = true;
 
@@ -144,6 +159,7 @@ class LocalNotificationService implements NotificationService {
     try {
       final tzLocation = tz.local;
       final scheduledTzDate = tz.TZDateTime.from(triggerTime, tzLocation);
+      final reminderMsg = CycleNotificationFormatter.dailyLoggingReminder(role);
 
       const androidDetails = AndroidNotificationDetails(
         notificationChannelId,
@@ -165,8 +181,8 @@ class LocalNotificationService implements NotificationService {
 
       await _notificationsPlugin.zonedSchedule(
         id: dailyReminderNotificationId,
-        title: 'Daily Observation Reminder',
-        body: "Don't forget to log your Creighton observations for today!",
+        title: reminderMsg.title,
+        body: reminderMsg.body,
         scheduledDate: scheduledTzDate,
         notificationDetails: notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
@@ -196,6 +212,7 @@ class LocalNotificationService implements NotificationService {
     required bool reminderEnabled,
     required bool isTodayLogged,
     DateTime? now,
+    UserRole role = UserRole.wife,
   }) async {
     if (chartId == null || !reminderEnabled) {
       await cancelDailyReminder();
@@ -207,7 +224,113 @@ class LocalNotificationService implements NotificationService {
       now: effectiveNow,
       isTodayLogged: isTodayLogged,
     );
-    await scheduleDailyReminder(triggerTime: nextTime);
+    await scheduleDailyReminder(triggerTime: nextTime, role: role);
+  }
+
+  @override
+  Future<void> showNotification({
+    required int id,
+    required String title,
+    required String body,
+  }) async {
+    if (kIsWeb) return;
+
+    try {
+      const androidDetails = AndroidNotificationDetails(
+        cycleAlertChannelId,
+        cycleAlertChannelName,
+        channelDescription: cycleAlertChannelDescription,
+        importance: Importance.high,
+        priority: Priority.high,
+      );
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+      const notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+        macOS: iosDetails,
+      );
+
+      await _notificationsPlugin.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: notificationDetails,
+      );
+    } catch (e) {
+      debugPrint('Warning: showNotification failed: $e');
+    }
+  }
+
+  @override
+  Future<void> notifyFertilePattern({
+    required UserRole role,
+    DateTime? now,
+    bool force = false,
+  }) async {
+    final effectiveNow = now ?? DateTime.now();
+    final dedupeKey = '${effectiveNow.dateKey}_fertile_${role.name}';
+    if (!force && _sentNotificationKeys.contains(dedupeKey)) {
+      return;
+    }
+    _sentNotificationKeys.add(dedupeKey);
+
+    final msg = CycleNotificationFormatter.fertilePatternMessage(role);
+    await showNotification(
+      id: fertilePatternNotificationId,
+      title: msg.title,
+      body: msg.body,
+    );
+  }
+
+  @override
+  Future<void> notifyPeakDay({
+    required UserRole role,
+    String? peakLabel,
+    DateTime? now,
+    bool force = false,
+  }) async {
+    final effectiveNow = now ?? DateTime.now();
+    final labelKey = peakLabel ?? 'P';
+    final dedupeKey = '${effectiveNow.dateKey}_peak_${labelKey}_${role.name}';
+    if (!force && _sentNotificationKeys.contains(dedupeKey)) {
+      return;
+    }
+    _sentNotificationKeys.add(dedupeKey);
+
+    final msg = CycleNotificationFormatter.peakDayMessage(
+      role,
+      peakLabel: peakLabel,
+    );
+    await showNotification(
+      id: peakDayNotificationId,
+      title: msg.title,
+      body: msg.body,
+    );
+  }
+
+  @override
+  Future<void> notifyKindnessSupport({
+    required UserRole role,
+    DateTime? now,
+    bool force = false,
+  }) async {
+    final effectiveNow = now ?? DateTime.now();
+    final dedupeKey = '${effectiveNow.dateKey}_kindness_${role.name}';
+    if (!force && _sentNotificationKeys.contains(dedupeKey)) {
+      return;
+    }
+    _sentNotificationKeys.add(dedupeKey);
+
+    final msg = CycleNotificationFormatter.kindnessSupportMessage(role);
+    await showNotification(
+      id: kindnessSupportNotificationId,
+      title: msg.title,
+      body: msg.body,
+    );
   }
 
   @override
@@ -239,24 +362,10 @@ class LocalNotificationService implements NotificationService {
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         final notification = message.notification;
         if (notification != null) {
-          _notificationsPlugin.show(
+          showNotification(
             id: message.hashCode,
-            title: notification.title,
-            body: notification.body,
-            notificationDetails: const NotificationDetails(
-              android: AndroidNotificationDetails(
-                notificationChannelId,
-                notificationChannelName,
-                channelDescription: notificationChannelDescription,
-                importance: Importance.high,
-                priority: Priority.high,
-              ),
-              iOS: DarwinNotificationDetails(
-                presentAlert: true,
-                presentBadge: true,
-                presentSound: true,
-              ),
-            ),
+            title: notification.title ?? 'Cycle Alert',
+            body: notification.body ?? '',
           );
         }
       });
