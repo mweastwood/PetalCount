@@ -75,12 +75,12 @@ class Cycle {
   }
 
   factory Cycle.fromMap(Map<String, dynamic> map) {
-    final startStr = map['startDate'] as String;
+    final startStr = map['startDate']?.toString() ?? '';
     final parsedStart = parseIsoDate(startStr);
 
     DateTime? parsedEnd;
     if (map['endDate'] != null) {
-      parsedEnd = parseIsoDate(map['endDate'] as String);
+      parsedEnd = parseIsoDate(map['endDate'].toString());
     }
 
     final rawEntries = map['dailyEntries'] as Map? ?? {};
