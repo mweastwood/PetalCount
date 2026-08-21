@@ -57,7 +57,7 @@ class DailyEntry {
   }
 
   factory DailyEntry.fromMap(Map<String, dynamic> map) {
-    final dateStr = map['date'] as String;
+    final dateStr = map['date']?.toString() ?? '';
     final parsedDate = parseIsoDate(dateStr);
 
     return DailyEntry(
