@@ -57,5 +57,29 @@ void main() {
         expect(isEnabled, isTrue);
       },
     );
+
+    test('saveFcmToken and removeFcmToken updates user tokens', () async {
+      expect(db.fcmTokens, isEmpty);
+
+      await db.saveFcmToken('token_abc_123');
+      expect(db.fcmTokens, contains('token_abc_123'));
+
+      // Duplicate token is not added twice
+      await db.saveFcmToken('token_abc_123');
+      expect(db.fcmTokens.length, 1);
+
+      await db.saveFcmToken('token_xyz_456');
+      expect(db.fcmTokens.length, 2);
+
+      await db.removeFcmToken('token_abc_123');
+      expect(db.fcmTokens, ['token_xyz_456']);
+    });
+
+    test('updateUserTimezone saves user timezone setting', () async {
+      expect(db.userTimezone, isNull);
+
+      await db.updateUserTimezone('America/Los_Angeles');
+      expect(db.userTimezone, 'America/Los_Angeles');
+    });
   });
 }

@@ -806,4 +806,27 @@ class InMemoryDatabaseService implements DatabaseService {
     _cycles[chartId]![cycleId] = cycle.copyWith(dailyEntries: updated).toMap();
     _emitCycles();
   }
+
+  final List<String> _fcmTokens = [];
+  String? _userTimezone;
+
+  List<String> get fcmTokens => List.unmodifiable(_fcmTokens);
+  String? get userTimezone => _userTimezone;
+
+  @override
+  Future<void> saveFcmToken(String token) async {
+    if (token.isNotEmpty && !_fcmTokens.contains(token)) {
+      _fcmTokens.add(token);
+    }
+  }
+
+  @override
+  Future<void> removeFcmToken(String token) async {
+    _fcmTokens.remove(token);
+  }
+
+  @override
+  Future<void> updateUserTimezone(String timezone) async {
+    _userTimezone = timezone;
+  }
 }

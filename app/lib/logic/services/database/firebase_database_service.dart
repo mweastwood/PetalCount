@@ -448,6 +448,45 @@ class FirebaseDatabaseService implements DatabaseService {
   }
 
   @override
+  Future<void> saveFcmToken(String token) async {
+    final user = currentUser;
+    if (user == null || token.isEmpty) return;
+    try {
+      await _db.collection('users').doc(user.uid).set({
+        'fcmTokens': FieldValue.arrayUnion([token]),
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error saving FCM token: $e');
+    }
+  }
+
+  @override
+  Future<void> removeFcmToken(String token) async {
+    final user = currentUser;
+    if (user == null || token.isEmpty) return;
+    try {
+      await _db.collection('users').doc(user.uid).update({
+        'fcmTokens': FieldValue.arrayRemove([token]),
+      });
+    } catch (e) {
+      debugPrint('Error removing FCM token: $e');
+    }
+  }
+
+  @override
+  Future<void> updateUserTimezone(String timezone) async {
+    final user = currentUser;
+    if (user == null || timezone.isEmpty) return;
+    try {
+      await _db.collection('users').doc(user.uid).set({
+        'timezone': timezone,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error updating user timezone: $e');
+    }
+  }
+
+  @override
   Stream<List<Cycle>> streamCycles() {
     late StreamController<List<Cycle>> controller;
     StreamSubscription<User?>? authSub;

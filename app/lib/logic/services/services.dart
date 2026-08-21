@@ -5,8 +5,8 @@ import 'database_service.dart';
 import 'notification/notification_service.dart';
 
 class Services {
-  static late DatabaseService db;
-  static late NotificationService notifications;
+  static DatabaseService db = InMemoryDatabaseService();
+  static NotificationService notifications = InMemoryNotificationService();
   static final AppLogger logger = AppLogger();
   static bool get loggerInitialized => true;
 

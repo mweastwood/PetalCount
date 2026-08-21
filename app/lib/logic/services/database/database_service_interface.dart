@@ -23,6 +23,9 @@ abstract class DatabaseService {
   Future<void> leaveChart(String chartId);
   Future<void> updateChartReminderSettings(String chartId, bool enabled);
   Stream<bool> streamChartReminderEnabled(String chartId);
+  Future<void> saveFcmToken(String token);
+  Future<void> removeFcmToken(String token);
+  Future<void> updateUserTimezone(String timezone);
 
   Stream<List<Cycle>> streamCycles();
   Future<void> startNewCycle(DateTime startDate, List<String> bipCodes);

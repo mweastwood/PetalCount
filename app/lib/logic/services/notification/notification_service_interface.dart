@@ -13,6 +13,8 @@ abstract class NotificationService {
     required bool isTodayLogged,
     DateTime? now,
   });
+  Future<void> setupFcmPushNotifications();
+  Future<String?> getFcmToken();
   bool get isReminderScheduled;
   DateTime? get scheduledReminderTime;
 }
