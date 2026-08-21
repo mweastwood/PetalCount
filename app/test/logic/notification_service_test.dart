@@ -156,5 +156,14 @@ void main() {
         expect(notificationService.scheduleCount, 1);
       },
     );
+
+    test('setupFcmPushNotifications and getFcmToken succeed', () async {
+      expect(notificationService.setupFcmCalled, isFalse);
+      await notificationService.setupFcmPushNotifications();
+      expect(notificationService.setupFcmCalled, isTrue);
+
+      final token = await notificationService.getFcmToken();
+      expect(token, 'mock_fcm_token_123');
+    });
   });
 }

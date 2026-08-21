@@ -78,4 +78,17 @@ class InMemoryNotificationService implements NotificationService {
     );
     await scheduleDailyReminder(triggerTime: nextTime);
   }
+
+  String? mockFcmToken = 'mock_fcm_token_123';
+  bool setupFcmCalled = false;
+
+  @override
+  Future<void> setupFcmPushNotifications() async {
+    setupFcmCalled = true;
+  }
+
+  @override
+  Future<String?> getFcmToken() async {
+    return mockFcmToken;
+  }
 }

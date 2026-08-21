@@ -1,9 +1,12 @@
 import 'dart:io' show Platform;
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../services.dart';
 import 'notification_service_interface.dart';
 
 class LocalNotificationService implements NotificationService {
@@ -204,5 +207,72 @@ class LocalNotificationService implements NotificationService {
       isTodayLogged: isTodayLogged,
     );
     await scheduleDailyReminder(triggerTime: nextTime);
+  }
+
+  @override
+  Future<void> setupFcmPushNotifications() async {
+    if (kIsWeb) return;
+    if (Firebase.apps.isEmpty) return;
+
+    try {
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
+
+      final token = await messaging.getToken();
+      if (token != null && token.isNotEmpty) {
+        await Services.db.saveFcmToken(token);
+      }
+
+      messaging.onTokenRefresh.listen((newToken) {
+        if (newToken.isNotEmpty) {
+          Services.db.saveFcmToken(newToken);
+        }
+      });
+
+      // Handle notifications received when the app is in the foreground
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        final notification = message.notification;
+        if (notification != null) {
+          _notificationsPlugin.show(
+            id: message.hashCode,
+            title: notification.title,
+            body: notification.body,
+            notificationDetails: const NotificationDetails(
+              android: AndroidNotificationDetails(
+                notificationChannelId,
+                notificationChannelName,
+                channelDescription: notificationChannelDescription,
+                importance: Importance.high,
+                priority: Priority.high,
+              ),
+              iOS: DarwinNotificationDetails(
+                presentAlert: true,
+                presentBadge: true,
+                presentSound: true,
+              ),
+            ),
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('Warning: setupFcmPushNotifications failed: $e');
+    }
+  }
+
+  @override
+  Future<String?> getFcmToken() async {
+    if (kIsWeb) return null;
+    if (Firebase.apps.isEmpty) return null;
+    try {
+      return await FirebaseMessaging.instance.getToken();
+    } catch (e) {
+      debugPrint('Warning: getFcmToken failed: $e');
+      return null;
+    }
   }
 }

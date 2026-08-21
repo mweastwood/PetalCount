@@ -30,6 +30,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    Services.notifications.setupFcmPushNotifications();
     _cyclesStream = Services.db.streamCycles();
     _cyclesSubscription = _cyclesStream.listen((cycles) {
       _syncReminderStatus(cycles);
