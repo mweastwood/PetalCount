@@ -209,24 +209,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         return Scaffold(
           appBar: AppBar(
             title: const Text('Petal Count'),
-            leading: IconButton(
-              icon: const Icon(Icons.swap_horiz),
-              tooltip: 'Switch Chart',
-              onPressed: () {
-                _routeManager.updateUrlPathRaw('/charts');
-                Navigator.of(context)
-                    .push(
-                      MaterialPageRoute(
-                        settings: const RouteSettings(name: '/charts'),
-                        builder: (context) => const ChartSelectionScreen(),
-                      ),
-                    )
-                    .then((_) {
-                      if (!mounted) return;
-                      _routeManager.updateUrlPath(_viewMode);
-                    });
-              },
-            ),
             actions: [
               IconButton(
                 icon: const Icon(Icons.picture_as_pdf),
@@ -259,6 +241,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
             ],
           ),
+          drawer: _buildDrawer(context, cycles),
           body: GestureDetector(
             onTap: _isSpeedDialOpen ? _closeSpeedDial : null,
             behavior: HitTestBehavior.opaque,
@@ -426,6 +409,76 @@ class _DashboardScreenState extends State<DashboardScreen>
           child: Icon(icon, size: 20),
         ),
       ],
+    );
+  }
+
+  Widget _buildDrawer(BuildContext context, List<Cycle> cycles) {
+    return Drawer(
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          DrawerHeader(
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: Text(
+                'Menu',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+            ),
+          ),
+          ListTile(
+            key: const Key('drawer_switch_chart_tile'),
+            leading: const Icon(Icons.swap_horiz),
+            title: const Text('Switch Chart'),
+            onTap: () {
+              Navigator.pop(context); // Close drawer
+              _routeManager.updateUrlPathRaw('/charts');
+              Navigator.of(context)
+                  .push(
+                    MaterialPageRoute(
+                      settings: const RouteSettings(name: '/charts'),
+                      builder: (context) => const ChartSelectionScreen(),
+                    ),
+                  )
+                  .then((_) {
+                    if (!mounted) return;
+                    _routeManager.updateUrlPath(_viewMode);
+                  });
+            },
+          ),
+          ListTile(
+            key: const Key('drawer_settings_tile'),
+            leading: const Icon(Icons.settings),
+            title: const Text('Settings'),
+            onTap: () {
+              Navigator.pop(context); // Close drawer
+              _routeManager.updateUrlPathRaw('/settings');
+              Navigator.of(context)
+                  .push(
+                    MaterialPageRoute(
+                      settings: const RouteSettings(name: '/settings'),
+                      builder: (context) => SettingsScreen(
+                        activeCycle: cycles.isNotEmpty ? cycles.first : null,
+                      ),
+                    ),
+                  )
+                  .then((_) {
+                    if (!mounted) return;
+                    _routeManager.updateUrlPath(_viewMode);
+                  });
+            },
+          ),
+          ListTile(
+            key: const Key('drawer_logout_tile'),
+            leading: const Icon(Icons.logout),
+            title: const Text('Sign Out'),
+            onTap: () async {
+              await Services.db.signOut();
+            },
+          ),
+        ],
+      ),
     );
   }
 }

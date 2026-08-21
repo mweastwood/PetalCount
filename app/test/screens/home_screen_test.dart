@@ -3,11 +3,84 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:golden_toolkit/golden_toolkit.dart';
 import 'package:petal_count/main.dart';
 import 'package:petal_count/logic/logic.dart';
+import 'package:petal_count/screens/screens.dart';
 
 void main() {
   setUpAll(() async {
     // Initialize our Services layer with mock/in-memory services for golden screenshot testing
     await Services.init();
+  });
+
+  testWidgets('Dashboard drawer opens and navigates to switch chart', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidgetBuilder(
+      PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+      surfaceSize: const Size(400, 800),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify drawer is closed initially
+    expect(find.byType(Drawer), findsNothing);
+
+    // Open drawer using the menu icon
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+
+    // Verify drawer is now open
+    expect(find.byType(Drawer), findsOneWidget);
+
+    // Verify drawer header and list tiles
+    expect(
+      find.descendant(of: find.byType(Drawer), matching: find.text('Menu')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('drawer_switch_chart_tile')), findsOneWidget);
+    expect(find.byKey(const Key('drawer_settings_tile')), findsOneWidget);
+    expect(find.byKey(const Key('drawer_logout_tile')), findsOneWidget);
+
+    // Tap on switch chart tile and verify navigation
+    await tester.tap(find.byKey(const Key('drawer_switch_chart_tile')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ChartSelectionScreen), findsOneWidget);
+  });
+
+  testWidgets('Dashboard drawer opens and navigates to settings', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidgetBuilder(
+      PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+      surfaceSize: const Size(400, 800),
+    );
+    await tester.pumpAndSettle();
+
+    // Open drawer using the menu icon
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+
+    // Tap on settings tile and verify navigation
+    await tester.tap(find.byKey(const Key('drawer_settings_tile')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SettingsScreen), findsOneWidget);
+  });
+
+  testGoldens('Dashboard hamburger menu drawer open state golden', (
+    tester,
+  ) async {
+    await tester.pumpWidgetBuilder(
+      PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+      surfaceSize: const Size(400, 800),
+    );
+    await tester.pumpAndSettle();
+
+    // Open drawer
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+
+    // Match golden
+    await screenMatchesGolden(tester, 'dashboard_drawer_open');
   });
 
   testGoldens('Dashboard renders Vertical Timeline view correctly', (
@@ -76,8 +149,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Tap the switch chart icon to open the selection screen
-    await tester.tap(find.byIcon(Icons.swap_horiz));
+    // Open drawer and tap switch chart tile
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('drawer_switch_chart_tile')));
     await tester.pumpAndSettle();
 
     await screenMatchesGolden(tester, 'chart_selection_screen');
