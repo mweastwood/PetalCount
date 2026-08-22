@@ -13,4 +13,5 @@ export 'services/notification/notification_service.dart';
 export 'services/pdf_export_service.dart';
 export 'services/services.dart';
 export 'services/web_download_helper.dart';
+export 'utils/app_version.dart';
 export 'utils/date_utils.dart';

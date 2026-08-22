@@ -38,6 +38,8 @@ void main() {
     expect(find.byKey(const Key('drawer_switch_chart_tile')), findsOneWidget);
     expect(find.byKey(const Key('drawer_settings_tile')), findsOneWidget);
     expect(find.byKey(const Key('drawer_logout_tile')), findsOneWidget);
+    expect(find.byKey(const Key('drawer_version_tile')), findsOneWidget);
+    expect(find.text(AppVersion.display), findsOneWidget);
 
     // Tap on switch chart tile and verify navigation
     await tester.tap(find.byKey(const Key('drawer_switch_chart_tile')));
