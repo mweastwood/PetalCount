@@ -12,9 +12,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy_dev_firebase_web:
+  deploy_dev_backend:
+    name: Deploy Backend (Firestore Rules)
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Firebase Service Account Secret
+        run: |
+          if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_DEV }}" ]; then
+            echo "ERROR: FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_DEV is empty or not configured in GitHub Secrets!"
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Deploy Firestore Rules
+        working-directory: ./app
+        env:
+          FIREBASE_SERVICE_ACCOUNT_DEV: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_DEV }}
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT_DEV" > service-account.json
+          export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/service-account.json
+          npx --yes firebase-tools@15.22.3 deploy --only firestore:rules --project petal-count-dev
+          rm -f service-account.json
+
+  deploy_dev_firebase_web:
+    name: Deploy Web (Firebase Hosting)
+    needs: [deploy_dev_backend]
+    runs-on: ubuntu-latest
     
     defaults:
       run:
@@ -37,19 +68,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Deploy Firestore Rules
-        env:
-          FIREBASE_SERVICE_ACCOUNT_DEV: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_DEV }}
-        run: |
-          echo "$FIREBASE_SERVICE_ACCOUNT_DEV" > service-account.json
-          export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/service-account.json
-          npx --yes firebase-tools@15.22.3 deploy --only firestore:rules --project petal-count-dev
-
       - name: Build Web App
         run: flutter build web --release --target lib/main_dev.dart --dart-define=APP_VERSION=v0.0.0-dev --dart-define=GIT_HASH=${{ github.sha }}
 
@@ -65,8 +83,9 @@ jobs:
           FIREBASE_CLI_PREVIEWS: hostingchannels
 
   deploy_dev_firebase_android:
+    name: Deploy Android (Firebase App Distribution)
+    needs: [deploy_dev_backend]
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     
     defaults:
       run:
