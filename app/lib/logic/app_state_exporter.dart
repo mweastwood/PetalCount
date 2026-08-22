@@ -14,6 +14,7 @@ import 'models/observation.dart';
 import 'services/database_service.dart';
 import 'services/services.dart';
 import 'services/web_download_helper.dart';
+import 'utils/app_version.dart';
 
 typedef FileSaver = Future<void> Function(String filename, List<int> bytes);
 
@@ -144,7 +145,7 @@ class AppStateExporter {
       'exportedAt': DateTime.now().toUtc().toIso8601String(),
       'environment': AppConfig.environment.name,
       'platform': kIsWeb ? 'web' : defaultTargetPlatform.name,
-      'appVersion': '1.0.0',
+      'appVersion': AppVersion.display,
     };
 
     bool isAnon = false;

@@ -477,6 +477,13 @@ class _DashboardScreenState extends State<DashboardScreen>
               await Services.db.signOut();
             },
           ),
+          const Divider(),
+          ListTile(
+            key: const Key('drawer_version_tile'),
+            leading: const Icon(Icons.info_outline),
+            title: Text(AppVersion.display),
+            enabled: false,
+          ),
         ],
       ),
     );
