@@ -68,6 +68,7 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT_PROD: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_PROD }}
         run: |
+          npm --prefix functions ci
           echo "$FIREBASE_SERVICE_ACCOUNT_PROD" > service-account.json
           export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/service-account.json
           npx --yes firebase-tools@15.22.3 deploy --only functions --project petal-count-prod
