@@ -10,7 +10,49 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  deploy_prod_backend:
+    name: Deploy Backend (Firestore Rules & Cloud Functions)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify Firebase Service Account Secret
+        run: |
+          if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_PROD }}" ]; then
+            echo "ERROR: FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_PROD is empty or not configured in GitHub Secrets!"
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Deploy Firestore Rules
+        working-directory: ./app
+        env:
+          FIREBASE_SERVICE_ACCOUNT_PROD: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_PROD }}
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT_PROD" > service-account.json
+          export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/service-account.json
+          npx --yes firebase-tools@15.22.3 deploy --only firestore:rules --project petal-count-prod
+          rm -f service-account.json
+
+      - name: Deploy Cloud Functions
+        working-directory: .
+        env:
+          FIREBASE_SERVICE_ACCOUNT_PROD: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_PROD }}
+        run: |
+          npm --prefix functions ci
+          echo "$FIREBASE_SERVICE_ACCOUNT_PROD" > service-account.json
+          export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/service-account.json
+          npx --yes firebase-tools@15.22.3 deploy --only functions --project petal-count-prod
+          rm -f service-account.json
+
   deploy_prod_firebase_web:
+    name: Deploy Web (Firebase Hosting)
+    needs: [deploy_prod_backend]
     runs-on: ubuntu-latest
     
     defaults:
@@ -50,30 +92,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Deploy Firestore Rules
-        env:
-          FIREBASE_SERVICE_ACCOUNT_PROD: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_PROD }}
-        run: |
-          echo "$FIREBASE_SERVICE_ACCOUNT_PROD" > service-account.json
-          export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/service-account.json
-          npx --yes firebase-tools@15.22.3 deploy --only firestore:rules --project petal-count-prod
-
-      - name: Deploy Cloud Functions
-        working-directory: .
-        env:
-          FIREBASE_SERVICE_ACCOUNT_PROD: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_PROD }}
-        run: |
-          npm --prefix functions ci
-          echo "$FIREBASE_SERVICE_ACCOUNT_PROD" > service-account.json
-          export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/service-account.json
-          npx --yes firebase-tools@15.22.3 deploy --only functions --project petal-count-prod
-          rm -f service-account.json
-
       - name: Build Web App
         run: flutter build web --release --target lib/main_prod.dart --build-name=$VERSION_NAME --build-number=$VERSION_CODE --dart-define=APP_VERSION=v$VERSION_NAME --dart-define=GIT_HASH=${{ github.sha }}
 
@@ -89,6 +107,8 @@ jobs:
           FIREBASE_CLI_PREVIEWS: hostingchannels
 
   deploy_prod_firebase_android:
+    name: Deploy Android (Firebase App Distribution)
+    needs: [deploy_prod_backend]
     runs-on: ubuntu-latest
     
     defaults:
@@ -159,6 +179,8 @@ jobs:
           file: app/build/app/outputs/flutter-apk/app-prod-release.apk
 
   deploy_prod_google_play:
+    name: Deploy Android (Google Play)
+    needs: [deploy_prod_backend]
     runs-on: ubuntu-latest
     
     defaults:
