@@ -174,6 +174,32 @@ void main() {
       await screenMatchesGolden(tester, 'wizard_step_8_mucus_consistency');
     });
 
+    testGoldens('Step 8b: Observation Frequency screen golden', (tester) async {
+      await tester.pumpWidgetBuilder(
+        buildWizardWidget(),
+        surfaceSize: const Size(600, 700),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('No Bleeding'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Dry'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Yes Mucus'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Stretchy (10)'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Clear (K)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Observation Frequency'), findsOneWidget);
+      await screenMatchesGolden(tester, 'wizard_step_8b_frequency');
+    });
+
     testGoldens('Step 9: Pain or Symptoms screen golden', (tester) async {
       await tester.pumpWidgetBuilder(
         buildWizardWidget(),
@@ -380,6 +406,10 @@ void main() {
         await tester.tap(find.text('Neither'));
         await tester.pumpAndSettle();
 
+        // 7b. Frequency
+        await tester.tap(find.text('Once (x1)'));
+        await tester.pumpAndSettle();
+
         // 8. Yes Pain
         await tester.tap(find.text('Yes (Log Pain)'));
         await tester.pumpAndSettle();
@@ -399,6 +429,7 @@ void main() {
         expect(find.text('Summary & Additional Notes'), findsOneWidget);
         expect(find.textContaining('Wet (Lubricative)'), findsOneWidget);
         expect(find.textContaining('Sticky'), findsOneWidget);
+        expect(find.textContaining('Frequency: Once (x1)'), findsOneWidget);
         expect(
           find.textContaining('Cramps, Abdominal Pain (Right)'),
           findsOneWidget,
@@ -432,13 +463,52 @@ void main() {
       await tester.tap(find.text('Dry'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Mucus Observation'), findsOneWidget);
-
       // Select No Mucus -> advances to Comments & Save
       await tester.tap(find.text('No Mucus'));
       await tester.pumpAndSettle();
 
       expect(find.text('Summary & Additional Notes'), findsOneWidget);
+    });
+
+    testWidgets('Category Mucus wizard flow with mucus prompts for frequency', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AddObservationDialog(
+              defaultDate: DateTime(2026, 7, 27, 10, 30),
+              category: ObservationCategory.mucus,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Sensation: Dry -> advances to Mucus Observation
+      await tester.tap(find.text('Dry'));
+      await tester.pumpAndSettle();
+
+      // Mucus: Yes Mucus
+      await tester.tap(find.text('Yes Mucus'));
+      await tester.pumpAndSettle();
+
+      // Stretch: Stretchy (10)
+      await tester.tap(find.text('Stretchy (10)'));
+      await tester.pumpAndSettle();
+
+      // Color: Clear (K)
+      await tester.tap(find.text('Clear (K)'));
+      await tester.pumpAndSettle();
+
+      // Frequency: Frequency screen is shown
+      expect(find.text('Observation Frequency'), findsOneWidget);
+      await tester.tap(find.text('Twice (x2)'));
+      await tester.pumpAndSettle();
+
+      // Summary
+      expect(find.text('Summary & Additional Notes'), findsOneWidget);
+      expect(find.textContaining('Frequency: Twice (x2)'), findsOneWidget);
     });
 
     testGoldens(
@@ -767,6 +837,7 @@ void main() {
         expect(WizardStep.mucusStretch.isSelfAdvancing, isTrue);
         expect(WizardStep.mucusColor.isSelfAdvancing, isTrue);
         expect(WizardStep.mucusConsistency.isSelfAdvancing, isTrue);
+        expect(WizardStep.frequency.isSelfAdvancing, isTrue);
         expect(WizardStep.intercourse.isSelfAdvancing, isTrue);
         expect(WizardStep.pain.isSelfAdvancing, isTrue);
         expect(WizardStep.painDetails.isSelfAdvancing, isFalse);

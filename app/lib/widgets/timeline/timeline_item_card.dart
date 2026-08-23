@@ -154,6 +154,28 @@ class TimelineItemCard extends StatelessWidget {
                           ),
                         ),
                       ),
+                      if (currentEntry.hasIntercourse) ...[
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.pink.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: Colors.pink.shade200,
+                              width: 1,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.favorite,
+                            size: 13,
+                            color: Colors.pink.shade600,
+                          ),
+                        ),
+                      ],
                       const SizedBox(width: 6),
                     ],
                     const Icon(

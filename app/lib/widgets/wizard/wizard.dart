@@ -1,4 +1,5 @@
 export 'bleeding_step_card.dart';
+export 'frequency_step_card.dart';
 export 'intercourse_step_card.dart';
 export 'mucus_step_card.dart';
 export 'observation_summary_step_card.dart';

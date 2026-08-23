@@ -124,6 +124,8 @@ void main() {
           consistencies: [Consistency.lubricative],
           bleeding: Bleeding.spotting,
           bleedingColor: 'B',
+          frequency: Frequency.twice,
+          intercourse: true,
           painLevel: 4.5,
           painTypes: ['Cramps', 'Lower Back Pain'],
           comment: 'Evening observation',
@@ -134,6 +136,8 @@ void main() {
         final map = original.toMap();
         expect(map['timestamp'], isA<Timestamp>());
         expect((map['timestamp'] as Timestamp).toDate(), originalDate);
+        expect(map['frequency'], 'twice');
+        expect(map['intercourse'], true);
 
         final restored = Observation.fromMap(map);
         expect(restored.id, original.id);
@@ -144,6 +148,8 @@ void main() {
         expect(restored.consistencies, original.consistencies);
         expect(restored.bleeding, original.bleeding);
         expect(restored.bleedingColor, original.bleedingColor);
+        expect(restored.frequency, Frequency.twice);
+        expect(restored.intercourse, true);
         expect(restored.painLevel, original.painLevel);
         expect(restored.painTypes, original.painTypes);
         expect(restored.comment, original.comment);
@@ -162,6 +168,7 @@ void main() {
           'stretch': 'stretchy',
           'colors': ['clear', 'neonGreen', 'unknown_color', 'cloudy'],
           'consistencies': ['gummy', 'super_liquid', 'pasty', 'invalid_enum'],
+          'frequency': 'invalid_freq',
           'bleeding': 'none',
           'userId': 'user_123',
         };
@@ -169,6 +176,8 @@ void main() {
         final obs = Observation.fromMap(map);
         expect(obs.colors, [MucusColor.clear, MucusColor.cloudy]);
         expect(obs.consistencies, [Consistency.gummy, Consistency.pasty]);
+        expect(obs.frequency, Frequency.none);
+        expect(obs.intercourse, false);
       },
     );
 
@@ -182,6 +191,8 @@ void main() {
           'stretch': 'none',
           'colors': null,
           'consistencies': null,
+          'frequency': null,
+          'intercourse': null,
           'bleeding': 'none',
           'userId': 'user_123',
         };
@@ -189,6 +200,8 @@ void main() {
         final obsNull = Observation.fromMap(mapWithNulls);
         expect(obsNull.colors, isEmpty);
         expect(obsNull.consistencies, isEmpty);
+        expect(obsNull.frequency, Frequency.none);
+        expect(obsNull.intercourse, false);
 
         final mapWithEmpty = {
           'id': 'obs_empty_lists',

@@ -55,6 +55,39 @@ class DailyDetailSheet extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              if (entry.hasIntercourse) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.pink.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.pink.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.favorite,
+                        size: 12,
+                        color: Colors.pink.shade700,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Intercourse (I)',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.pink.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
           if (entry.comments.isNotEmpty) ...[
@@ -104,6 +137,13 @@ class DailyDetailSheet extends StatelessWidget {
               itemCount: observations.length,
               itemBuilder: (context, index) {
                 final obs = observations[index];
+                final details = <String>[
+                  'Sensation: ${obs.sensation.label}',
+                  'Stretch: ${obs.stretch.label}',
+                  if (obs.frequency != Frequency.none)
+                    'Freq: ${obs.frequency.label}',
+                  if (obs.intercourse) 'Intercourse (I)',
+                ];
                 return Card(
                   elevation: 0,
                   color: theme.colorScheme.surfaceContainerHighest.withValues(
@@ -115,9 +155,7 @@ class DailyDetailSheet extends StatelessWidget {
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Sensation: ${obs.sensation.label} | Stretch: ${obs.stretch.label}',
-                        ),
+                        Text(details.join(' | ')),
                         if (obs.comment.isNotEmpty)
                           Text('Notes: ${obs.comment}'),
                         Text(

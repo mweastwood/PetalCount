@@ -51,6 +51,8 @@ abstract class DatabaseService {
     required List<Consistency> consistencies,
     required Bleeding bleeding,
     required String bleedingColor,
+    Frequency frequency = Frequency.none,
+    bool intercourse = false,
     required double painLevel,
     required List<String> painTypes,
     required String comment,

@@ -127,6 +127,22 @@ class ObservationDetailsCard extends StatelessWidget {
                   bgColor: Colors.teal.shade50,
                   borderColor: Colors.teal.shade200,
                 ),
+              if (observation.frequency != Frequency.none)
+                TimelineSummaryChip(
+                  icon: Icons.repeat,
+                  label: observation.frequency.label,
+                  color: Colors.blueGrey.shade700,
+                  bgColor: Colors.blueGrey.shade50,
+                  borderColor: Colors.blueGrey.shade200,
+                ),
+              if (observation.intercourse)
+                TimelineSummaryChip(
+                  icon: Icons.favorite,
+                  label: 'Intercourse (I)',
+                  color: Colors.pink.shade700,
+                  bgColor: Colors.pink.shade50,
+                  borderColor: Colors.pink.shade200,
+                ),
               if (hasPain)
                 TimelineSummaryChip(
                   icon: Icons.bolt,

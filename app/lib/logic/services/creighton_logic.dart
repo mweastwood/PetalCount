@@ -112,6 +112,18 @@ class CreightonLogic {
 
     // 3. Combine VDRS codes
     String resolvedCode;
+    Frequency resolvedFrequency = bestObs.frequency;
+    if (resolvedFrequency == Frequency.none) {
+      for (var obs in observations) {
+        if (obs.frequency != Frequency.none) {
+          resolvedFrequency = obs.frequency;
+          break;
+        }
+      }
+    }
+
+    bool hasAnyIntercourse = observations.any((o) => o.intercourse);
+
     if (hasAnyBleeding) {
       final bCode = worstBleeding.code;
       final colorSuffix =
@@ -121,13 +133,25 @@ class CreightonLogic {
           : '';
       final bleedingPart = '$bCode$colorSuffix';
 
-      if (bestObs.hasMucus) {
+      if (bestObs.hasMucus ||
+          (bestObs.isVdrsExplicit && bestObs.sensation != Sensation.dry) ||
+          (resolvedFrequency != Frequency.none && bestObs.isVdrsExplicit)) {
         resolvedCode = '$bleedingPart ${bestObs.mucusPart()}';
       } else {
         resolvedCode = bleedingPart;
       }
     } else {
-      resolvedCode = bestObs.vdrsCode;
+      resolvedCode = bestObs.mucusPart();
+    }
+
+    if (resolvedFrequency != Frequency.none) {
+      resolvedCode = resolvedCode.isEmpty
+          ? resolvedFrequency.code
+          : '$resolvedCode ${resolvedFrequency.code}';
+    }
+
+    if (hasAnyIntercourse) {
+      resolvedCode = resolvedCode.isEmpty ? 'I' : '$resolvedCode I';
     }
 
     // 4. Combine pain indicators and comments

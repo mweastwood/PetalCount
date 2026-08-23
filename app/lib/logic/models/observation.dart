@@ -60,6 +60,18 @@ enum Bleeding {
   const Bleeding(this.code, this.label);
 }
 
+enum Frequency {
+  none('', 'None / Not Specified'),
+  once('x1', 'Once (x1)'),
+  twice('x2', 'Twice (x2)'),
+  thrice('x3', 'Three times (x3)'),
+  allDay('AD', 'All Day (AD)');
+
+  final String code;
+  final String label;
+  const Frequency(this.code, this.label);
+}
+
 class Observation {
   final String id;
   final DateTime timestamp;
@@ -69,6 +81,8 @@ class Observation {
   final List<Consistency> consistencies;
   final Bleeding bleeding;
   final String bleedingColor; // 'R' for red, 'B' for brown, or empty
+  final Frequency frequency;
+  final bool intercourse;
   final double painLevel; // 0.0 to 10.0
   final List<String> painTypes; // e.g., ['Cramps', 'Ovulation Pain']
   final String comment;
@@ -84,6 +98,8 @@ class Observation {
     required this.consistencies,
     required this.bleeding,
     this.bleedingColor = '',
+    this.frequency = Frequency.none,
+    this.intercourse = false,
     this.painLevel = 0.0,
     this.painTypes = const [],
     this.comment = '',
@@ -95,16 +111,19 @@ class Observation {
                stretch != Stretch.none ||
                colors.isNotEmpty ||
                consistencies.isNotEmpty ||
-               sensation != Sensation.dry);
+               sensation != Sensation.dry ||
+               frequency != Frequency.none ||
+               intercourse);
 
   bool get hasMucus => stretch != Stretch.none;
   bool get hasBleeding => bleeding != Bleeding.none;
 
   // Generates the standard VDRS code for this specific observation
   String get vdrsCode {
-    if (!isVdrsExplicit) {
+    if (!isVdrsExplicit && !intercourse && frequency == Frequency.none) {
       return '';
     }
+    String code;
     if (hasBleeding) {
       final bCode = bleeding.code;
       final colorSuffix = (bleedingColor.isNotEmpty && bleedingColor != 'R')
@@ -113,14 +132,29 @@ class Observation {
       final bleedingPart = '$bCode$colorSuffix';
 
       if (!hasMucus) {
-        return bleedingPart;
+        if ((sensation != Sensation.dry && isVdrsExplicit) ||
+            (frequency != Frequency.none && isVdrsExplicit)) {
+          code = '$bleedingPart ${mucusPart()}';
+        } else {
+          code = bleedingPart;
+        }
       } else {
         // Combined bleeding and mucus (e.g. "L-R 10-K-L")
-        return '$bleedingPart ${mucusPart()}';
+        code = '$bleedingPart ${mucusPart()}';
       }
     } else {
-      return mucusPart();
+      code = mucusPart();
     }
+
+    if (frequency != Frequency.none) {
+      code = code.isEmpty ? frequency.code : '$code ${frequency.code}';
+    }
+
+    if (intercourse) {
+      code = code.isEmpty ? 'I' : '$code I';
+    }
+
+    return code;
   }
 
   String mucusPart() {
@@ -193,6 +227,8 @@ class Observation {
       'consistencies': consistencies.map((c) => c.name).toList(),
       'bleeding': bleeding.name,
       'bleedingColor': bleedingColor,
+      'frequency': frequency.name,
+      'intercourse': intercourse,
       'painLevel': painLevel,
       'painTypes': painTypes,
       'comment': comment,
@@ -245,6 +281,11 @@ class Observation {
       (e) => e.name == map['bleeding'],
       orElse: () => Bleeding.none,
     );
+    final frequency = Frequency.values.firstWhere(
+      (e) => e.name == map['frequency'],
+      orElse: () => Frequency.none,
+    );
+    final intercourse = (map['intercourse'] as bool?) ?? false;
 
     final explicitFromMap = map['isVdrsExplicit'] as bool?;
     final isExplicit =
@@ -253,7 +294,9 @@ class Observation {
             stretch != Stretch.none ||
             colors.isNotEmpty ||
             consistencies.isNotEmpty ||
-            sensation != Sensation.dry);
+            sensation != Sensation.dry ||
+            frequency != Frequency.none ||
+            intercourse);
 
     return Observation(
       id: map['id'] ?? '',
@@ -264,6 +307,8 @@ class Observation {
       consistencies: consistencies,
       bleeding: bleeding,
       bleedingColor: map['bleedingColor'] ?? '',
+      frequency: frequency,
+      intercourse: intercourse,
       painLevel: (map['painLevel'] as num?)?.toDouble() ?? 0.0,
       painTypes: List<String>.from(map['painTypes'] ?? []),
       comment: map['comment'] ?? '',

@@ -149,6 +149,78 @@ void main() {
 
       expect(daily.resolvedVdrsCode, 'L-B');
     });
+
+    test('Resolves daily entry with frequency and intercourse markers', () {
+      final obs1 = Observation(
+        id: '1',
+        timestamp: DateTime(2026, 6, 28, 8, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        frequency: Frequency.allDay,
+        intercourse: true,
+        userId: 'test_user',
+      );
+
+      final daily = CreightonLogic.resolveDailyEntry(
+        date: DateTime(2026, 6, 28),
+        observations: [obs1],
+      );
+
+      expect(daily.resolvedVdrsCode, '0 AD I');
+      expect(daily.hasIntercourse, isTrue);
+    });
+
+    test(
+      'Resolves multiple observations combining most fertile mucus, frequency, and intercourse',
+      () {
+        final dryObs = Observation(
+          id: '1',
+          timestamp: DateTime(2026, 6, 28, 8, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          frequency: Frequency.none,
+          userId: 'test_user',
+        );
+
+        final mucusObs = Observation(
+          id: '2',
+          timestamp: DateTime(2026, 6, 28, 14, 0),
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: const [MucusColor.clear],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          frequency: Frequency.twice,
+          userId: 'test_user',
+        );
+
+        final intercourseObs = Observation(
+          id: '3',
+          timestamp: DateTime(2026, 6, 28, 22, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          intercourse: true,
+          userId: 'test_user',
+        );
+
+        final daily = CreightonLogic.resolveDailyEntry(
+          date: DateTime(2026, 6, 28),
+          observations: [dryObs, mucusObs, intercourseObs],
+        );
+
+        expect(daily.resolvedVdrsCode, '10K x2 I');
+        expect(daily.hasIntercourse, isTrue);
+      },
+    );
   });
 
   group('Creighton Peak Detection and Stamp Assignment', () {
