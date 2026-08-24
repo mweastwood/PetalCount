@@ -454,9 +454,9 @@ void main() {
     },
   );
 
-  testWidgets(
+  testGoldens(
     'Dashboard displays Day 7 BSE banner when current cycle is on Day 7',
-    (WidgetTester tester) async {
+    (tester) async {
       await Services.init();
       // Cycle starts on Aug 1, 2026. Day 7 is Aug 7, 2026.
       await Services.db.saveObservation(
@@ -492,6 +492,8 @@ void main() {
         find.text('Cycle Day 7: Routine Breast Self-Exam'),
         findsOneWidget,
       );
+
+      await screenMatchesGolden(tester, 'dashboard_day_7_bse_banner');
     },
   );
 }
