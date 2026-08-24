@@ -17,6 +17,7 @@ class LocalNotificationService implements NotificationService {
   static const int fertilePatternNotificationId = 901;
   static const int peakDayNotificationId = 902;
   static const int kindnessSupportNotificationId = 903;
+  static const int breastSelfExamNotificationId = 904;
 
   static const String notificationChannelId = 'daily_logging_reminders';
   static const String notificationChannelName = 'Daily Logging Reminders';
@@ -328,6 +329,27 @@ class LocalNotificationService implements NotificationService {
     final msg = CycleNotificationFormatter.kindnessSupportMessage(role);
     await showNotification(
       id: kindnessSupportNotificationId,
+      title: msg.title,
+      body: msg.body,
+    );
+  }
+
+  @override
+  Future<void> notifyBreastSelfExam({
+    required UserRole role,
+    DateTime? now,
+    bool force = false,
+  }) async {
+    final effectiveNow = now ?? DateTime.now();
+    final dedupeKey = '${effectiveNow.dateKey}_bse_${role.name}';
+    if (!force && _sentNotificationKeys.contains(dedupeKey)) {
+      return;
+    }
+    _sentNotificationKeys.add(dedupeKey);
+
+    final msg = CycleNotificationFormatter.breastSelfExamMessage(role);
+    await showNotification(
+      id: breastSelfExamNotificationId,
       title: msg.title,
       body: msg.body,
     );

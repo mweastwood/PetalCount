@@ -8,6 +8,7 @@ class InMemoryNotificationService implements NotificationService {
   static const int fertilePatternNotificationId = 901;
   static const int peakDayNotificationId = 902;
   static const int kindnessSupportNotificationId = 903;
+  static const int breastSelfExamNotificationId = 904;
 
   bool _isInitialized = false;
   bool _isReminderScheduled = false;
@@ -173,6 +174,27 @@ class InMemoryNotificationService implements NotificationService {
     final msg = CycleNotificationFormatter.kindnessSupportMessage(role);
     await showNotification(
       id: kindnessSupportNotificationId,
+      title: msg.title,
+      body: msg.body,
+    );
+  }
+
+  @override
+  Future<void> notifyBreastSelfExam({
+    required UserRole role,
+    DateTime? now,
+    bool force = false,
+  }) async {
+    final effectiveNow = now ?? DateTime.now();
+    final dedupeKey = '${effectiveNow.dateKey}_bse_${role.name}';
+    if (!force && sentNotificationDeduplicationKeys.contains(dedupeKey)) {
+      return;
+    }
+    sentNotificationDeduplicationKeys.add(dedupeKey);
+
+    final msg = CycleNotificationFormatter.breastSelfExamMessage(role);
+    await showNotification(
+      id: breastSelfExamNotificationId,
       title: msg.title,
       body: msg.body,
     );

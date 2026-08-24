@@ -48,4 +48,10 @@ abstract class NotificationService {
     DateTime? now,
     bool force = false,
   });
+
+  Future<void> notifyBreastSelfExam({
+    required UserRole role,
+    DateTime? now,
+    bool force = false,
+  });
 }
