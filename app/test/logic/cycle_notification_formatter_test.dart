@@ -83,6 +83,29 @@ void main() {
         'Reminder to log your Creighton observations for today.',
       );
     });
+
+    test(
+      'formats Day 7 Breast Self-Exam (BSE) notification for Husband and Wife',
+      () {
+        final husbandMsg = CycleNotificationFormatter.breastSelfExamMessage(
+          UserRole.husband,
+        );
+        expect(husbandMsg.title, contains('🩺'));
+        expect(
+          husbandMsg.body,
+          'Cycle Day 7 Health Reminder: Today is routine Breast Self-Exam day for your spouse.',
+        );
+
+        final wifeMsg = CycleNotificationFormatter.breastSelfExamMessage(
+          UserRole.wife,
+        );
+        expect(wifeMsg.title, contains('🩺'));
+        expect(
+          wifeMsg.body,
+          'Cycle Day 7: Today is your recommended day for a routine Breast Self-Exam (BSE).',
+        );
+      },
+    );
   });
 
   group('UserRole & NotificationPreferences Model Tests', () {
@@ -100,11 +123,13 @@ void main() {
       expect(defaultPrefs.fertilePatternAlerts, isTrue);
       expect(defaultPrefs.partnerSupportReminders, isTrue);
       expect(defaultPrefs.dailyLoggingReminder, isTrue);
+      expect(defaultPrefs.breastSelfExamReminder, isTrue);
 
       final map = defaultPrefs.toMap();
       expect(map['fertilePatternAlerts'], isTrue);
       expect(map['partnerSupportReminders'], isTrue);
       expect(map['dailyLoggingReminder'], isTrue);
+      expect(map['breastSelfExamReminder'], isTrue);
 
       final deserialized = NotificationPreferences.fromMap(map);
       expect(deserialized, equals(defaultPrefs));
@@ -112,10 +137,12 @@ void main() {
       final modified = defaultPrefs.copyWith(
         fertilePatternAlerts: false,
         partnerSupportReminders: false,
+        breastSelfExamReminder: false,
       );
       expect(modified.fertilePatternAlerts, isFalse);
       expect(modified.partnerSupportReminders, isFalse);
       expect(modified.dailyLoggingReminder, isTrue);
+      expect(modified.breastSelfExamReminder, isFalse);
 
       final fromNull = NotificationPreferences.fromMap(null);
       expect(fromNull, equals(defaultPrefs));

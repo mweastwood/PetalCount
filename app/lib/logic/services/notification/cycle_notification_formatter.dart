@@ -42,6 +42,11 @@ class CycleNotificationFormatter {
   static const String wifeDailyReminderBody =
       'Reminder to log your Creighton observations for today.';
 
+  static const String husbandBreastSelfExamBody =
+      'Cycle Day 7 Health Reminder: Today is routine Breast Self-Exam day for your spouse.';
+  static const String wifeBreastSelfExamBody =
+      'Cycle Day 7: Today is your recommended day for a routine Breast Self-Exam (BSE).';
+
   static NotificationMessage fertilePatternMessage(UserRole role) {
     switch (role) {
       case UserRole.husband:
@@ -101,6 +106,21 @@ class CycleNotificationFormatter {
         return const NotificationMessage(
           title: '📝 Daily Observation Reminder',
           body: wifeDailyReminderBody,
+        );
+    }
+  }
+
+  static NotificationMessage breastSelfExamMessage(UserRole role) {
+    switch (role) {
+      case UserRole.husband:
+        return const NotificationMessage(
+          title: '🩺 Health Check-In Reminder',
+          body: husbandBreastSelfExamBody,
+        );
+      case UserRole.wife:
+        return const NotificationMessage(
+          title: '🩺 Routine Day 7 Reminder',
+          body: wifeBreastSelfExamBody,
         );
     }
   }

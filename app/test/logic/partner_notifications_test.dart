@@ -213,6 +213,27 @@ void main() {
           now: now,
         );
         expect(notifications.notificationCount, 3);
+
+        // Breast Self-Exam (BSE) alerts deduplicate per day
+        await notifications.notifyBreastSelfExam(role: UserRole.wife, now: now);
+        expect(notifications.notificationCount, 4);
+        expect(
+          notifications.dispatchedNotifications.last['body'],
+          contains('routine Breast Self-Exam'),
+        );
+        await notifications.notifyBreastSelfExam(role: UserRole.wife, now: now);
+        expect(notifications.notificationCount, 4);
+
+        // Breast Self-Exam for husband
+        await notifications.notifyBreastSelfExam(
+          role: UserRole.husband,
+          now: now,
+        );
+        expect(notifications.notificationCount, 5);
+        expect(
+          notifications.dispatchedNotifications.last['body'],
+          contains('routine Breast Self-Exam day for your spouse'),
+        );
       },
     );
   });

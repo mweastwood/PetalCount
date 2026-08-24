@@ -500,6 +500,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   },
                                 ),
                               ),
+                              const SizedBox(height: 8),
+                              Card(
+                                elevation: 0,
+                                color: theme.colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.5),
+                                child: SwitchListTile(
+                                  key: const Key('switch_breast_self_exam'),
+                                  title: const Text(
+                                    'Day 7 Breast Self-Exam Reminder',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  subtitle: const Text(
+                                    'Receive a routine health reminder on Day 7 of each cycle for a Breast Self-Exam (BSE).',
+                                  ),
+                                  secondary: Icon(
+                                    prefs.breastSelfExamReminder
+                                        ? Icons.health_and_safety
+                                        : Icons.health_and_safety_outlined,
+                                    color: prefs.breastSelfExamReminder
+                                        ? theme.colorScheme.primary
+                                        : null,
+                                  ),
+                                  value: prefs.breastSelfExamReminder,
+                                  onChanged: (bool newValue) async {
+                                    final updatedPrefs = prefs.copyWith(
+                                      breastSelfExamReminder: newValue,
+                                    );
+                                    await Services.db
+                                        .updateNotificationPreferences(
+                                          chartId,
+                                          updatedPrefs,
+                                        );
+                                    if (newValue) {
+                                      await Services.notifications
+                                          .requestPermissions();
+                                    }
+                                  },
+                                ),
+                              ),
                             ],
                           );
                         },

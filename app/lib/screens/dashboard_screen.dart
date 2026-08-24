@@ -67,7 +67,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   void _syncReminderStatus(List<Cycle> cycles) {
     final chartId = Services.db.currentChartId;
     if (chartId == null) return;
-    final todayKey = (widget.todayOverride ?? DateTime.now()).dateKey;
+    final now = widget.todayOverride ?? DateTime.now();
+    final todayKey = now.dateKey;
     final isTodayLogged = cycles.any(
       (cycle) => cycle.dailyEntries[todayKey]?.observations.isNotEmpty == true,
     );
@@ -83,6 +84,35 @@ class _DashboardScreenState extends State<DashboardScreen>
           );
         })
         .catchError((_) {});
+
+    if (cycles.isNotEmpty) {
+      final sortedCycles = List<Cycle>.from(cycles)
+        ..sort((a, b) => a.startDate.compareTo(b.startDate));
+      final latestCycle = sortedCycles.last;
+      final today = DateTime(now.year, now.month, now.day);
+      final currentDay = calendarDaysBetween(latestCycle.startDate, today) + 1;
+      if (currentDay == 7) {
+        Services.db
+            .streamNotificationPreferences(chartId)
+            .first
+            .then((prefs) {
+              if (prefs.breastSelfExamReminder) {
+                Services.db
+                    .streamUserRole()
+                    .first
+                    .then((roleStr) {
+                      final role = UserRole.fromString(roleStr);
+                      Services.notifications.notifyBreastSelfExam(
+                        role: role,
+                        now: now,
+                      );
+                    })
+                    .catchError((_) {});
+              }
+            })
+            .catchError((_) {});
+      }
+    }
   }
 
   Future<void> _refreshAndSyncReminders() async {
@@ -153,6 +183,54 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  Widget _buildDay7BseBanner(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      key: const Key('banner_day_7_bse'),
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.tertiaryContainer.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.tertiary.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.health_and_safety,
+            color: theme.colorScheme.onTertiaryContainer,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Cycle Day 7: Routine Breast Self-Exam',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onTertiaryContainer,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Day 7 is the standard Creighton Model routine day for a monthly Breast Self-Exam (BSE).',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onTertiaryContainer,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildNoCyclesView(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
@@ -205,6 +283,17 @@ class _DashboardScreenState extends State<DashboardScreen>
         }
 
         final cycles = snapshot.data ?? [];
+        final now = widget.todayOverride ?? DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        bool isDay7 = false;
+        if (cycles.isNotEmpty) {
+          final sortedCycles = List<Cycle>.from(cycles)
+            ..sort((a, b) => a.startDate.compareTo(b.startDate));
+          final latestCycle = sortedCycles.last;
+          final currentDay =
+              calendarDaysBetween(latestCycle.startDate, today) + 1;
+          isDay7 = currentDay == 7;
+        }
 
         return Scaffold(
           appBar: AppBar(
@@ -247,30 +336,45 @@ class _DashboardScreenState extends State<DashboardScreen>
             behavior: HitTestBehavior.opaque,
             child: cycles.isEmpty
                 ? _buildNoCyclesView(context)
-                : (_viewMode == ViewMode.observations
-                      ? ObservationsScreen(
-                          cycles: cycles,
-                          onSelectEntry: (entry, cycle) =>
-                              _showDailyDetailSheet(context, entry, cycle),
-                          onAddForDate: (cycle, date) =>
-                              _showAddObservationDialogForDate(
-                                context,
-                                cycle,
-                                date,
+                : Column(
+                    children: [
+                      if (isDay7) _buildDay7BseBanner(context),
+                      Expanded(
+                        child: _viewMode == ViewMode.observations
+                            ? ObservationsScreen(
+                                cycles: cycles,
+                                onSelectEntry: (entry, cycle) =>
+                                    _showDailyDetailSheet(
+                                      context,
+                                      entry,
+                                      cycle,
+                                    ),
+                                onAddForDate: (cycle, date) =>
+                                    _showAddObservationDialogForDate(
+                                      context,
+                                      cycle,
+                                      date,
+                                    ),
+                                todayOverride: widget.todayOverride,
+                              )
+                            : ChartScreen(
+                                cycles: cycles,
+                                onSelectEntry: (entry, cycle) =>
+                                    _showDailyDetailSheet(
+                                      context,
+                                      entry,
+                                      cycle,
+                                    ),
+                                onAddForDate: (cycle, date) =>
+                                    _showAddObservationDialogForDate(
+                                      context,
+                                      cycle,
+                                      date,
+                                    ),
                               ),
-                          todayOverride: widget.todayOverride,
-                        )
-                      : ChartScreen(
-                          cycles: cycles,
-                          onSelectEntry: (entry, cycle) =>
-                              _showDailyDetailSheet(context, entry, cycle),
-                          onAddForDate: (cycle, date) =>
-                              _showAddObservationDialogForDate(
-                                context,
-                                cycle,
-                                date,
-                              ),
-                        )),
+                      ),
+                    ],
+                  ),
           ),
           bottomNavigationBar: cycles.isEmpty
               ? null

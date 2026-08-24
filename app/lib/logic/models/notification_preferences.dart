@@ -2,11 +2,13 @@ class NotificationPreferences {
   final bool fertilePatternAlerts;
   final bool partnerSupportReminders;
   final bool dailyLoggingReminder;
+  final bool breastSelfExamReminder;
 
   const NotificationPreferences({
     this.fertilePatternAlerts = true,
     this.partnerSupportReminders = true,
     this.dailyLoggingReminder = true,
+    this.breastSelfExamReminder = true,
   });
 
   Map<String, dynamic> toMap() {
@@ -14,6 +16,7 @@ class NotificationPreferences {
       'fertilePatternAlerts': fertilePatternAlerts,
       'partnerSupportReminders': partnerSupportReminders,
       'dailyLoggingReminder': dailyLoggingReminder,
+      'breastSelfExamReminder': breastSelfExamReminder,
     };
   }
 
@@ -27,6 +30,7 @@ class NotificationPreferences {
           (map['dailyLoggingReminder'] as bool?) ??
           (map['reminderEnabled'] as bool?) ??
           true,
+      breastSelfExamReminder: (map['breastSelfExamReminder'] as bool?) ?? true,
     );
   }
 
@@ -34,12 +38,15 @@ class NotificationPreferences {
     bool? fertilePatternAlerts,
     bool? partnerSupportReminders,
     bool? dailyLoggingReminder,
+    bool? breastSelfExamReminder,
   }) {
     return NotificationPreferences(
       fertilePatternAlerts: fertilePatternAlerts ?? this.fertilePatternAlerts,
       partnerSupportReminders:
           partnerSupportReminders ?? this.partnerSupportReminders,
       dailyLoggingReminder: dailyLoggingReminder ?? this.dailyLoggingReminder,
+      breastSelfExamReminder:
+          breastSelfExamReminder ?? this.breastSelfExamReminder,
     );
   }
 
@@ -50,11 +57,13 @@ class NotificationPreferences {
           runtimeType == other.runtimeType &&
           fertilePatternAlerts == other.fertilePatternAlerts &&
           partnerSupportReminders == other.partnerSupportReminders &&
-          dailyLoggingReminder == other.dailyLoggingReminder;
+          dailyLoggingReminder == other.dailyLoggingReminder &&
+          breastSelfExamReminder == other.breastSelfExamReminder;
 
   @override
   int get hashCode =>
       fertilePatternAlerts.hashCode ^
       partnerSupportReminders.hashCode ^
-      dailyLoggingReminder.hashCode;
+      dailyLoggingReminder.hashCode ^
+      breastSelfExamReminder.hashCode;
 }
