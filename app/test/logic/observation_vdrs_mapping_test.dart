@@ -267,4 +267,161 @@ void main() {
       expect(item.vdrsCode, '');
     });
   });
+
+  group('8. Frequency Codes (x1, x2, x3, AD)', () {
+    test('Dry sensation with All Day frequency maps to "0 AD"', () {
+      final item = Observation(
+        id: 'test',
+        timestamp: DateTime(2026, 8, 2),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        frequency: Frequency.allDay,
+        userId: 'test_user',
+      );
+      expect(item.vdrsCode, '0 AD');
+    });
+
+    test('Stretchy Clear with Once frequency maps to "10K x1"', () {
+      final item = Observation(
+        id: 'test',
+        timestamp: DateTime(2026, 8, 2),
+        sensation: Sensation.dry,
+        stretch: Stretch.stretchy,
+        colors: const [MucusColor.clear],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        frequency: Frequency.once,
+        userId: 'test_user',
+      );
+      expect(item.vdrsCode, '10K x1');
+    });
+
+    test('Tacky Clear with Twice frequency maps to "8K x2"', () {
+      final item = Observation(
+        id: 'test',
+        timestamp: DateTime(2026, 8, 2),
+        sensation: Sensation.dry,
+        stretch: Stretch.tacky,
+        colors: const [MucusColor.clear],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        frequency: Frequency.twice,
+        userId: 'test_user',
+      );
+      expect(item.vdrsCode, '8K x2');
+    });
+
+    test('Sticky Cloudy with Three times frequency maps to "6C x3"', () {
+      final item = Observation(
+        id: 'test',
+        timestamp: DateTime(2026, 8, 2),
+        sensation: Sensation.dry,
+        stretch: Stretch.sticky,
+        colors: const [MucusColor.cloudy],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        frequency: Frequency.thrice,
+        userId: 'test_user',
+      );
+      expect(item.vdrsCode, '6C x3');
+    });
+
+    test('Very Light bleeding with Dry All Day maps to "VL 0 AD"', () {
+      final item = Observation(
+        id: 'test',
+        timestamp: DateTime(2026, 8, 2),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.veryLight,
+        frequency: Frequency.allDay,
+        userId: 'test_user',
+      );
+      expect(item.vdrsCode, 'VL 0 AD');
+    });
+
+    test('Light bleeding with Sticky Cloudy Once maps to "L 6C x1"', () {
+      final item = Observation(
+        id: 'test',
+        timestamp: DateTime(2026, 8, 2),
+        sensation: Sensation.dry,
+        stretch: Stretch.sticky,
+        colors: const [MucusColor.cloudy],
+        consistencies: const [],
+        bleeding: Bleeding.light,
+        frequency: Frequency.once,
+        userId: 'test_user',
+      );
+      expect(item.vdrsCode, 'L 6C x1');
+    });
+  });
+
+  group('9. Intercourse Markers (I)', () {
+    test('Dry All Day with Intercourse maps to "0 AD I"', () {
+      final item = Observation(
+        id: 'test',
+        timestamp: DateTime(2026, 8, 2),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        frequency: Frequency.allDay,
+        intercourse: true,
+        userId: 'test_user',
+      );
+      expect(item.vdrsCode, '0 AD I');
+    });
+
+    test('Sticky Cloudy Three times with Intercourse maps to "6C x3 I"', () {
+      final item = Observation(
+        id: 'test',
+        timestamp: DateTime(2026, 8, 2),
+        sensation: Sensation.dry,
+        stretch: Stretch.sticky,
+        colors: const [MucusColor.cloudy],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        frequency: Frequency.thrice,
+        intercourse: true,
+        userId: 'test_user',
+      );
+      expect(item.vdrsCode, '6C x3 I');
+    });
+
+    test('Light Bleeding Dry All Day with Intercourse maps to "L 0 AD I"', () {
+      final item = Observation(
+        id: 'test',
+        timestamp: DateTime(2026, 8, 2),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.light,
+        frequency: Frequency.allDay,
+        intercourse: true,
+        userId: 'test_user',
+      );
+      expect(item.vdrsCode, 'L 0 AD I');
+    });
+
+    test('Heavy bleeding with Intercourse maps to "H I"', () {
+      final item = Observation(
+        id: 'test',
+        timestamp: DateTime(2026, 8, 2),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.heavy,
+        intercourse: true,
+        userId: 'test_user',
+      );
+      expect(item.vdrsCode, 'H I');
+    });
+  });
 }

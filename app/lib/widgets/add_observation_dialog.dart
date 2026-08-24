@@ -23,6 +23,7 @@ enum WizardStep {
   mucusStretch('Stretch'),
   mucusColor('Mucus Color'),
   mucusConsistency('Consistency'),
+  frequency('Frequency'),
   intercourse('Intercourse'),
   pain('Pain'),
   painDetails('Pain Details'),
@@ -81,6 +82,9 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
   bool _abdominalLeft = false;
   bool _abdominalRight = false;
   double _painLevel = 3.0;
+
+  // Frequency
+  Frequency _frequency = Frequency.none;
 
   List<String> get _formattedPainTypes {
     final list = <String>[];
@@ -167,6 +171,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         if (_stretch == Stretch.sticky) {
           steps.add(WizardStep.mucusConsistency);
         }
+        steps.add(WizardStep.frequency);
       }
       steps.add(WizardStep.comments);
       return steps;
@@ -196,6 +201,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         if (_stretch == Stretch.sticky) {
           steps.add(WizardStep.mucusConsistency);
         }
+        steps.add(WizardStep.frequency);
       }
     }
     steps.add(WizardStep.pain);
@@ -535,6 +541,17 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
           },
         );
 
+      case WizardStep.frequency:
+        return FrequencyStepCard(
+          frequency: _frequency,
+          onSelectFrequency: (f) {
+            setState(() {
+              _frequency = f;
+            });
+            _nextStep();
+          },
+        );
+
       case WizardStep.intercourse:
         return IntercourseStepCard(
           hasIntercourse: _hasIntercourse,
@@ -612,6 +629,7 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
           hasMucus: _hasMucus ?? false,
           stretch: _stretch,
           selectedColors: _selectedColors,
+          frequency: _frequency,
           showPain: showPain,
           hasPain: _hasPain ?? false,
           formattedPainTypes: _formattedPainTypes,
@@ -672,8 +690,11 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         _hasBleeding == true ||
         _sensation != null ||
         _hasMucus == true ||
+        _frequency != Frequency.none ||
+        _hasIntercourse == true ||
         widget.category == ObservationCategory.mucus ||
-        widget.category == ObservationCategory.bleeding;
+        widget.category == ObservationCategory.bleeding ||
+        widget.category == ObservationCategory.intercourse;
 
     try {
       await Services.db.saveObservation(
@@ -685,6 +706,8 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         consistencies: consistencies,
         bleeding: bleeding,
         bleedingColor: bleedingColorStr,
+        frequency: _frequency,
+        intercourse: _hasIntercourse ?? false,
         painLevel: painLevel,
         painTypes: painTypes,
         comment: commentText,

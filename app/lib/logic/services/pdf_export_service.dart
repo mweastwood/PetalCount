@@ -407,7 +407,7 @@ class PdfExportService {
           ),
           pw.SizedBox(height: 4),
           pw.Text(
-            'VDRS Symbols: K = Clear | C = Cloudy | Y = Yellow | W = White | L = Lubricative | G = Gummy | P = Pasty | 0/2/4 = Dry/Damp/Shiny Sensation. Pain Indicators: C = Cramps | O = Ovulation Pain | P = Other Pain.',
+            'VDRS Symbols: K = Clear | C = Cloudy | Y = Yellow | W = White | L = Lubricative | G = Gummy | P = Pasty | 0/2/4 = Dry/Damp/Shiny Sensation. Frequency: x1/x2/x3 = Frequency | AD = All Day. Intercourse: I = Intercourse occurred. Pain: C = Cramps | O = Ovulation | P = Other Pain.',
             style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
           ),
         ],

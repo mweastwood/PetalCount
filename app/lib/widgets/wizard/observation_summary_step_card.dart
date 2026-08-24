@@ -15,6 +15,7 @@ class ObservationSummaryStepCard extends StatelessWidget {
   final bool hasMucus;
   final Stretch? stretch;
   final List<MucusColor> selectedColors;
+  final Frequency frequency;
   final bool showPain;
   final bool hasPain;
   final List<String> formattedPainTypes;
@@ -36,6 +37,7 @@ class ObservationSummaryStepCard extends StatelessWidget {
     this.hasMucus = false,
     this.stretch,
     this.selectedColors = const [],
+    this.frequency = Frequency.none,
     this.showPain = true,
     this.hasPain = false,
     this.formattedPainTypes = const [],
@@ -119,6 +121,11 @@ class ObservationSummaryStepCard extends StatelessWidget {
                   style: const TextStyle(fontSize: 12),
                 ),
               ],
+              if (frequency != Frequency.none)
+                Text(
+                  'Frequency: ${frequency.label}',
+                  style: const TextStyle(fontSize: 12),
+                ),
               if (showPain)
                 Text(
                   'Pain: ${hasPain ? "${formattedPainTypes.isNotEmpty ? formattedPainTypes.join(', ') : 'Logged'} (${painLevel.toInt()}/10)" : "None"}',

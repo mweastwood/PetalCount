@@ -43,6 +43,8 @@ class DailyEntry {
 
   bool get isPeakType => observations.any((o) => o.isPeakType);
 
+  bool get hasIntercourse => observations.any((o) => o.intercourse);
+
   Map<String, dynamic> toMap() {
     return {
       'date': date.dateKey,
