@@ -221,6 +221,43 @@ void main() {
         expect(daily.hasIntercourse, isTrue);
       },
     );
+
+    test(
+      'Resolves lubricative sensation without stretch to 10WL and WhiteBaby stamp',
+      () {
+        final dryObs = Observation(
+          id: '1',
+          timestamp: DateTime(2026, 6, 28, 8, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test_user',
+        );
+
+        final lubricativeObs = Observation(
+          id: '2',
+          timestamp: DateTime(2026, 6, 28, 14, 0),
+          sensation: Sensation.wet,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [Consistency.lubricative],
+          bleeding: Bleeding.none,
+          userId: 'test_user',
+        );
+
+        final daily = CreightonLogic.resolveDailyEntry(
+          date: DateTime(2026, 6, 28),
+          observations: [dryObs, lubricativeObs],
+        );
+
+        expect(daily.resolvedVdrsCode, '10WL');
+        expect(daily.stampType, StampType.whiteBaby);
+        expect(daily.isPeakType, isTrue);
+        expect(daily.hasMucus, isTrue);
+      },
+    );
   });
 
   group('Creighton Peak Detection and Stamp Assignment', () {
@@ -330,6 +367,114 @@ void main() {
         // Verify Day 10 is Peak (P)
         expect(recalculated[day10Key]?.peakDayLabel, 'P');
         expect(recalculated[day10Key]?.stampType, StampType.whiteBaby);
+
+        // Verify Day 11 is Peak + 1
+        expect(recalculated[day11Key]?.peakDayLabel, '1');
+        expect(recalculated[day11Key]?.stampType, StampType.greenBaby);
+
+        // Verify Day 12 is Peak + 2
+        expect(recalculated[day12Key]?.peakDayLabel, '2');
+        expect(recalculated[day12Key]?.stampType, StampType.greenBaby);
+
+        // Verify Day 13 is Peak + 3
+        expect(recalculated[day13Key]?.peakDayLabel, '3');
+        expect(recalculated[day13Key]?.stampType, StampType.greenBaby);
+
+        // Verify Day 14 is Dry and Infertile (Plain Green)
+        expect(recalculated[day14Key]?.peakDayLabel, isNull);
+        expect(recalculated[day14Key]?.stampType, StampType.green);
+      },
+    );
+
+    test(
+      'Calculates Peak day when peak-type mucus is based on lubricative sensation without stretch',
+      () {
+        final start = DateTime(2026, 6, 1);
+        final entries = <DailyEntry>[];
+
+        // Day 1-8: Dry (Green)
+        for (int i = 0; i < 8; i++) {
+          final d = start.add(Duration(days: i));
+          final obs = Observation(
+            id: 'd_$i',
+            timestamp: d,
+            sensation: Sensation.dry,
+            stretch: Stretch.none,
+            colors: const [],
+            consistencies: const [],
+            bleeding: Bleeding.none,
+            userId: 'test',
+          );
+          entries.add(
+            CreightonLogic.resolveDailyEntry(date: d, observations: [obs]),
+          );
+        }
+
+        // Day 9: Sticky cloudy mucus (6C)
+        final d9 = start.add(const Duration(days: 8));
+        final obs9 = Observation(
+          id: 'm_9',
+          timestamp: d9,
+          sensation: Sensation.damp,
+          stretch: Stretch.sticky,
+          colors: const [MucusColor.cloudy],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+        entries.add(
+          CreightonLogic.resolveDailyEntry(date: d9, observations: [obs9]),
+        );
+
+        // Day 10: Pure Lubricative sensation without stretch (10WL)
+        final d10 = start.add(const Duration(days: 9));
+        final obs10 = Observation(
+          id: 'm_10',
+          timestamp: d10,
+          sensation: Sensation.wet,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [Consistency.lubricative],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+        entries.add(
+          CreightonLogic.resolveDailyEntry(date: d10, observations: [obs10]),
+        );
+
+        // Day 11-14: Dry
+        for (int i = 10; i < 15; i++) {
+          final d = start.add(Duration(days: i));
+          final obs = Observation(
+            id: 'd_$i',
+            timestamp: d,
+            sensation: Sensation.dry,
+            stretch: Stretch.none,
+            colors: const [],
+            consistencies: const [],
+            bleeding: Bleeding.none,
+            userId: 'test',
+          );
+          entries.add(
+            CreightonLogic.resolveDailyEntry(date: d, observations: [obs]),
+          );
+        }
+
+        final recalculated = CreightonLogic.recalculateCycle(
+          entries: entries,
+          bipCodes: [],
+        );
+
+        final day10Key = start.add(const Duration(days: 9)).dateKey;
+        final day11Key = start.add(const Duration(days: 10)).dateKey;
+        final day12Key = start.add(const Duration(days: 11)).dateKey;
+        final day13Key = start.add(const Duration(days: 12)).dateKey;
+        final day14Key = start.add(const Duration(days: 13)).dateKey;
+
+        // Verify Day 10 is Peak (P) with WhiteBaby stamp
+        expect(recalculated[day10Key]?.peakDayLabel, 'P');
+        expect(recalculated[day10Key]?.stampType, StampType.whiteBaby);
+        expect(recalculated[day10Key]?.resolvedVdrsCode, '10WL');
 
         // Verify Day 11 is Peak + 1
         expect(recalculated[day11Key]?.peakDayLabel, '1');
@@ -879,6 +1024,29 @@ void main() {
           expect(entryPeakMucus.hasBleeding, isFalse);
           expect(entryPeakMucus.hasMucus, isTrue);
           expect(entryPeakMucus.isPeakType, isTrue);
+
+          final pureLubricativeObs = Observation(
+            id: '3b',
+            timestamp: date,
+            sensation: Sensation.wet,
+            stretch: Stretch.none,
+            colors: const [],
+            consistencies: const [Consistency.lubricative],
+            bleeding: Bleeding.none,
+            userId: 'test',
+          );
+          final entryPureLubricative = DailyEntry(
+            date: date,
+            resolvedVdrsCode: '10WL',
+            stampType: StampType.whiteBaby,
+            observations: [pureLubricativeObs],
+            painLevel: 0,
+            painTypes: const [],
+            comments: '',
+          );
+          expect(entryPureLubricative.hasBleeding, isFalse);
+          expect(entryPureLubricative.hasMucus, isTrue);
+          expect(entryPureLubricative.isPeakType, isTrue);
 
           final compositeObs1 = Observation(
             id: '4a',
