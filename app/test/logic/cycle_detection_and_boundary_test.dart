@@ -89,10 +89,10 @@ void main() {
       });
     });
 
-    // 2. Pre-menstrual rollback: L/VL bleeding >= 16 days leading into H/M flow backdates cycle start date to the first L/VL day.
+    // 2. Pre-menstrual rollback: True menstrual flow (L) leading into H/M flow backdates cycle start date to the first L day, while premenstrual spotting (VL) remains in prior cycle.
     group('2. Pre-menstrual rollback', () {
       test(
-        'L/VL bleeding on day 16 leading into H/M flow on day 17 backdates cycle start date to day 16',
+        'Light bleeding flow on day 16 leading into H/M flow on day 17 backdates cycle start date to day 16',
         () async {
           final cycle1Start = DateTime(2026, 6, 1);
           await db.saveObservation(
@@ -108,7 +108,7 @@ void main() {
             comment: 'Cycle 1 Start',
           );
 
-          // Day 17 (June 17, diff = 16 days): Light spotting
+          // Day 17 (June 17, diff = 16 days): Light flow
           final june17 = DateTime(2026, 6, 17);
           await db.saveObservation(
             date: june17,
@@ -117,10 +117,10 @@ void main() {
             colors: [],
             consistencies: [],
             bleeding: Bleeding.light,
-            bleedingColor: 'B',
+            bleedingColor: 'R',
             painLevel: 0,
             painTypes: [],
-            comment: 'Pre-menstrual light bleeding',
+            comment: 'Light flow onset',
           );
 
           // Initially June 17 observation remains in Cycle 1
@@ -145,7 +145,7 @@ void main() {
           cycles = await db.streamCycles().first;
           expect(cycles.length, 2);
 
-          // Cycle 2 start date should be backdated to June 17 (first L/VL day)
+          // Cycle 2 start date should be backdated to June 17 (first true flow day)
           expect(cycles[0].startDate, june17);
           expect(cycles[0].dailyEntries.containsKey('2026-06-17'), isTrue);
           expect(cycles[0].dailyEntries.containsKey('2026-06-18'), isTrue);
@@ -155,7 +155,7 @@ void main() {
       );
 
       test(
-        'multiple contiguous L/VL days >= 16 days backdates to earliest contiguous L/VL day',
+        'pre-menstrual spotting (VL) stays in prior cycle and cycle starts on first true flow day (L)',
         () async {
           final cycle1Start = DateTime(2026, 6, 1);
           await db.saveObservation(
@@ -171,25 +171,10 @@ void main() {
             comment: 'Cycle 1 Start',
           );
 
-          // Day 17 (June 17, diff 16): Light bleeding
+          // Day 17 (June 17, diff 16): Very light spotting (VL-B)
           final june17 = DateTime(2026, 6, 17);
           await db.saveObservation(
             date: june17,
-            sensation: Sensation.dry,
-            stretch: Stretch.none,
-            colors: [],
-            consistencies: [],
-            bleeding: Bleeding.light,
-            bleedingColor: 'B',
-            painLevel: 0,
-            painTypes: [],
-            comment: 'Pre-menstrual light day 1',
-          );
-
-          // Day 18 (June 18, diff 17): Very light bleeding
-          final june18 = DateTime(2026, 6, 18);
-          await db.saveObservation(
-            date: june18,
             sensation: Sensation.dry,
             stretch: Stretch.none,
             colors: [],
@@ -198,7 +183,98 @@ void main() {
             bleedingColor: 'B',
             painLevel: 0,
             painTypes: [],
-            comment: 'Pre-menstrual light day 2',
+            comment: 'Pre-menstrual spotting',
+          );
+
+          // Day 18 (June 18, diff 17): Light menstrual flow (L)
+          final june18 = DateTime(2026, 6, 18);
+          await db.saveObservation(
+            date: june18,
+            sensation: Sensation.dry,
+            stretch: Stretch.none,
+            colors: [],
+            consistencies: [],
+            bleeding: Bleeding.light,
+            bleedingColor: 'R',
+            painLevel: 0,
+            painTypes: [],
+            comment: 'First day of flow',
+          );
+
+          // Day 19 (June 19, diff 18): Heavy menses flow (H)
+          final june19 = DateTime(2026, 6, 19);
+          await db.saveObservation(
+            date: june19,
+            sensation: Sensation.dry,
+            stretch: Stretch.none,
+            colors: [],
+            consistencies: [],
+            bleeding: Bleeding.heavy,
+            bleedingColor: 'R',
+            painLevel: 0,
+            painTypes: [],
+            comment: 'Heavy menses flow',
+          );
+
+          final cycles = await db.streamCycles().first;
+          expect(cycles.length, 2);
+          // Cycle 2 starts on June 18 (first day of menstrual flow, NOT June 17 spotting)
+          expect(cycles[0].startDate, june18);
+          expect(cycles[0].dailyEntries.containsKey('2026-06-18'), isTrue);
+          expect(cycles[0].dailyEntries.containsKey('2026-06-19'), isTrue);
+          expect(cycles[0].dailyEntries.containsKey('2026-06-17'), isFalse);
+
+          // June 17 spotting remains in Cycle 1
+          expect(cycles[1].startDate, cycle1Start);
+          expect(cycles[1].dailyEntries.containsKey('2026-06-17'), isTrue);
+        },
+      );
+
+      test(
+        'multiple contiguous L days >= 16 days backdates to earliest contiguous L day',
+        () async {
+          final cycle1Start = DateTime(2026, 6, 1);
+          await db.saveObservation(
+            date: cycle1Start,
+            sensation: Sensation.dry,
+            stretch: Stretch.none,
+            colors: [],
+            consistencies: [],
+            bleeding: Bleeding.heavy,
+            bleedingColor: 'R',
+            painLevel: 0,
+            painTypes: [],
+            comment: 'Cycle 1 Start',
+          );
+
+          // Day 17 (June 17, diff 16): Light bleeding day 1
+          final june17 = DateTime(2026, 6, 17);
+          await db.saveObservation(
+            date: june17,
+            sensation: Sensation.dry,
+            stretch: Stretch.none,
+            colors: [],
+            consistencies: [],
+            bleeding: Bleeding.light,
+            bleedingColor: 'R',
+            painLevel: 0,
+            painTypes: [],
+            comment: 'Light flow day 1',
+          );
+
+          // Day 18 (June 18, diff 17): Light bleeding day 2
+          final june18 = DateTime(2026, 6, 18);
+          await db.saveObservation(
+            date: june18,
+            sensation: Sensation.dry,
+            stretch: Stretch.none,
+            colors: [],
+            consistencies: [],
+            bleeding: Bleeding.light,
+            bleedingColor: 'R',
+            painLevel: 0,
+            painTypes: [],
+            comment: 'Light flow day 2',
           );
 
           // Day 19 (June 19, diff 18): Heavy menses flow
@@ -218,7 +294,7 @@ void main() {
 
           final cycles = await db.streamCycles().first;
           expect(cycles.length, 2);
-          // Backdated to June 17 (the earliest contiguous L/VL day on/after day 16)
+          // Backdated to June 17 (the earliest contiguous Light flow day)
           expect(cycles[0].startDate, june17);
           expect(cycles[0].dailyEntries.containsKey('2026-06-17'), isTrue);
           expect(cycles[0].dailyEntries.containsKey('2026-06-18'), isTrue);

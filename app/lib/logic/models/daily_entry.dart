@@ -39,6 +39,8 @@ class DailyEntry {
 
   bool get hasBleeding => observations.any((o) => o.hasBleeding);
 
+  bool get hasMenstrualFlow => observations.any((o) => o.isMenstrualFlow);
+
   bool get hasMucus => observations.any((o) => o.hasMucus);
 
   bool get isPeakType => observations.any((o) => o.isPeakType);
