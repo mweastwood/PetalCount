@@ -73,47 +73,51 @@ class _DashboardScreenState extends State<DashboardScreen>
     final isTodayLogged = cycles.any(
       (cycle) => cycle.dailyEntries[todayKey]?.observations.isNotEmpty == true,
     );
-    Services.db
-        .streamChartReminderEnabled(chartId)
-        .first
-        .then((enabled) {
-          Services.notifications.syncReminderSchedule(
-            chartId: chartId,
-            reminderEnabled: enabled,
-            isTodayLogged: isTodayLogged,
-            now: widget.todayOverride,
-          );
-        })
-        .catchError((_) {});
+    _syncDailyLoggingReminder(chartId, isTodayLogged, now);
+    _maybeNotifyBreastSelfExam(chartId, cycles, now);
+  }
 
-    if (cycles.isNotEmpty) {
-      final sortedCycles = List<Cycle>.from(cycles)
-        ..sort((a, b) => a.startDate.compareTo(b.startDate));
-      final latestCycle = sortedCycles.last;
-      final today = DateTime(now.year, now.month, now.day);
-      final currentDay = calendarDaysBetween(latestCycle.startDate, today) + 1;
-      if (currentDay == 7) {
-        Services.db
-            .streamNotificationPreferences(chartId)
-            .first
-            .then((prefs) {
-              if (prefs.breastSelfExamReminder) {
-                Services.db
-                    .streamUserRole()
-                    .first
-                    .then((roleStr) {
-                      final role = UserRole.fromString(roleStr);
-                      Services.notifications.notifyBreastSelfExam(
-                        role: role,
-                        now: now,
-                      );
-                    })
-                    .catchError((_) {});
-              }
-            })
-            .catchError((_) {});
-      }
-    }
+  Future<void> _syncDailyLoggingReminder(
+    String chartId,
+    bool isTodayLogged,
+    DateTime now,
+  ) async {
+    try {
+      final enabled = await Services.db
+          .streamChartReminderEnabled(chartId)
+          .first;
+      await Services.notifications.syncReminderSchedule(
+        chartId: chartId,
+        reminderEnabled: enabled,
+        isTodayLogged: isTodayLogged,
+        now: widget.todayOverride,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _maybeNotifyBreastSelfExam(
+    String chartId,
+    List<Cycle> cycles,
+    DateTime now,
+  ) async {
+    if (cycles.isEmpty) return;
+    final sortedCycles = List<Cycle>.from(cycles)
+      ..sort((a, b) => a.startDate.compareTo(b.startDate));
+    final latestCycle = sortedCycles.last;
+    final today = DateTime(now.year, now.month, now.day);
+    final currentDay = calendarDaysBetween(latestCycle.startDate, today) + 1;
+    if (currentDay != 7) return;
+
+    try {
+      final prefs = await Services.db
+          .streamNotificationPreferences(chartId)
+          .first;
+      if (!prefs.breastSelfExamReminder) return;
+
+      final roleStr = await Services.db.streamUserRole().first;
+      final role = UserRole.fromString(roleStr);
+      await Services.notifications.notifyBreastSelfExam(role: role, now: now);
+    } catch (_) {}
   }
 
   Future<void> _refreshAndSyncReminders() async {
@@ -296,6 +300,8 @@ class _DashboardScreenState extends State<DashboardScreen>
           isDay7 = currentDay == 7;
         }
 
+        final chartId = Services.db.currentChartId;
+
         return Scaffold(
           appBar: AppBar(
             title: const Text('Petal Count'),
@@ -339,7 +345,21 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ? _buildNoCyclesView(context)
                 : Column(
                     children: [
-                      if (isDay7) _buildDay7BseBanner(context),
+                      if (isDay7 && chartId != null)
+                        StreamBuilder<NotificationPreferences>(
+                          stream: Services.db.streamNotificationPreferences(
+                            chartId,
+                          ),
+                          builder: (context, prefSnap) {
+                            final prefs =
+                                prefSnap.data ??
+                                const NotificationPreferences();
+                            if (!prefs.breastSelfExamReminder) {
+                              return const SizedBox.shrink();
+                            }
+                            return _buildDay7BseBanner(context);
+                          },
+                        ),
                       Expanded(
                         child: _viewMode == ViewMode.observations
                             ? ObservationsScreen(

@@ -95,8 +95,7 @@ class _SupplementScreenState extends State<SupplementScreen>
         return StreamBuilder<List<SupplementItem>>(
           stream: Services.db.streamSupplements(),
           builder: (context, suppSnapshot) {
-            final supplements =
-                suppSnapshot.data ?? SupplementPresets.defaultList;
+            final supplements = suppSnapshot.data ?? [];
 
             return StreamBuilder<Map<String, DailySupplementLog>>(
               stream: Services.db.streamDailySupplementLogs(),
@@ -631,7 +630,7 @@ class _SupplementScreenState extends State<SupplementScreen>
     required List<SupplementItem> supplements,
     required Cycle? cycle,
   }) {
-    const totalCycleDays = 35;
+    const totalCycleDays = kSupplementPlanTotalCycleDays;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
@@ -649,7 +648,37 @@ class _SupplementScreenState extends State<SupplementScreen>
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
+        Card(
+          elevation: 0,
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.5,
+          ),
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Note: Peak-based supplement schedules (e.g. P+3 or P+1) are displayed using standard cycle-day fallback ranges in this matrix overview until Peak Day is recorded in the active cycle.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
         ...SupplementTimeOfDay.values.map((time) {
           final itemsWithDose = supplements
               .where((s) => s.doseForTime(time) > 0)
@@ -1021,6 +1050,8 @@ class _SupplementScreenState extends State<SupplementScreen>
     final durationCtrl = TextEditingController(
       text: existing?.durationDays?.toString() ?? '',
     );
+    String? nameError;
+    String? quantityError;
 
     showDialog(
       context: context,
@@ -1037,18 +1068,30 @@ class _SupplementScreenState extends State<SupplementScreen>
                 children: [
                   TextField(
                     controller: nameCtrl,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Supplement Name *',
                       hintText: 'e.g. CoQ10, Prenatal, Clomid',
+                      errorText: nameError,
                     ),
+                    onChanged: (_) {
+                      if (nameError != null) {
+                        setDialogState(() => nameError = null);
+                      }
+                    },
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: quantityCtrl,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Dosage / Quantity *',
                       hintText: 'e.g. 200 mg, 1 tablet, 2 g',
+                      errorText: quantityError,
                     ),
+                    onChanged: (_) {
+                      if (quantityError != null) {
+                        setDialogState(() => quantityError = null);
+                      }
+                    },
                   ),
                   const SizedBox(height: 12),
                   SwitchListTile(
@@ -1232,7 +1275,19 @@ class _SupplementScreenState extends State<SupplementScreen>
                 onPressed: () async {
                   final name = nameCtrl.text.trim();
                   final quantity = quantityCtrl.text.trim();
-                  if (name.isEmpty || quantity.isEmpty) {
+                  bool hasError = false;
+
+                  if (name.isEmpty) {
+                    nameError = 'Supplement name is required';
+                    hasError = true;
+                  }
+                  if (quantity.isEmpty) {
+                    quantityError = 'Dosage / quantity is required';
+                    hasError = true;
+                  }
+
+                  if (hasError) {
+                    setDialogState(() {});
                     return;
                   }
 

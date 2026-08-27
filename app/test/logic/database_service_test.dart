@@ -383,4 +383,113 @@ void main() {
       expect(cycles.first.dailyEntries.containsKey('2026-02-01'), isTrue);
     });
   });
+
+  group('Supplement Database Operations', () {
+    test('streamSupplements yields preset list for initial chart', () async {
+      final supps = await db.streamSupplements().first;
+      expect(supps.length, 14);
+      expect(supps.any((s) => s.name == 'Prenatal'), isTrue);
+    });
+
+    test('saveSupplement adds new supplement and updates stream', () async {
+      const newSupp = SupplementItem(
+        id: 'supp_custom_1',
+        name: 'Iron Glycinate',
+        quantity: '25 mg',
+        morningDose: 1,
+      );
+
+      await db.saveSupplement(newSupp);
+
+      final supps = await db.streamSupplements().first;
+      expect(supps.length, 15);
+      expect(supps.any((s) => s.id == 'supp_custom_1'), isTrue);
+    });
+
+    test(
+      'deleteSupplement removes supplement and does not re-seed when empty',
+      () async {
+        var supps = await db.streamSupplements().first;
+        expect(supps.length, 14);
+
+        // Delete one supplement
+        await db.deleteSupplement('preset_prenatal');
+        supps = await db.streamSupplements().first;
+        expect(supps.length, 13);
+        expect(supps.any((s) => s.id == 'preset_prenatal'), isFalse);
+
+        // Delete all remaining supplements to verify empty list does not silently re-seed
+        final remainingIds = supps.map((s) => s.id).toList();
+        for (final id in remainingIds) {
+          await db.deleteSupplement(id);
+        }
+
+        supps = await db.streamSupplements().first;
+        expect(supps, isEmpty);
+      },
+    );
+
+    test('resetDefaultSupplements restores all 14 standard presets', () async {
+      // Clear all supplements first
+      final suppsInitial = await db.streamSupplements().first;
+      for (final s in suppsInitial) {
+        await db.deleteSupplement(s.id);
+      }
+      expect(await db.streamSupplements().first, isEmpty);
+
+      // Reset to presets
+      await db.resetDefaultSupplements();
+
+      final suppsReset = await db.streamSupplements().first;
+      expect(suppsReset.length, 14);
+      expect(
+        suppsReset.map((s) => s.name),
+        containsAll(['Prenatal', 'CoQ10', 'Vitamin D']),
+      );
+    });
+
+    test(
+      'logSupplementDose records and toggles dose adherence per date and time of day',
+      () async {
+        final date = DateTime(2026, 8, 27);
+        final dateKey = date.dateKey;
+
+        var logs = await db.streamDailySupplementLogs().first;
+        expect(logs[dateKey], isNull);
+
+        // Log morning dose taken
+        await db.logSupplementDose(
+          date: date,
+          supplementId: 'prenatal',
+          timeOfDay: SupplementTimeOfDay.morning,
+          taken: true,
+        );
+
+        logs = await db.streamDailySupplementLogs().first;
+        expect(logs[dateKey], isNotNull);
+        expect(
+          logs[dateKey]!.isTaken('prenatal', SupplementTimeOfDay.morning),
+          isTrue,
+        );
+        expect(
+          logs[dateKey]!.isTaken('prenatal', SupplementTimeOfDay.evening),
+          isFalse,
+        );
+
+        // Log morning dose untaken (toggle off)
+        await db.logSupplementDose(
+          date: date,
+          supplementId: 'prenatal',
+          timeOfDay: SupplementTimeOfDay.morning,
+          taken: false,
+        );
+
+        logs = await db.streamDailySupplementLogs().first;
+        expect(
+          logs[dateKey]!.isTaken('prenatal', SupplementTimeOfDay.morning),
+          isFalse,
+        );
+      },
+    );
+  });
 }

@@ -93,6 +93,11 @@ class InMemoryDatabaseService implements DatabaseService {
     // Add some mock daily observations to represent a standard cycle
     _prepopulateMockData(mockCycle.id, mockCycleStart);
 
+    // Prepopulate supplements for mock chart
+    _supplements['mock_shared_chart'] = {
+      for (final item in SupplementPresets.defaultList) item.id: item,
+    };
+
     _authController.stream.listen((user) {
       _emitCycles();
     });
@@ -332,6 +337,9 @@ class InMemoryDatabaseService implements DatabaseService {
     _users[_currentUser!.uid]!['chartId'] = chartId;
     _chartId = chartId;
     _cycles[chartId] = {};
+    _supplements[chartId] = {
+      for (final item in SupplementPresets.defaultList) item.id: item,
+    };
     _authController.add(_currentUser); // Trigger refresh
     _emitCharts();
   }
@@ -974,11 +982,6 @@ class InMemoryDatabaseService implements DatabaseService {
   Stream<List<SupplementItem>> streamSupplements() async* {
     final chartId = _chartId;
     if (chartId != null) {
-      if (!_supplements.containsKey(chartId)) {
-        _supplements[chartId] = {
-          for (final item in SupplementPresets.defaultList) item.id: item,
-        };
-      }
       yield (_supplements[chartId] ?? {}).values.toList();
     } else {
       yield [];
@@ -990,10 +993,7 @@ class InMemoryDatabaseService implements DatabaseService {
   Future<void> saveSupplement(SupplementItem item) async {
     final chartId = _chartId;
     if (chartId == null) return;
-    _supplements.putIfAbsent(
-      chartId,
-      () => {for (final s in SupplementPresets.defaultList) s.id: s},
-    );
+    _supplements.putIfAbsent(chartId, () => {});
     _supplements[chartId]![item.id] = item;
     _emitSupplements();
   }

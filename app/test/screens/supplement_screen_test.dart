@@ -176,6 +176,33 @@ void main() {
         expect(allSupps.any((s) => s.name == 'Zinc Glycinate'), isTrue);
       },
     );
+
+    testWidgets(
+      'Add Supplement dialog validates required fields and displays error feedback',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Formulary'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(const Key('btn_add_supplement_fab')));
+        await tester.pumpAndSettle();
+
+        // Tap Save immediately with empty fields
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        // Expect error text on both fields and dialog remains open
+        expect(find.text('Supplement name is required'), findsOneWidget);
+        expect(find.text('Dosage / quantity is required'), findsOneWidget);
+        expect(find.text('Add Supplement'), findsWidgets);
+      },
+    );
   });
 
   group('SupplementScreen Golden Tests', () {

@@ -156,6 +156,13 @@ class FirebaseDatabaseService implements DatabaseService {
       'createdAt': FieldValue.serverTimestamp(),
     });
 
+    final batch = _db.batch();
+    final suppCol = chartRef.collection('supplements');
+    for (final preset in SupplementPresets.defaultList) {
+      batch.set(suppCol.doc(preset.id), preset.toMap());
+    }
+    await batch.commit();
+
     await _db.collection('users').doc(user.uid).set({
       'chartId': chartId,
       'uid': user.uid,
@@ -1115,9 +1122,6 @@ class FirebaseDatabaseService implements DatabaseService {
         .collection('supplements')
         .snapshots()
         .map((snapshot) {
-          if (snapshot.docs.isEmpty) {
-            return SupplementPresets.defaultList;
-          }
           return snapshot.docs
               .map((doc) => SupplementItem.fromMap(doc.data()))
               .toList();

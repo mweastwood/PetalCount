@@ -1,5 +1,8 @@
 import '../utils/date_utils.dart';
 
+/// Default total cycle days represented in the supplement schedule matrix.
+const int kSupplementPlanTotalCycleDays = 35;
+
 enum SupplementTimeOfDay {
   morning('Morning', '🌅'),
   afternoon('Afternoon', '☀️'),

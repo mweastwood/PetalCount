@@ -454,9 +454,9 @@ void main() {
     },
   );
 
-  testWidgets(
+  testGoldens(
     'Dashboard displays Day 7 BSE banner when current cycle is on Day 7',
-    (WidgetTester tester) async {
+    (tester) async {
       await Services.init();
       // Cycle starts on Aug 1, 2026. Day 7 is Aug 7, 2026.
       await Services.db.saveObservation(
@@ -492,6 +492,45 @@ void main() {
         find.text('Cycle Day 7: Routine Breast Self-Exam'),
         findsOneWidget,
       );
+
+      await screenMatchesGolden(tester, 'dashboard_day_7_bse_banner');
+    },
+  );
+
+  testWidgets(
+    'Dashboard hides Day 7 BSE banner when breastSelfExamReminder is disabled',
+    (WidgetTester tester) async {
+      await Services.init();
+      final chartId = Services.db.currentChartId!;
+
+      // Disable breast self exam reminder in preferences
+      await Services.db.updateNotificationPreferences(
+        chartId,
+        const NotificationPreferences(breastSelfExamReminder: false),
+      );
+
+      // Cycle starts on Aug 1, 2026. Day 7 is Aug 7, 2026.
+      await Services.db.saveObservation(
+        date: DateTime(2026, 8, 1, 8, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.heavy,
+        bleedingColor: 'R',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Cycle start',
+        isVdrsExplicit: true,
+      );
+
+      // On Day 7 (Aug 7) with reminder disabled, banner should NOT be displayed
+      await tester.pumpWidgetBuilder(
+        PetalCountApp(todayOverride: DateTime(2026, 8, 7)),
+        surfaceSize: const Size(400, 800),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('banner_day_7_bse')), findsNothing);
     },
   );
 }
