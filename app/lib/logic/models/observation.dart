@@ -58,6 +58,27 @@ enum Bleeding {
   final String code;
   final String label;
   const Bleeding(this.code, this.label);
+
+  int get flowIntensity {
+    switch (this) {
+      case Bleeding.heavy:
+        return 4;
+      case Bleeding.moderate:
+        return 3;
+      case Bleeding.light:
+        return 2;
+      case Bleeding.veryLight:
+      case Bleeding.spotting:
+        return 1;
+      case Bleeding.none:
+      case Bleeding.black:
+      case Bleeding.brown:
+      case Bleeding.red:
+        return 0;
+    }
+  }
+
+  bool get isMenstrualFlow => flowIntensity >= 2;
 }
 
 enum Frequency {
@@ -119,6 +140,7 @@ class Observation {
       stretch != Stretch.none ||
       consistencies.contains(Consistency.lubricative);
   bool get hasBleeding => bleeding != Bleeding.none;
+  bool get isMenstrualFlow => bleeding.isMenstrualFlow;
 
   // Generates the standard VDRS code for this specific observation
   String get vdrsCode {

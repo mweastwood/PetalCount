@@ -192,13 +192,13 @@ void main() {
           isNull,
         );
 
-        // Day 22 (May 22) has H/M bleeding preceded by May 21 (L) and May 20 (VL)
-        // Auto cycle start should roll back to May 20
+        // Day 22 (May 22) has H/M bleeding preceded by May 21 (L flow) and May 20 (VL spotting)
+        // Auto cycle start should roll back to May 21 (first day of true flow, stopping before May 20 VL spotting)
         final autoStart = CreightonLogic.evaluateAutoCycleStart(
           cycle,
           DateTime(2026, 5, 22),
         );
-        expect(autoStart, DateTime(2026, 5, 20));
+        expect(autoStart, DateTime(2026, 5, 21));
       },
     );
 

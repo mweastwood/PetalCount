@@ -1180,4 +1180,236 @@ void main() {
       },
     );
   });
+
+  group('Creighton Bleeding Intensity Resolution & Menstrual Flow Auto-Start', () {
+    test(
+      'resolveDailyEntry selects heaviest bleeding flow when Light appears before Moderate (M 2W scenario)',
+      () {
+        final date = DateTime(2026, 8, 26);
+        final obs1 = Observation(
+          id: 'obs1',
+          timestamp: DateTime(2026, 8, 26, 9, 15),
+          sensation: Sensation.wet,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.light,
+          bleedingColor: 'R',
+          userId: 'test',
+        );
+
+        final obs2 = Observation(
+          id: 'obs2',
+          timestamp: DateTime(2026, 8, 26, 22, 13),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.moderate,
+          bleedingColor: 'R',
+          userId: 'test',
+        );
+
+        final daily = CreightonLogic.resolveDailyEntry(
+          date: date,
+          observations: [obs1, obs2],
+        );
+
+        // Takes Moderate bleeding (heavier than Light) + Wet sensation (more fertile than dry)
+        expect(daily.resolvedVdrsCode, 'M 2W');
+        expect(daily.stampType, StampType.red);
+      },
+    );
+
+    test(
+      'resolveDailyEntry selects heaviest bleeding regardless of observation insertion order',
+      () {
+        final date = DateTime(2026, 8, 26);
+        final heavyObs = Observation(
+          id: 'h',
+          timestamp: DateTime(2026, 8, 26, 8, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.heavy,
+          bleedingColor: 'R',
+          userId: 'test',
+        );
+
+        final veryLightObs = Observation(
+          id: 'vl',
+          timestamp: DateTime(2026, 8, 26, 12, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.veryLight,
+          bleedingColor: 'B',
+          userId: 'test',
+        );
+
+        final daily1 = CreightonLogic.resolveDailyEntry(
+          date: date,
+          observations: [veryLightObs, heavyObs],
+        );
+        expect(daily1.resolvedVdrsCode, 'H');
+
+        final daily2 = CreightonLogic.resolveDailyEntry(
+          date: date,
+          observations: [heavyObs, veryLightObs],
+        );
+        expect(daily2.resolvedVdrsCode, 'H');
+      },
+    );
+
+    test(
+      'evaluateAutoCycleStart does NOT roll back over pre-menstrual spotting (VL) days',
+      () {
+        final cycleStart = DateTime(2026, 7, 23);
+        final cycle = Cycle(
+          id: '2026-07-23',
+          startDate: cycleStart,
+          dailyEntries: {
+            '2026-08-23': DailyEntry(
+              date: DateTime(2026, 8, 23),
+              resolvedVdrsCode: 'VL-B 6CP',
+              stampType: StampType.red,
+              observations: [
+                Observation(
+                  id: 'obs_23',
+                  timestamp: DateTime(2026, 8, 23),
+                  sensation: Sensation.damp,
+                  stretch: Stretch.sticky,
+                  colors: const [MucusColor.cloudy],
+                  consistencies: const [Consistency.pasty],
+                  bleeding: Bleeding.veryLight,
+                  bleedingColor: 'B',
+                  userId: 'test',
+                ),
+              ],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+            '2026-08-24': DailyEntry(
+              date: DateTime(2026, 8, 24),
+              resolvedVdrsCode: 'VL-B',
+              stampType: StampType.red,
+              observations: [
+                Observation(
+                  id: 'obs_24',
+                  timestamp: DateTime(2026, 8, 24),
+                  sensation: Sensation.dry,
+                  stretch: Stretch.none,
+                  colors: const [],
+                  consistencies: const [],
+                  bleeding: Bleeding.veryLight,
+                  bleedingColor: 'B',
+                  userId: 'test',
+                ),
+              ],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+            '2026-08-25': DailyEntry(
+              date: DateTime(2026, 8, 25),
+              resolvedVdrsCode: 'VL-B 10B',
+              stampType: StampType.red,
+              observations: [
+                Observation(
+                  id: 'obs_25',
+                  timestamp: DateTime(2026, 8, 25),
+                  sensation: Sensation.damp,
+                  stretch: Stretch.stretchy,
+                  colors: const [MucusColor.brown],
+                  consistencies: const [],
+                  bleeding: Bleeding.veryLight,
+                  bleedingColor: 'B',
+                  userId: 'test',
+                ),
+              ],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+          },
+        );
+
+        // When moderate menses arrives on Aug 26 (Day 35 of cycle):
+        final autoStart = CreightonLogic.evaluateAutoCycleStart(
+          cycle,
+          DateTime(2026, 8, 26),
+        );
+
+        // Should start on Aug 26 (NOT roll back to Aug 23 VL-B)
+        expect(autoStart, DateTime(2026, 8, 26));
+      },
+    );
+
+    test(
+      'evaluateAutoCycleStart rolls back over true flow (L) but stops before pre-menstrual spotting (VL)',
+      () {
+        final cycleStart = DateTime(2026, 7, 23);
+        final cycle = Cycle(
+          id: '2026-07-23',
+          startDate: cycleStart,
+          dailyEntries: {
+            '2026-08-24': DailyEntry(
+              date: DateTime(2026, 8, 24),
+              resolvedVdrsCode: 'VL-B',
+              stampType: StampType.red,
+              observations: [
+                Observation(
+                  id: 'obs_24',
+                  timestamp: DateTime(2026, 8, 24),
+                  sensation: Sensation.dry,
+                  stretch: Stretch.none,
+                  colors: const [],
+                  consistencies: const [],
+                  bleeding: Bleeding.veryLight,
+                  bleedingColor: 'B',
+                  userId: 'test',
+                ),
+              ],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+            '2026-08-25': DailyEntry(
+              date: DateTime(2026, 8, 25),
+              resolvedVdrsCode: 'L',
+              stampType: StampType.red,
+              observations: [
+                Observation(
+                  id: 'obs_25',
+                  timestamp: DateTime(2026, 8, 25),
+                  sensation: Sensation.dry,
+                  stretch: Stretch.none,
+                  colors: const [],
+                  consistencies: const [],
+                  bleeding: Bleeding.light,
+                  bleedingColor: 'R',
+                  userId: 'test',
+                ),
+              ],
+              painLevel: 0,
+              painTypes: const [],
+              comments: '',
+            ),
+          },
+        );
+
+        // When moderate/heavy menses arrives on Aug 26:
+        final autoStart = CreightonLogic.evaluateAutoCycleStart(
+          cycle,
+          DateTime(2026, 8, 26),
+        );
+
+        // Should roll back to Aug 25 (first Light flow day), but stop before Aug 24 (VL spotting)
+        expect(autoStart, DateTime(2026, 8, 25));
+      },
+    );
+  });
 }

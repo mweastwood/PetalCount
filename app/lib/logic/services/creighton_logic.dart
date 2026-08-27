@@ -101,10 +101,16 @@ class CreightonLogic {
     for (var obs in observations) {
       if (obs.hasBleeding) {
         hasAnyBleeding = true;
-        // Compare bleeding intensity
-        if (worstBleeding == Bleeding.none ||
-            obs.bleeding.index > worstBleeding.index) {
+        // Compare bleeding intensity (Heavy > Moderate > Light > Very Light / Spotting)
+        final currentFlow = obs.bleeding.flowIntensity;
+        final worstFlow = worstBleeding.flowIntensity;
+
+        if (worstBleeding == Bleeding.none || currentFlow > worstFlow) {
           worstBleeding = obs.bleeding;
+          worstBleedingColor = obs.bleedingColor;
+        } else if (currentFlow == worstFlow &&
+            worstBleedingColor.isEmpty &&
+            obs.bleedingColor.isNotEmpty) {
           worstBleedingColor = obs.bleedingColor;
         }
       }
@@ -314,7 +320,8 @@ class CreightonLogic {
 
   /// Evaluates whether a new cycle should be automatically started based on
   /// Creighton bleeding rules (16+ days since previous cycle start, rolling back
-  /// over consecutive prior days with bleeding).
+  /// over consecutive prior days with true menstrual flow: Heavy, Moderate, or Light).
+  /// Premenstrual spotting / very light bleeding (VL) does NOT roll back or start a new cycle.
   static DateTime? evaluateAutoCycleStart(Cycle latestCycle, DateTime date) {
     final daysDiff = calendarDaysBetween(latestCycle.startDate, date);
     if (daysDiff >= 16) {
@@ -323,7 +330,7 @@ class CreightonLogic {
       while (calendarDaysBetween(latestCycle.startDate, checkDate) >= 16) {
         final checkKey = checkDate.dateKey;
         final checkEntry = latestCycle.dailyEntries[checkKey];
-        if (checkEntry != null && checkEntry.hasBleeding) {
+        if (checkEntry != null && checkEntry.hasMenstrualFlow) {
           newCycleStart = checkDate;
           checkDate = checkDate.subtractCalendarDays(1);
         } else {
