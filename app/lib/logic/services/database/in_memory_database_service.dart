@@ -6,6 +6,7 @@ import '../../models/cycle.dart';
 import '../../models/daily_entry.dart';
 import '../../models/notification_preferences.dart';
 import '../../models/observation.dart';
+import '../../models/supplement.dart';
 import '../../models/user_role.dart';
 import '../../utils/date_utils.dart';
 import '../creighton_logic.dart';
@@ -31,6 +32,10 @@ class InMemoryDatabaseService implements DatabaseService {
   final _chartsController =
       StreamController<List<Map<String, dynamic>>>.broadcast();
   final _roleController = StreamController<String?>.broadcast();
+  final _supplementsController =
+      StreamController<List<SupplementItem>>.broadcast();
+  final _supplementLogsController =
+      StreamController<Map<String, DailySupplementLog>>.broadcast();
   User? _currentUser;
   String? _chartId;
 
@@ -39,6 +44,10 @@ class InMemoryDatabaseService implements DatabaseService {
   final Map<String, Map<String, dynamic>> _charts = {};
   final Map<String, Map<String, Map<String, dynamic>>> _cycles =
       {}; // chartId -> { cycleId -> cycleData }
+  final Map<String, Map<String, SupplementItem>> _supplements =
+      {}; // chartId -> { supplementId -> SupplementItem }
+  final Map<String, Map<String, DailySupplementLog>> _supplementLogs =
+      {}; // chartId -> { dateKey -> DailySupplementLog }
   final List<Map<String, dynamic>> _invitations = [];
 
   InMemoryDatabaseService() {
@@ -939,5 +948,101 @@ class InMemoryDatabaseService implements DatabaseService {
   @override
   Future<void> updateUserTimezone(String timezone) async {
     _userTimezone = timezone;
+  }
+
+  void _emitSupplements() {
+    final chartId = _chartId;
+    if (chartId == null) {
+      _supplementsController.add([]);
+      return;
+    }
+    final chartSupplements = _supplements[chartId] ?? {};
+    _supplementsController.add(chartSupplements.values.toList());
+  }
+
+  void _emitSupplementLogs() {
+    final chartId = _chartId;
+    if (chartId == null) {
+      _supplementLogsController.add({});
+      return;
+    }
+    final chartLogs = _supplementLogs[chartId] ?? {};
+    _supplementLogsController.add(Map.unmodifiable(chartLogs));
+  }
+
+  @override
+  Stream<List<SupplementItem>> streamSupplements() async* {
+    final chartId = _chartId;
+    if (chartId != null) {
+      if (!_supplements.containsKey(chartId)) {
+        _supplements[chartId] = {
+          for (final item in SupplementPresets.defaultList) item.id: item,
+        };
+      }
+      yield (_supplements[chartId] ?? {}).values.toList();
+    } else {
+      yield [];
+    }
+    yield* _supplementsController.stream;
+  }
+
+  @override
+  Future<void> saveSupplement(SupplementItem item) async {
+    final chartId = _chartId;
+    if (chartId == null) return;
+    _supplements.putIfAbsent(
+      chartId,
+      () => {for (final s in SupplementPresets.defaultList) s.id: s},
+    );
+    _supplements[chartId]![item.id] = item;
+    _emitSupplements();
+  }
+
+  @override
+  Future<void> deleteSupplement(String supplementId) async {
+    final chartId = _chartId;
+    if (chartId == null) return;
+    _supplements[chartId]?.remove(supplementId);
+    _emitSupplements();
+  }
+
+  @override
+  Future<void> resetDefaultSupplements() async {
+    final chartId = _chartId;
+    if (chartId == null) return;
+    _supplements[chartId] = {
+      for (final s in SupplementPresets.defaultList) s.id: s,
+    };
+    _emitSupplements();
+  }
+
+  @override
+  Stream<Map<String, DailySupplementLog>> streamDailySupplementLogs() async* {
+    final chartId = _chartId;
+    if (chartId != null) {
+      yield _supplementLogs[chartId] ?? {};
+    } else {
+      yield {};
+    }
+    yield* _supplementLogsController.stream;
+  }
+
+  @override
+  Future<void> logSupplementDose({
+    required DateTime date,
+    required String supplementId,
+    required SupplementTimeOfDay timeOfDay,
+    required bool taken,
+  }) async {
+    final chartId = _chartId;
+    if (chartId == null) return;
+    final dateKey = date.dateKey;
+    _supplementLogs.putIfAbsent(chartId, () => {});
+    final currentLog =
+        _supplementLogs[chartId]![dateKey] ??
+        DailySupplementLog(date: date, takenDoses: {});
+    final updatedLog = currentLog.withToggled(supplementId, timeOfDay, taken);
+    _supplementLogs[chartId]![dateKey] = updatedLog;
+    _emitSupplementLogs();
   }
 }

@@ -8,6 +8,7 @@ import 'chart_screen.dart';
 import 'chart_selection_screen.dart';
 import 'observations_screen.dart';
 import 'settings_screen.dart';
+import 'supplement_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Uri? mockUri;
@@ -543,6 +544,28 @@ class _DashboardScreenState extends State<DashboardScreen>
                     MaterialPageRoute(
                       settings: const RouteSettings(name: '/charts'),
                       builder: (context) => const ChartSelectionScreen(),
+                    ),
+                  )
+                  .then((_) {
+                    if (!mounted) return;
+                    _routeManager.updateUrlPath(_viewMode);
+                  });
+            },
+          ),
+          ListTile(
+            key: const Key('drawer_supplements_tile'),
+            leading: const Icon(Icons.medication_outlined),
+            title: const Text('Supplements & Schedule'),
+            onTap: () {
+              Navigator.pop(context); // Close drawer
+              _routeManager.updateUrlPathRaw('/supplements');
+              Navigator.of(context)
+                  .push(
+                    MaterialPageRoute(
+                      settings: const RouteSettings(name: '/supplements'),
+                      builder: (context) => SupplementScreen(
+                        activeCycle: cycles.isNotEmpty ? cycles.first : null,
+                      ),
                     ),
                   )
                   .then((_) {
