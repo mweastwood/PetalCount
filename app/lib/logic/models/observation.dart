@@ -115,7 +115,9 @@ class Observation {
                frequency != Frequency.none ||
                intercourse);
 
-  bool get hasMucus => stretch != Stretch.none;
+  bool get hasMucus =>
+      stretch != Stretch.none ||
+      consistencies.contains(Consistency.lubricative);
   bool get hasBleeding => bleeding != Bleeding.none;
 
   // Generates the standard VDRS code for this specific observation
@@ -180,7 +182,7 @@ class Observation {
 
     // Color string (e.g. "C/K" or "C" or "Y")
     final colorStr = colors.isEmpty
-        ? 'C' // Default to cloudy if none specified but mucus exists
+        ? (stretch != Stretch.none ? 'C' : '')
         : colors.map((c) => c.code).join('/');
 
     // If it contains Lubricative, form 10DL, 10SL, 10WL (Lubricative sensation upgrades to 10 Peak-type)

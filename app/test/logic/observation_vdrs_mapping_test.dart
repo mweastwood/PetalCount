@@ -183,6 +183,74 @@ void main() {
       );
       expect(item.vdrsCode, '10WLC');
     });
+
+    test(
+      'Wet, Lubricative without stretch maps to "10WL" and is Peak-type',
+      () {
+        final item = obs(
+          sensation: Sensation.wet,
+          stretch: Stretch.none,
+          consistencies: [Consistency.lubricative],
+        );
+        expect(item.vdrsCode, '10WL');
+        expect(item.hasMucus, isTrue);
+        expect(item.isPeakType, isTrue);
+      },
+    );
+
+    test(
+      'Damp, Lubricative without stretch maps to "10DL" and is Peak-type',
+      () {
+        final item = obs(
+          sensation: Sensation.damp,
+          stretch: Stretch.none,
+          consistencies: [Consistency.lubricative],
+        );
+        expect(item.vdrsCode, '10DL');
+        expect(item.hasMucus, isTrue);
+        expect(item.isPeakType, isTrue);
+      },
+    );
+
+    test(
+      'Shiny, Lubricative without stretch maps to "10SL" and is Peak-type',
+      () {
+        final item = obs(
+          sensation: Sensation.shiny,
+          stretch: Stretch.none,
+          consistencies: [Consistency.lubricative],
+        );
+        expect(item.vdrsCode, '10SL');
+        expect(item.hasMucus, isTrue);
+        expect(item.isPeakType, isTrue);
+      },
+    );
+
+    test('Dry, Lubricative without stretch maps to "10L" and is Peak-type', () {
+      final item = obs(
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        consistencies: [Consistency.lubricative],
+      );
+      expect(item.vdrsCode, '10L');
+      expect(item.hasMucus, isTrue);
+      expect(item.isPeakType, isTrue);
+    });
+
+    test(
+      'Wet, Clear, Lubricative without stretch maps to "10WLK" and is Peak-type',
+      () {
+        final item = obs(
+          sensation: Sensation.wet,
+          stretch: Stretch.none,
+          colors: [MucusColor.clear],
+          consistencies: [Consistency.lubricative],
+        );
+        expect(item.vdrsCode, '10WLK');
+        expect(item.hasMucus, isTrue);
+        expect(item.isPeakType, isTrue);
+      },
+    );
   });
 
   group('5. Bleeding Observations', () {
