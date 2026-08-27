@@ -363,5 +363,68 @@ void main() {
         ]);
       },
     );
+
+    test(
+      'Cycle constructor normalizes startDate and endDate to local midnight when initialized with time components',
+      () {
+        final cycle = Cycle(
+          id: 'test_cycle',
+          startDate: DateTime(2026, 8, 1, 14, 30, 45, 123),
+          endDate: DateTime(2026, 8, 28, 23, 59, 59),
+        );
+
+        expect(cycle.startDate, DateTime(2026, 8, 1, 0, 0, 0));
+        expect(cycle.startDate.hour, 0);
+        expect(cycle.startDate.minute, 0);
+        expect(cycle.startDate.second, 0);
+        expect(cycle.startDate.millisecond, 0);
+
+        expect(cycle.endDate, DateTime(2026, 8, 28, 0, 0, 0));
+        expect(cycle.endDate!.hour, 0);
+        expect(cycle.endDate!.minute, 0);
+        expect(cycle.endDate!.second, 0);
+        expect(cycle.endDate!.millisecond, 0);
+      },
+    );
+
+    test(
+      'CreightonLogic.reallocateAndRecalculateCycles correctly allocates Day 1 entries when a Cycle is instantiated with non-midnight timestamp',
+      () {
+        DailyEntry makeEntry(DateTime date) {
+          return DailyEntry(
+            date: date,
+            resolvedVdrsCode: 'H',
+            stampType: StampType.red,
+            observations: const [],
+            painLevel: 0,
+            painTypes: const [],
+            comments: '',
+          );
+        }
+
+        final earlierCycle = Cycle(
+          id: 'earlier_cycle',
+          startDate: DateTime(2026, 7, 1, 10, 15),
+          dailyEntries: {'2026-07-01': makeEntry(DateTime(2026, 7, 1))},
+        );
+
+        final newCycle = Cycle(
+          id: 'new_cycle',
+          startDate: DateTime(2026, 8, 1, 14, 30),
+          dailyEntries: {'2026-08-01': makeEntry(DateTime(2026, 8, 1))},
+        );
+
+        final reallocated = CreightonLogic.reallocateAndRecalculateCycles([
+          earlierCycle,
+          newCycle,
+        ]);
+
+        expect(reallocated.length, 2);
+        expect(reallocated[0].id, 'earlier_cycle');
+        expect(reallocated[0].dailyEntries.keys.toList(), ['2026-07-01']);
+        expect(reallocated[1].id, 'new_cycle');
+        expect(reallocated[1].dailyEntries.keys.toList(), ['2026-08-01']);
+      },
+    );
   });
 }

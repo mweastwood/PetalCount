@@ -10,11 +10,12 @@ class Cycle {
 
   Cycle({
     required this.id,
-    required this.startDate,
-    this.endDate,
+    required DateTime startDate,
+    DateTime? endDate,
     this.bipCodes = const [],
     this.dailyEntries = const {},
-  });
+  }) : startDate = startDate.toNormalizedDate(),
+       endDate = endDate?.toNormalizedDate();
 
   bool get isActive => endDate == null;
 
