@@ -114,5 +114,80 @@ void main() {
         expect(bytes.length, greaterThan(500));
       },
     );
+
+    test(
+      'generatePdfBytes produces valid PDF bytes for extended cycle exceeding 35 days (45 days)',
+      () async {
+        final start = DateTime(2026, 1, 1);
+        final entries = <String, DailyEntry>{};
+
+        for (int i = 0; i < 45; i++) {
+          final date = start.addCalendarDays(i);
+          final obs = Observation(
+            id: 'obs_$i',
+            timestamp: date,
+            sensation: i % 2 == 0 ? Sensation.dry : Sensation.wet,
+            stretch: Stretch.none,
+            colors: [],
+            consistencies: [],
+            bleeding: i == 0 ? Bleeding.heavy : Bleeding.none,
+            comment: i == 40 ? 'Extended cycle comment day 41' : '',
+            userId: 'test',
+          );
+          entries[date.dateKey] = CreightonLogic.resolveDailyEntry(
+            date: date,
+            observations: [obs],
+          );
+        }
+
+        final cycle = Cycle(
+          id: '2026-01-01',
+          startDate: start,
+          bipCodes: const ['2'],
+          dailyEntries: entries,
+        );
+
+        final bytes = await PdfExportService.generatePdfBytes([cycle]);
+        expect(bytes, isNotEmpty);
+        expect(bytes.length, greaterThan(500));
+      },
+    );
+
+    test(
+      'generatePdfBytes produces valid PDF bytes for multi-row cycle (75 days spanning 3 rows)',
+      () async {
+        final start = DateTime(2026, 1, 1);
+        final entries = <String, DailyEntry>{};
+
+        for (int i = 0; i < 75; i++) {
+          final date = start.addCalendarDays(i);
+          final obs = Observation(
+            id: 'obs_$i',
+            timestamp: date,
+            sensation: Sensation.dry,
+            stretch: Stretch.none,
+            colors: [],
+            consistencies: [],
+            bleeding: Bleeding.none,
+            userId: 'test',
+          );
+          entries[date.dateKey] = CreightonLogic.resolveDailyEntry(
+            date: date,
+            observations: [obs],
+          );
+        }
+
+        final cycle = Cycle(
+          id: '2026-01-01',
+          startDate: start,
+          bipCodes: const [],
+          dailyEntries: entries,
+        );
+
+        final bytes = await PdfExportService.generatePdfBytes([cycle]);
+        expect(bytes, isNotEmpty);
+        expect(bytes.length, greaterThan(500));
+      },
+    );
   });
 }
