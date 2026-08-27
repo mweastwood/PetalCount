@@ -182,15 +182,16 @@ export async function processDailyReminders(
     const tokensByUserId: Map<string, string[]> = new Map();
     const allTokens: string[] = [];
 
-    for (const uid of userIds) {
-      const userDoc = await db.collection("users").doc(uid).get();
+    const userRefs = userIds.map((uid) => db.collection("users").doc(uid));
+    const userDocs = await db.getAll(...userRefs);
+    for (const userDoc of userDocs) {
       if (userDoc.exists) {
         const userData = userDoc.data() as UserData;
         const tokens = Array.isArray(userData.fcmTokens)
           ? userData.fcmTokens.filter((t) => typeof t === "string" && t.length > 0)
           : [];
         if (tokens.length > 0) {
-          tokensByUserId.set(uid, tokens);
+          tokensByUserId.set(userDoc.id, tokens);
           allTokens.push(...tokens);
         }
       }
