@@ -95,172 +95,33 @@ class PdfExportService {
     final int cycleMaxDay = cycle.maxDayNumber;
     final int displayDays = cycleMaxDay < daysPerRow ? daysPerRow : cycleMaxDay;
 
-    final columns = <pw.Widget>[];
-
     // Collect comments to print at the bottom of the cycle row
     final commentsList = <Map<String, String>>[];
 
-    for (int i = 0; i < displayDays; i++) {
-      final dayDate = cycle.startDate.addCalendarDays(i);
-      final dateKey = dayDate.dateKey;
-      final entry = cycle.dailyEntries[dateKey];
-      final dayNum = i + 1;
+    final chunkRows = <pw.Widget>[];
 
-      // Determine Stamp Color & Baby Symbol
-      PdfColor cellColor = PdfColors.white;
-      bool drawBaby = false;
-      bool drawGreenBaby = false;
+    for (
+      int startIndex = 0;
+      startIndex < displayDays;
+      startIndex += daysPerRow
+    ) {
+      final int endIndex = (startIndex + daysPerRow < displayDays)
+          ? startIndex + daysPerRow
+          : displayDays;
 
-      if (entry != null) {
-        switch (entry.stampType) {
-          case StampType.red:
-            cellColor = PdfColors.red;
-            break;
-          case StampType.green:
-            cellColor = PdfColors.green;
-            break;
-          case StampType.whiteBaby:
-            cellColor = PdfColors.white;
-            drawBaby = true;
-            break;
-          case StampType.greenBaby:
-            cellColor = PdfColors.green;
-            drawGreenBaby = true;
-            break;
-          case StampType.yellow:
-            cellColor = PdfColors.yellow;
-            break;
-          case StampType.yellowBaby:
-            cellColor = PdfColors.yellow;
-            drawBaby = true;
-            break;
-        }
-
-        // Add comments if they exist
-        if (entry.comments.trim().isNotEmpty) {
-          commentsList.add({
-            'day': dayNum.toString(),
-            'comment': entry.comments,
-          });
-        }
+      final rowColumns = <pw.Widget>[];
+      for (int i = startIndex; i < endIndex; i++) {
+        rowColumns.add(_buildDayColumn(cycle, i, commentsList));
       }
 
-      // Check for pain
-      final hasPain = entry != null && entry.painLevel > 0;
-      final String painSymbol = hasPain
-          ? (entry.painTypes.contains('Cramps')
-                ? 'C'
-                : (entry.painTypes.contains('Ovulation') ? 'O' : 'P'))
-          : '';
+      if (chunkRows.isNotEmpty) {
+        chunkRows.add(pw.SizedBox(height: 8));
+      }
 
-      columns.add(
-        pw.Container(
-          width: 20,
-          child: pw.Column(
-            children: [
-              // 1. Peak Day label above stamp
-              pw.Container(
-                height: 12,
-                child: pw.Text(
-                  entry?.peakDayLabel ?? '',
-                  style: pw.TextStyle(
-                    fontSize: 8,
-                    fontWeight: pw.FontWeight.bold,
-                    color: entry?.peakDayLabel == 'P'
-                        ? PdfColors.red900
-                        : PdfColors.black,
-                  ),
-                ),
-              ),
-
-              // 2. The Stamp itself
-              pw.Container(
-                width: 18,
-                height: 22,
-                decoration: pw.BoxDecoration(
-                  color: cellColor,
-                  border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
-                ),
-                child: pw.Center(
-                  child: drawBaby
-                      ? _buildBabySymbol(PdfColors.black)
-                      : (drawGreenBaby
-                            ? _buildBabySymbol(PdfColors.white)
-                            : (entry == null
-                                  ? pw.Text(
-                                      '?',
-                                      style: pw.TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: pw.FontWeight.bold,
-                                        color: PdfColors.grey600,
-                                      ),
-                                    )
-                                  : pw.SizedBox())),
-                ),
-              ),
-
-              pw.SizedBox(height: 2),
-
-              // 3. Cycle Day number
-              pw.Text(
-                '$dayNum',
-                style: const pw.TextStyle(
-                  fontSize: 7,
-                  color: PdfColors.grey700,
-                ),
-              ),
-
-              // 4. Date
-              pw.Text(
-                AppDateFormats.shortMonthDay.format(dayDate),
-                style: const pw.TextStyle(
-                  fontSize: 6,
-                  color: PdfColors.grey500,
-                ),
-              ),
-
-              // 5. Resolved VDRS Code
-              pw.Container(
-                height: 20,
-                alignment: pw.Alignment.topCenter,
-                child: pw.Text(
-                  entry != null ? entry.resolvedVdrsCode : '?',
-                  style: pw.TextStyle(
-                    fontSize: 5,
-                    color: entry != null ? PdfColors.black : PdfColors.grey600,
-                  ),
-                  textAlign: pw.TextAlign.center,
-                ),
-              ),
-
-              // 6. Pain symbol / Asterisk for comments
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.center,
-                children: [
-                  if (painSymbol.isNotEmpty)
-                    pw.Text(
-                      painSymbol,
-                      style: const pw.TextStyle(
-                        fontSize: 6,
-                        color: PdfColors.red700,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                  if (entry != null && entry.comments.isNotEmpty) ...[
-                    pw.SizedBox(width: 1),
-                    pw.Text(
-                      '*',
-                      style: const pw.TextStyle(
-                        fontSize: 7,
-                        color: PdfColors.blue700,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          ),
+      chunkRows.add(
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: rowColumns,
         ),
       );
     }
@@ -279,11 +140,8 @@ class PdfExportService {
         ),
         pw.SizedBox(height: 6),
 
-        // Grid row
-        pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: columns,
-        ),
+        // Grid rows
+        ...chunkRows,
 
         // Comments list below the row
         if (commentsList.isNotEmpty) ...[
@@ -324,6 +182,164 @@ class PdfExportService {
           ),
         ],
       ],
+    );
+  }
+
+  static pw.Widget _buildDayColumn(
+    Cycle cycle,
+    int dayIndex,
+    List<Map<String, String>> commentsList,
+  ) {
+    final dayDate = cycle.startDate.addCalendarDays(dayIndex);
+    final dateKey = dayDate.dateKey;
+    final entry = cycle.dailyEntries[dateKey];
+    final dayNum = dayIndex + 1;
+
+    // Determine Stamp Color & Baby Symbol
+    PdfColor cellColor = PdfColors.white;
+    bool drawBaby = false;
+    bool drawGreenBaby = false;
+
+    if (entry != null) {
+      switch (entry.stampType) {
+        case StampType.red:
+          cellColor = PdfColors.red;
+          break;
+        case StampType.green:
+          cellColor = PdfColors.green;
+          break;
+        case StampType.whiteBaby:
+          cellColor = PdfColors.white;
+          drawBaby = true;
+          break;
+        case StampType.greenBaby:
+          cellColor = PdfColors.green;
+          drawGreenBaby = true;
+          break;
+        case StampType.yellow:
+          cellColor = PdfColors.yellow;
+          break;
+        case StampType.yellowBaby:
+          cellColor = PdfColors.yellow;
+          drawBaby = true;
+          break;
+      }
+
+      // Add comments if they exist
+      if (entry.comments.trim().isNotEmpty) {
+        commentsList.add({'day': dayNum.toString(), 'comment': entry.comments});
+      }
+    }
+
+    // Check for pain
+    final hasPain = entry != null && entry.painLevel > 0;
+    final String painSymbol = hasPain
+        ? (entry.painTypes.contains('Cramps')
+              ? 'C'
+              : (entry.painTypes.contains('Ovulation') ? 'O' : 'P'))
+        : '';
+
+    return pw.Container(
+      width: 20,
+      child: pw.Column(
+        children: [
+          // 1. Peak Day label above stamp
+          pw.Container(
+            height: 12,
+            child: pw.Text(
+              entry?.peakDayLabel ?? '',
+              style: pw.TextStyle(
+                fontSize: 8,
+                fontWeight: pw.FontWeight.bold,
+                color: entry?.peakDayLabel == 'P'
+                    ? PdfColors.red900
+                    : PdfColors.black,
+              ),
+            ),
+          ),
+
+          // 2. The Stamp itself
+          pw.Container(
+            width: 18,
+            height: 22,
+            decoration: pw.BoxDecoration(
+              color: cellColor,
+              border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
+            ),
+            child: pw.Center(
+              child: drawBaby
+                  ? _buildBabySymbol(PdfColors.black)
+                  : (drawGreenBaby
+                        ? _buildBabySymbol(PdfColors.white)
+                        : (entry == null
+                              ? pw.Text(
+                                  '?',
+                                  style: pw.TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: pw.FontWeight.bold,
+                                    color: PdfColors.grey600,
+                                  ),
+                                )
+                              : pw.SizedBox())),
+            ),
+          ),
+
+          pw.SizedBox(height: 2),
+
+          // 3. Cycle Day number
+          pw.Text(
+            '$dayNum',
+            style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700),
+          ),
+
+          // 4. Date
+          pw.Text(
+            AppDateFormats.shortMonthDay.format(dayDate),
+            style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey500),
+          ),
+
+          // 5. Resolved VDRS Code
+          pw.Container(
+            height: 20,
+            alignment: pw.Alignment.topCenter,
+            child: pw.Text(
+              entry != null ? entry.resolvedVdrsCode : '?',
+              style: pw.TextStyle(
+                fontSize: 5,
+                color: entry != null ? PdfColors.black : PdfColors.grey600,
+              ),
+              textAlign: pw.TextAlign.center,
+            ),
+          ),
+
+          // 6. Pain symbol / Asterisk for comments
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.center,
+            children: [
+              if (painSymbol.isNotEmpty)
+                pw.Text(
+                  painSymbol,
+                  style: const pw.TextStyle(
+                    fontSize: 6,
+                    color: PdfColors.red700,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              if (entry != null && entry.comments.isNotEmpty) ...[
+                pw.SizedBox(width: 1),
+                pw.Text(
+                  '*',
+                  style: const pw.TextStyle(
+                    fontSize: 7,
+                    color: PdfColors.blue700,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
