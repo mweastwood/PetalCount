@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../screens/chart_selection_screen.dart';
 import '../screens/settings_screen.dart';
+import '../screens/supplement_screen.dart';
 import 'models/cycle.dart';
 
 enum ViewMode { observations, chart }
@@ -74,6 +75,20 @@ class AppRouteManager {
           MaterialPageRoute(
             settings: const RouteSettings(name: '/settings'),
             builder: (context) => SettingsScreen(activeCycle: activeCycle),
+          ),
+        ).then((_) {
+          if (!context.mounted) return;
+          updateUrlPath(currentViewMode);
+        });
+      },
+      'supplements': () {
+        onViewModeChanged(ViewMode.observations);
+        updateUrlPathRaw('/supplements');
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            settings: const RouteSettings(name: '/supplements'),
+            builder: (context) => SupplementScreen(activeCycle: activeCycle),
           ),
         ).then((_) {
           if (!context.mounted) return;

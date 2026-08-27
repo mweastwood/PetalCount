@@ -6,6 +6,7 @@ export 'models/cycle.dart';
 export 'models/daily_entry.dart';
 export 'models/notification_preferences.dart';
 export 'models/observation.dart';
+export 'models/supplement.dart';
 export 'models/user_role.dart';
 export 'services/creighton_logic.dart';
 export 'services/database_service.dart';

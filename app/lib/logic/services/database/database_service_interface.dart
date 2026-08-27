@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/cycle.dart';
 import '../../models/notification_preferences.dart';
 import '../../models/observation.dart';
+import '../../models/supplement.dart';
 
 abstract class DatabaseService {
   User? get currentUser;
@@ -63,5 +64,18 @@ abstract class DatabaseService {
     required String cycleId,
     required DateTime date,
     required String observationId,
+  });
+
+  Stream<List<SupplementItem>> streamSupplements();
+  Future<void> saveSupplement(SupplementItem item);
+  Future<void> deleteSupplement(String supplementId);
+  Future<void> resetDefaultSupplements();
+
+  Stream<Map<String, DailySupplementLog>> streamDailySupplementLogs();
+  Future<void> logSupplementDose({
+    required DateTime date,
+    required String supplementId,
+    required SupplementTimeOfDay timeOfDay,
+    required bool taken,
   });
 }

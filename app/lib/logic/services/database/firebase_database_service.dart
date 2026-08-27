@@ -10,6 +10,7 @@ import '../../models/cycle.dart';
 import '../../models/daily_entry.dart';
 import '../../models/notification_preferences.dart';
 import '../../models/observation.dart';
+import '../../models/supplement.dart';
 import '../../models/user_role.dart';
 import '../../utils/date_utils.dart';
 import '../creighton_logic.dart';
@@ -154,6 +155,13 @@ class FirebaseDatabaseService implements DatabaseService {
       'reminderEnabled': true,
       'createdAt': FieldValue.serverTimestamp(),
     });
+
+    final batch = _db.batch();
+    final suppCol = chartRef.collection('supplements');
+    for (final preset in SupplementPresets.defaultList) {
+      batch.set(suppCol.doc(preset.id), preset.toMap());
+    }
+    await batch.commit();
 
     await _db.collection('users').doc(user.uid).set({
       'chartId': chartId,
@@ -1099,5 +1107,120 @@ class FirebaseDatabaseService implements DatabaseService {
     }
 
     await batch.commit();
+  }
+
+  @override
+  Stream<List<SupplementItem>> streamSupplements() {
+    final chartId = _cachedChartId;
+    if (chartId == null) {
+      return Stream.value([]);
+    }
+
+    return _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('supplements')
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => SupplementItem.fromMap(doc.data()))
+              .toList();
+        });
+  }
+
+  @override
+  Future<void> saveSupplement(SupplementItem item) async {
+    final chartId = _cachedChartId;
+    if (chartId == null) return;
+
+    await _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('supplements')
+        .doc(item.id)
+        .set(item.toMap(), SetOptions(merge: true));
+  }
+
+  @override
+  Future<void> deleteSupplement(String supplementId) async {
+    final chartId = _cachedChartId;
+    if (chartId == null) return;
+
+    await _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('supplements')
+        .doc(supplementId)
+        .delete();
+  }
+
+  @override
+  Future<void> resetDefaultSupplements() async {
+    final chartId = _cachedChartId;
+    if (chartId == null) return;
+
+    final batch = _db.batch();
+    final suppCol = _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('supplements');
+    final existing = await suppCol.get();
+    for (final doc in existing.docs) {
+      batch.delete(doc.reference);
+    }
+    for (final preset in SupplementPresets.defaultList) {
+      batch.set(suppCol.doc(preset.id), preset.toMap());
+    }
+    await batch.commit();
+  }
+
+  @override
+  Stream<Map<String, DailySupplementLog>> streamDailySupplementLogs() {
+    final chartId = _cachedChartId;
+    if (chartId == null) {
+      return Stream.value({});
+    }
+
+    return _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('supplementLogs')
+        .snapshots()
+        .map((snapshot) {
+          final map = <String, DailySupplementLog>{};
+          for (final doc in snapshot.docs) {
+            map[doc.id] = DailySupplementLog.fromMap(doc.data());
+          }
+          return map;
+        });
+  }
+
+  @override
+  Future<void> logSupplementDose({
+    required DateTime date,
+    required String supplementId,
+    required SupplementTimeOfDay timeOfDay,
+    required bool taken,
+  }) async {
+    final chartId = _cachedChartId;
+    if (chartId == null) return;
+
+    final dateKey = date.dateKey;
+    final logRef = _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('supplementLogs')
+        .doc(dateKey);
+
+    final doc = await logRef.get();
+    DailySupplementLog log;
+    if (doc.exists && doc.data() != null) {
+      log = DailySupplementLog.fromMap(doc.data()!);
+    } else {
+      log = DailySupplementLog(date: date, takenDoses: {});
+    }
+
+    final updatedLog = log.withToggled(supplementId, timeOfDay, taken);
+    await logRef.set(updatedLog.toMap());
   }
 }
