@@ -144,13 +144,41 @@ void main() {
       expect(find.text('Select Chart'), findsOneWidget);
     });
 
-    test('updateUrlPath does not throw exception', () {
+    test('updateUrlPath is a no-op on non-web platforms and does not throw', () {
       final routeManager = AppRouteManager();
-      expect(
-        () => routeManager.updateUrlPath(ViewMode.observations),
-        returnsNormally,
-      );
-      expect(() => routeManager.updateUrlPath(ViewMode.chart), returnsNormally);
+      // On non-web platforms (kIsWeb == false), updateUrlPath safely no-ops
+      for (final mode in ViewMode.values) {
+        expect(
+          () => routeManager.updateUrlPath(mode),
+          returnsNormally,
+          reason:
+              'updateUrlPath($mode) should execute safely on non-web platforms',
+        );
+      }
     });
+
+    test(
+      'updateUrlPathRaw is a no-op on non-web platforms and does not throw',
+      () {
+        final routeManager = AppRouteManager();
+        const testPaths = [
+          '/observations',
+          '/chart',
+          '/settings',
+          '/supplements',
+          '/charts',
+          '/custom-route',
+        ];
+        // On non-web platforms (kIsWeb == false), updateUrlPathRaw safely no-ops
+        for (final path in testPaths) {
+          expect(
+            () => routeManager.updateUrlPathRaw(path),
+            returnsNormally,
+            reason:
+                'updateUrlPathRaw($path) should execute safely on non-web platforms',
+          );
+        }
+      },
+    );
   });
 }
