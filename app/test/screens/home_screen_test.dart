@@ -68,6 +68,55 @@ void main() {
     expect(find.byType(SettingsScreen), findsOneWidget);
   });
 
+  testWidgets('Dashboard navigation bar switches to Supplements tab', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidgetBuilder(
+      PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+      surfaceSize: const Size(400, 800),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify Supplements tab exists in NavigationBar
+    expect(find.text('Observations'), findsOneWidget);
+    expect(find.text('Chart'), findsOneWidget);
+    expect(find.text('Supplements'), findsOneWidget);
+
+    // Tap on Supplements tab
+    await tester.tap(find.text('Supplements'));
+    await tester.pumpAndSettle();
+
+    // Verify SupplementScreen content is rendered
+    expect(find.byType(SupplementScreen), findsOneWidget);
+    expect(find.text('Daily Intake'), findsOneWidget);
+    expect(find.text('Cycle Plan'), findsOneWidget);
+    expect(find.text('Formulary'), findsOneWidget);
+  });
+
+  testWidgets('Dashboard drawer opens and switches to Supplements tab', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidgetBuilder(
+      PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+      surfaceSize: const Size(400, 800),
+    );
+    await tester.pumpAndSettle();
+
+    // Open drawer using the menu icon
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+
+    // Tap on supplements tile in drawer
+    expect(find.byKey(const Key('drawer_supplements_tile')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('drawer_supplements_tile')));
+    await tester.pumpAndSettle();
+
+    // Verify drawer closed and supplements tab is shown
+    expect(find.byType(Drawer), findsNothing);
+    expect(find.byType(SupplementScreen), findsOneWidget);
+    expect(find.text('Daily Intake'), findsOneWidget);
+  });
+
   testGoldens('Dashboard hamburger menu drawer open state golden', (
     tester,
   ) async {
@@ -142,6 +191,22 @@ void main() {
     await tester.pumpAndSettle();
 
     await screenMatchesGolden(tester, 'dashboard_creighton_grid_landscape');
+  });
+
+  testGoldens('Dashboard renders Supplements view in Portrait correctly', (
+    tester,
+  ) async {
+    await tester.pumpWidgetBuilder(
+      PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+      surfaceSize: const Size(400, 800),
+    );
+    await tester.pumpAndSettle();
+
+    // Tap on "Supplements" navigation tab to switch to supplements view
+    await tester.tap(find.text('Supplements'));
+    await tester.pumpAndSettle();
+
+    await screenMatchesGolden(tester, 'dashboard_supplements_portrait');
   });
 
   testGoldens('ChartSelectionScreen renders correctly', (tester) async {
