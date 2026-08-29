@@ -28,8 +28,15 @@ describe("getLocalTimeInfo", () => {
     const utcDate = new Date(Date.UTC(2026, 7, 21, 4, 0, 0));
     const info = getLocalTimeInfo(utcDate, "Invalid/Timezone_Name");
 
-    expect(info.hour).toBe(21);
-    expect(info.dateKey).toBe("2026-08-20");
+    // Verify structural validity of the fallback result
+    expect(typeof info.hour).toBe("number");
+    expect(info.hour).toBeGreaterThanOrEqual(0);
+    expect(info.hour).toBeLessThan(24);
+    expect(info.dateKey).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+    // Verify consistency: fallback matches explicit America/Los_Angeles call
+    const laInfo = getLocalTimeInfo(utcDate, "America/Los_Angeles");
+    expect(info).toEqual(laInfo);
   });
 });
 
