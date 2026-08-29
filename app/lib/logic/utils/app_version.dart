@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class AppVersion {
   static const String rawVersion = String.fromEnvironment(
     'APP_VERSION',
@@ -13,12 +15,20 @@ class AppVersion {
 
   static String get gitHash => rawGitHash;
 
-  static String get shortGitHash =>
-      rawGitHash.length >= 7 ? rawGitHash.substring(0, 7) : rawGitHash;
+  static String get shortGitHash => formatShortGitHash(rawGitHash);
 
-  static String get display {
-    if (shortGitHash.isNotEmpty) {
-      return '$rawVersion ($shortGitHash)';
+  static String get display => formatDisplay(rawVersion, rawGitHash);
+
+  @visibleForTesting
+  static String formatShortGitHash(String gitHash) {
+    return gitHash.length >= 7 ? gitHash.substring(0, 7) : gitHash;
+  }
+
+  @visibleForTesting
+  static String formatDisplay(String rawVersion, String gitHash) {
+    final shortHash = formatShortGitHash(gitHash);
+    if (shortHash.isNotEmpty) {
+      return '$rawVersion ($shortHash)';
     }
     return rawVersion;
   }
