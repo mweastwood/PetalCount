@@ -79,6 +79,101 @@ describe("checkChartHasObservationForDate", () => {
     expect(result).toBe(true);
   });
 
+  it("returns true when eligibleCyclesSnap is empty but allCycles fallback finds observation", async () => {
+    const mockDailyDoc = {
+      exists: true,
+      data: () => ({
+        date: "2026-08-20",
+        observations: [{ id: "obs_fallback", sensation: "lubricative" }],
+      }),
+    };
+
+    const mockCycleDoc = {
+      ref: {
+        collection: jest.fn().mockReturnValue({
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue(mockDailyDoc),
+          }),
+        }),
+      },
+      data: () => ({}),
+    };
+
+    const mockDb = {
+      collection: jest.fn().mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          collection: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnThis(),
+            orderBy: jest.fn().mockReturnThis(),
+            limit: jest.fn().mockImplementation((limitCount: number) => ({
+              get: jest.fn().mockImplementation(() => {
+                if (limitCount === 1) {
+                  return Promise.resolve({ empty: true, docs: [] });
+                }
+                return Promise.resolve({ empty: false, docs: [mockCycleDoc] });
+              }),
+            })),
+          }),
+        }),
+      }),
+    } as unknown as admin.firestore.Firestore;
+
+    const result = await checkChartHasObservationForDate(
+      mockDb,
+      "chart_fallback",
+      "2026-08-20"
+    );
+    expect(result).toBe(true);
+  });
+
+  it("returns true when top-level dailyEntries map on cycle document contains observation", async () => {
+    const mockDailyDoc = {
+      exists: false,
+      data: () => undefined,
+    };
+
+    const mockCycleDoc = {
+      ref: {
+        collection: jest.fn().mockReturnValue({
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue(mockDailyDoc),
+          }),
+        }),
+      },
+      data: () => ({
+        dailyEntries: {
+          "2026-08-20": {
+            observations: [{ id: "obs_map", sensation: "damp" }],
+          },
+        },
+      }),
+    };
+
+    const mockDb = {
+      collection: jest.fn().mockReturnValue({
+        doc: jest.fn().mockReturnValue({
+          collection: jest.fn().mockReturnValue({
+            where: jest.fn().mockReturnThis(),
+            orderBy: jest.fn().mockReturnThis(),
+            limit: jest.fn().mockReturnValue({
+              get: jest.fn().mockResolvedValue({
+                empty: false,
+                docs: [mockCycleDoc],
+              }),
+            }),
+          }),
+        }),
+      }),
+    } as unknown as admin.firestore.Firestore;
+
+    const result = await checkChartHasObservationForDate(
+      mockDb,
+      "chart_map",
+      "2026-08-20"
+    );
+    expect(result).toBe(true);
+  });
+
   it("returns false when no observations are recorded for dateKey", async () => {
     const mockDailyDoc = {
       exists: true,
@@ -234,6 +329,100 @@ describe("processDailyReminders", () => {
     );
   });
 
+  it("processes chart regardless of local hour when forceChartId is provided", async () => {
+    // 10:00 AM UTC -> 3:00 AM PDT (hour 3, not targetHour 21)
+    const now = new Date(Date.UTC(2026, 7, 21, 10, 0, 0));
+
+    const mockChartDoc = {
+      id: "chart_forced",
+      data: () => ({
+        id: "chart_forced",
+        userIds: ["user_1"],
+        reminderEnabled: true,
+        timezone: "America/Los_Angeles",
+      }),
+    };
+
+    const mockUser1 = {
+      id: "user_1",
+      exists: true,
+      data: () => ({
+        uid: "user_1",
+        fcmTokens: ["token_1"],
+      }),
+    };
+
+    const mockCycleDoc = {
+      ref: {
+        collection: jest.fn().mockReturnValue({
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue({ exists: false }),
+          }),
+        }),
+      },
+      data: () => ({ dailyEntries: {} }),
+    };
+
+    const whereFn = jest.fn().mockReturnValue({
+      get: jest.fn().mockResolvedValue({
+        docs: [mockChartDoc],
+      }),
+    });
+
+    const mockDb = {
+      collection: jest.fn((colName: string) => {
+        if (colName === "charts") {
+          return {
+            where: whereFn,
+            doc: jest.fn().mockReturnValue({
+              collection: jest.fn().mockReturnValue({
+                where: jest.fn().mockReturnThis(),
+                orderBy: jest.fn().mockReturnThis(),
+                limit: jest.fn().mockReturnValue({
+                  get: jest.fn().mockResolvedValue({
+                    empty: false,
+                    docs: [mockCycleDoc],
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (colName === "users") {
+          return {
+            doc: jest.fn((uid: string) => ({
+              id: uid,
+              get: jest.fn().mockResolvedValue(mockUser1),
+              update: jest.fn().mockResolvedValue(undefined),
+            })),
+          };
+        }
+        return {};
+      }),
+      getAll: jest.fn().mockImplementation((...refs) =>
+        Promise.all(refs.map((r: { get: () => Promise<unknown> }) => r.get()))
+      ),
+    } as unknown as admin.firestore.Firestore;
+
+    const mockMessaging = {
+      sendEachForMulticast: jest.fn().mockResolvedValue({
+        successCount: 1,
+        failureCount: 0,
+        responses: [{ success: true }],
+      }),
+    } as unknown as admin.messaging.Messaging;
+
+    const result = await processDailyReminders(mockDb, mockMessaging, {
+      now,
+      forceChartId: "chart_forced",
+    });
+
+    expect(whereFn).toHaveBeenCalledWith("id", "==", "chart_forced");
+    expect(result.chartsChecked).toBe(1);
+    expect(result.remindersSent).toBe(1);
+    expect(result.tokensNotified).toBe(1);
+  });
+
   it("skips chart if reminderEnabled is false", async () => {
     const now = new Date(Date.UTC(2026, 7, 21, 4, 0, 0));
 
@@ -266,6 +455,98 @@ describe("processDailyReminders", () => {
     expect(mockMessaging.sendEachForMulticast).not.toHaveBeenCalled();
   });
 
+  it("skips chart silently when all users have no FCM tokens", async () => {
+    const now = new Date(Date.UTC(2026, 7, 21, 4, 0, 0));
+
+    const mockChartDoc = {
+      id: "chart_empty_tokens",
+      data: () => ({
+        id: "chart_empty_tokens",
+        userIds: ["user_no_token", "user_empty_array"],
+        reminderEnabled: true,
+        timezone: "America/Los_Angeles",
+      }),
+    };
+
+    const mockUserNoTokens = {
+      id: "user_no_token",
+      exists: true,
+      data: () => ({
+        uid: "user_no_token",
+        fcmTokens: undefined,
+      }),
+    };
+
+    const mockUserEmptyArray = {
+      id: "user_empty_array",
+      exists: true,
+      data: () => ({
+        uid: "user_empty_array",
+        fcmTokens: ["", ""], // empty strings get filtered out
+      }),
+    };
+
+    const mockCycleDoc = {
+      ref: {
+        collection: jest.fn().mockReturnValue({
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue({ exists: false }),
+          }),
+        }),
+      },
+      data: () => ({ dailyEntries: {} }),
+    };
+
+    const mockDb = {
+      collection: jest.fn((colName: string) => {
+        if (colName === "charts") {
+          return {
+            get: jest.fn().mockResolvedValue({
+              docs: [mockChartDoc],
+            }),
+            doc: jest.fn().mockReturnValue({
+              collection: jest.fn().mockReturnValue({
+                where: jest.fn().mockReturnThis(),
+                orderBy: jest.fn().mockReturnThis(),
+                limit: jest.fn().mockReturnValue({
+                  get: jest.fn().mockResolvedValue({
+                    empty: false,
+                    docs: [mockCycleDoc],
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (colName === "users") {
+          return {
+            doc: jest.fn((uid: string) => ({
+              id: uid,
+              get: jest.fn().mockResolvedValue(
+                uid === "user_no_token" ? mockUserNoTokens : mockUserEmptyArray
+              ),
+            })),
+          };
+        }
+        return {};
+      }),
+      getAll: jest.fn().mockImplementation((...refs) =>
+        Promise.all(refs.map((r: { get: () => Promise<unknown> }) => r.get()))
+      ),
+    } as unknown as admin.firestore.Firestore;
+
+    const mockMessaging = {
+      sendEachForMulticast: jest.fn(),
+    } as unknown as admin.messaging.Messaging;
+
+    const result = await processDailyReminders(mockDb, mockMessaging, { now });
+
+    expect(result.chartsChecked).toBe(1);
+    expect(result.remindersSent).toBe(0);
+    expect(result.tokensNotified).toBe(0);
+    expect(mockMessaging.sendEachForMulticast).not.toHaveBeenCalled();
+  });
+
   it("handles non-existent user documents and prunes invalid fcmTokens cleanly", async () => {
     const now = new Date(Date.UTC(2026, 7, 21, 4, 0, 0));
 
@@ -284,7 +565,7 @@ describe("processDailyReminders", () => {
       exists: true,
       data: () => ({
         uid: "user_valid",
-        fcmTokens: ["valid_token_1", "invalid_token_expired"],
+        fcmTokens: ["valid_token_1", "invalid_token_expired", "invalid_token_bad_format"],
       }),
     };
 
@@ -349,12 +630,16 @@ describe("processDailyReminders", () => {
     const mockMessaging = {
       sendEachForMulticast: jest.fn().mockResolvedValue({
         successCount: 1,
-        failureCount: 1,
+        failureCount: 2,
         responses: [
           { success: true },
           {
             success: false,
             error: { code: "messaging/registration-token-not-registered" },
+          },
+          {
+            success: false,
+            error: { code: "messaging/invalid-registration-token" },
           },
         ],
       }),
@@ -367,10 +652,9 @@ describe("processDailyReminders", () => {
     expect(result.tokensNotified).toBe(1);
     expect(mockDb.getAll).toHaveBeenCalled();
 
-    // Verifies invalid token was pruned and valid token retained
+    // Verifies invalid tokens were pruned and valid token retained
     expect(mockUserUpdate).toHaveBeenCalledWith({
       fcmTokens: ["valid_token_1"],
     });
   });
 });
-
