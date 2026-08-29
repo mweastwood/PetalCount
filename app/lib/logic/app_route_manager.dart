@@ -4,17 +4,16 @@ import 'package:flutter/services.dart';
 
 import '../screens/chart_selection_screen.dart';
 import '../screens/settings_screen.dart';
-import '../screens/supplement_screen.dart';
 import 'models/cycle.dart';
 
-enum ViewMode { observations, chart }
+enum ViewMode { observations, chart, supplements }
 
 class AppRouteManager {
   final Uri? mockUri;
 
   AppRouteManager({this.mockUri});
 
-  /// Updates the web URL path matching the current ViewMode (/observations or /chart)
+  /// Updates the web URL path matching the current ViewMode (/observations, /chart, or /supplements)
   void updateUrlPath(ViewMode viewMode) {
     if (!kIsWeb) return;
     String path;
@@ -24,6 +23,9 @@ class AppRouteManager {
         break;
       case ViewMode.chart:
         path = '/chart';
+        break;
+      case ViewMode.supplements:
+        path = '/supplements';
         break;
     }
     SystemNavigator.routeInformationUpdated(
@@ -67,6 +69,10 @@ class AppRouteManager {
         onViewModeChanged(ViewMode.chart);
         updateUrlPath(ViewMode.chart);
       },
+      'supplements': () {
+        onViewModeChanged(ViewMode.supplements);
+        updateUrlPath(ViewMode.supplements);
+      },
       'settings': () {
         onViewModeChanged(ViewMode.observations);
         updateUrlPathRaw('/settings');
@@ -75,20 +81,6 @@ class AppRouteManager {
           MaterialPageRoute(
             settings: const RouteSettings(name: '/settings'),
             builder: (context) => SettingsScreen(activeCycle: activeCycle),
-          ),
-        ).then((_) {
-          if (!context.mounted) return;
-          updateUrlPath(currentViewMode);
-        });
-      },
-      'supplements': () {
-        onViewModeChanged(ViewMode.observations);
-        updateUrlPathRaw('/supplements');
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            settings: const RouteSettings(name: '/supplements'),
-            builder: (context) => SupplementScreen(activeCycle: activeCycle),
           ),
         ).then((_) {
           if (!context.mounted) return;

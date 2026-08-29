@@ -144,6 +144,42 @@ void main() {
       expect(find.text('Select Chart'), findsOneWidget);
     });
 
+    testWidgets('handleUrlParameters parses /supplements route', (
+      tester,
+    ) async {
+      final routeManager = AppRouteManager(
+        mockUri: Uri.parse('https://example.com/supplements'),
+      );
+
+      ViewMode? updatedMode;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              return ElevatedButton(
+                onPressed: () {
+                  routeManager.handleUrlParameters(
+                    context: context,
+                    onViewModeChanged: (mode) {
+                      updatedMode = mode;
+                    },
+                    currentViewMode: ViewMode.observations,
+                  );
+                },
+                child: const Text('Test'),
+              );
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Test'));
+      await tester.pumpAndSettle();
+
+      expect(updatedMode, ViewMode.supplements);
+    });
+
     test('updateUrlPath is a no-op on non-web platforms and does not throw', () {
       final routeManager = AppRouteManager();
       // On non-web platforms (kIsWeb == false), updateUrlPath safely no-ops

@@ -345,7 +345,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ? _buildNoCyclesView(context)
                 : Column(
                     children: [
-                      if (isDay7 && chartId != null)
+                      if (isDay7 &&
+                          chartId != null &&
+                          _viewMode != ViewMode.supplements)
                         StreamBuilder<NotificationPreferences>(
                           stream: Services.db.streamNotificationPreferences(
                             chartId,
@@ -378,7 +380,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     ),
                                 todayOverride: widget.todayOverride,
                               )
-                            : ChartScreen(
+                            : _viewMode == ViewMode.chart
+                            ? ChartScreen(
                                 cycles: cycles,
                                 onSelectEntry: (entry, cycle) =>
                                     _showDailyDetailSheet(
@@ -392,6 +395,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                                       cycle,
                                       date,
                                     ),
+                              )
+                            : SupplementScreen(
+                                initialDate: widget.todayOverride,
+                                activeCycle: cycles.isNotEmpty
+                                    ? cycles.first
+                                    : null,
                               ),
                       ),
                     ],
@@ -419,12 +428,19 @@ class _DashboardScreenState extends State<DashboardScreen>
                       selectedIcon: Icon(Icons.grid_on),
                       label: 'Chart',
                     ),
+                    NavigationDestination(
+                      icon: Icon(Icons.medication_outlined),
+                      selectedIcon: Icon(Icons.medication),
+                      label: 'Supplements',
+                    ),
                   ],
                 ),
-          floatingActionButton: _buildSpeedDialFab(
-            context,
-            cycles.isNotEmpty ? cycles.first : null,
-          ),
+          floatingActionButton: _viewMode == ViewMode.supplements
+              ? null
+              : _buildSpeedDialFab(
+                  context,
+                  cycles.isNotEmpty ? cycles.first : null,
+                ),
         );
       },
     );
@@ -578,20 +594,10 @@ class _DashboardScreenState extends State<DashboardScreen>
             title: const Text('Supplements & Schedule'),
             onTap: () {
               Navigator.pop(context); // Close drawer
-              _routeManager.updateUrlPathRaw('/supplements');
-              Navigator.of(context)
-                  .push(
-                    MaterialPageRoute(
-                      settings: const RouteSettings(name: '/supplements'),
-                      builder: (context) => SupplementScreen(
-                        activeCycle: cycles.isNotEmpty ? cycles.first : null,
-                      ),
-                    ),
-                  )
-                  .then((_) {
-                    if (!mounted) return;
-                    _routeManager.updateUrlPath(_viewMode);
-                  });
+              setState(() {
+                _viewMode = ViewMode.supplements;
+              });
+              _routeManager.updateUrlPath(ViewMode.supplements);
             },
           ),
           ListTile(
