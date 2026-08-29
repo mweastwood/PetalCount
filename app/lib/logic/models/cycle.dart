@@ -56,8 +56,21 @@ class Cycle {
     int minDays = 35,
   }) {
     int maxDays = minDays;
-    for (final cycle in cycles) {
-      final cycleMax = cycle.maxDayNumber;
+    final sorted = List<Cycle>.from(cycles)
+      ..sort((a, b) => a.startDate.compareTo(b.startDate));
+
+    for (int i = 0; i < sorted.length; i++) {
+      final cycle = sorted[i];
+      int cycleMax = cycle.maxDayNumber;
+      if (cycle.endDate != null) {
+        final endDays =
+            calendarDaysBetween(cycle.startDate, cycle.endDate!) + 1;
+        if (endDays > cycleMax) cycleMax = endDays;
+      } else if (i < sorted.length - 1) {
+        final nextStart = sorted[i + 1].startDate;
+        final cycleDays = calendarDaysBetween(cycle.startDate, nextStart);
+        if (cycleDays > cycleMax) cycleMax = cycleDays;
+      }
       if (cycleMax > maxDays) {
         maxDays = cycleMax;
       }

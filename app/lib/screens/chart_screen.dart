@@ -45,6 +45,33 @@ class ChartScreen extends StatelessWidget {
     }
   }
 
+  /// Determines the number of days to display for a cycle.
+  /// If a subsequent cycle has started or the cycle has ended, extra days
+  /// beyond the end of this cycle that will never be populated are hidden.
+  int _getCycleDisplayDays(Cycle cycle, int maxDays) {
+    if (cycle.endDate != null) {
+      final endDays = calendarDaysBetween(cycle.startDate, cycle.endDate!) + 1;
+      return endDays < maxDays ? endDays : maxDays;
+    }
+
+    final sortedCycles = List<Cycle>.from(cycles)
+      ..sort((a, b) => a.startDate.compareTo(b.startDate));
+    final index = sortedCycles.indexWhere((c) => c.id == cycle.id);
+
+    if (index != -1 && index < sortedCycles.length - 1) {
+      final nextCycle = sortedCycles[index + 1];
+      final daysToNext = calendarDaysBetween(
+        cycle.startDate,
+        nextCycle.startDate,
+      );
+      if (daysToNext > 0) {
+        return daysToNext < maxDays ? daysToNext : maxDays;
+      }
+    }
+
+    return maxDays;
+  }
+
   /// Narrow Screens (Portrait): Vertical Cycle Columns with a shared Day column on the left
   Widget _buildVerticalSpreadsheet(BuildContext context, int maxDays) {
     final theme = Theme.of(context);
@@ -122,6 +149,7 @@ class ChartScreen extends StatelessWidget {
                     ),
                     // Cycle Columns (Side-by-Side)
                     ...cycles.map((cycle) {
+                      final displayDays = _getCycleDisplayDays(cycle, maxDays);
                       return Container(
                         margin: const EdgeInsets.only(right: kCellGap),
                         child: Column(
@@ -178,7 +206,7 @@ class ChartScreen extends StatelessWidget {
                               ),
                             ),
                             // Cells for Day 1 .. Day N going DOWN
-                            ...List.generate(maxDays, (index) {
+                            ...List.generate(displayDays, (index) {
                               final dayNum = index + 1;
                               final dayDate = cycle.startDate.addCalendarDays(
                                 index,
@@ -407,7 +435,7 @@ class ChartScreen extends StatelessWidget {
           ),
         ),
         // Day Stamp Cells for Day 1 .. Day N going ACROSS
-        ...List.generate(maxDays, (index) {
+        ...List.generate(_getCycleDisplayDays(cycle, maxDays), (index) {
           final dayNum = index + 1;
           final dayDate = cycle.startDate.addCalendarDays(index);
           final dateKey = dayDate.dateKey;
