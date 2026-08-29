@@ -1,14 +1,32 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/logic.dart';
 
 void main() {
   group('PdfExportService Unit Tests', () {
+    const pdfMagicBytes = [0x25, 0x50, 0x44, 0x46]; // '%PDF'
+
     test(
-      'generatePdfBytes produces non-empty PDF bytes for empty cycles list',
+      'generatePdfBytes produces valid PDF bytes for empty cycles list',
       () async {
         final bytes = await PdfExportService.generatePdfBytes([]);
         expect(bytes, isNotEmpty);
-        expect(bytes.length, greaterThan(100));
+        expect(bytes.sublist(0, 4), equals(pdfMagicBytes));
+
+        final pdfText = _extractPdfText(bytes);
+        expect(pdfText, contains('Creighton'));
+        expect(pdfText, contains('FertilityCare'));
+        expect(pdfText, contains('Chart'));
+        expect(pdfText, contains('Generated'));
+        expect(pdfText, contains('on:'));
+        expect(pdfText, contains('Legend'));
+        expect(pdfText, contains('Bleeding'));
+        expect(pdfText, contains('Infertile'));
+        expect(pdfText, contains('Fertile'));
+        expect(pdfText, isNot(contains('Cycle Starting:')));
+        expect(pdfText, isNot(contains('Daily Notes:')));
       },
     );
 
@@ -39,9 +57,26 @@ void main() {
           },
         );
 
+        final emptyBytes = await PdfExportService.generatePdfBytes([]);
         final bytes = await PdfExportService.generatePdfBytes([cycle]);
+
         expect(bytes, isNotEmpty);
-        expect(bytes.length, greaterThan(500));
+        expect(bytes.sublist(0, 4), equals(pdfMagicBytes));
+        expect(bytes.length, greaterThan(emptyBytes.length));
+
+        final pdfText = _extractPdfText(bytes);
+        expect(pdfText, contains('Creighton'));
+        expect(pdfText, contains('FertilityCare'));
+        expect(pdfText, contains('Chart'));
+        expect(pdfText, contains('2026-06-01'));
+        expect(pdfText, contains('6C'));
+        expect(pdfText, contains('Period'));
+        expect(pdfText, contains('start'));
+        expect(pdfText, contains('Daily'));
+        expect(pdfText, contains('Notes:'));
+        expect(pdfText, contains('H'));
+        expect(pdfText, contains('Jun'));
+        expect(pdfText, contains('01'));
       },
     );
 
@@ -62,11 +97,21 @@ void main() {
           dailyEntries: {},
         );
 
+        final singleBytes = await PdfExportService.generatePdfBytes([cycle1]);
         final bytes = await PdfExportService.generatePdfBytes([cycle1, cycle2]);
+
         expect(bytes, isNotEmpty);
-        expect(bytes.length, greaterThan(1000));
+        expect(bytes.sublist(0, 4), equals(pdfMagicBytes));
+        expect(bytes.length, greaterThan(singleBytes.length));
+
+        final pdfText = _extractPdfText(bytes);
+        expect(pdfText, contains('2026-06-01'));
+        expect(pdfText, contains('6C'));
+        expect(pdfText, contains('2026-07-01'));
+        expect(pdfText, contains('8C'));
       },
     );
+
     test(
       'generatePdfBytes produces valid PDF bytes for cycle with missing observation days',
       () async {
@@ -110,8 +155,21 @@ void main() {
         );
 
         final bytes = await PdfExportService.generatePdfBytes([cycle]);
+
         expect(bytes, isNotEmpty);
-        expect(bytes.length, greaterThan(500));
+        expect(bytes.sublist(0, 4), equals(pdfMagicBytes));
+
+        final pdfText = _extractPdfText(bytes);
+        expect(pdfText, contains('2026-06-01'));
+        expect(pdfText, contains('6C'));
+        expect(pdfText, contains('Period'));
+        expect(pdfText, contains('start'));
+        expect(pdfText, contains('?'));
+        expect(pdfText, contains('H'));
+        expect(pdfText, contains('10WLK'));
+        expect(pdfText, contains('Jun'));
+        expect(pdfText, contains('01'));
+        expect(pdfText, contains('05'));
       },
     );
 
@@ -148,8 +206,18 @@ void main() {
         );
 
         final bytes = await PdfExportService.generatePdfBytes([cycle]);
+
         expect(bytes, isNotEmpty);
-        expect(bytes.length, greaterThan(500));
+        expect(bytes.sublist(0, 4), equals(pdfMagicBytes));
+
+        final pdfText = _extractPdfText(bytes);
+        expect(pdfText, contains('2026-01-01'));
+        expect(pdfText, contains('2'));
+        expect(pdfText, contains('Extended'));
+        expect(pdfText, contains('comment'));
+        expect(pdfText, contains('day'));
+        expect(pdfText, contains('41'));
+        expect(pdfText, contains('45'));
       },
     );
 
@@ -185,9 +253,73 @@ void main() {
         );
 
         final bytes = await PdfExportService.generatePdfBytes([cycle]);
+
         expect(bytes, isNotEmpty);
-        expect(bytes.length, greaterThan(500));
+        expect(bytes.sublist(0, 4), equals(pdfMagicBytes));
+
+        final pdfText = _extractPdfText(bytes);
+        expect(pdfText, contains('2026-01-01'));
+        expect(pdfText, contains('None'));
+        expect(pdfText, contains('75'));
+        expect(pdfText, contains('Creighton'));
       },
     );
   });
+}
+
+/// Extracts decompressed stream text from the generated PDF byte array.
+String _extractPdfText(List<int> bytes) {
+  final buffer = StringBuffer();
+  final streamHeader = ascii.encode('stream');
+  final streamFooter = ascii.encode('endstream');
+
+  int index = 0;
+  while (index < bytes.length) {
+    final streamStart = _indexOf(bytes, streamHeader, index);
+    if (streamStart == -1) break;
+
+    int contentStart = streamStart + streamHeader.length;
+    if (contentStart < bytes.length && bytes[contentStart] == 0x0D) {
+      contentStart++;
+    }
+    if (contentStart < bytes.length && bytes[contentStart] == 0x0A) {
+      contentStart++;
+    }
+
+    final streamEnd = _indexOf(bytes, streamFooter, contentStart);
+    if (streamEnd == -1) break;
+
+    int contentEnd = streamEnd;
+    if (contentEnd > contentStart && bytes[contentEnd - 1] == 0x0A) {
+      contentEnd--;
+    }
+    if (contentEnd > contentStart && bytes[contentEnd - 1] == 0x0D) {
+      contentEnd--;
+    }
+
+    final chunk = bytes.sublist(contentStart, contentEnd);
+    try {
+      final decompressed = zlib.decode(chunk);
+      buffer.write(latin1.decode(decompressed));
+    } catch (_) {
+      buffer.write(latin1.decode(chunk));
+    }
+
+    index = streamEnd + streamFooter.length;
+  }
+  return buffer.toString();
+}
+
+int _indexOf(List<int> data, List<int> pattern, int start) {
+  for (int i = start; i <= data.length - pattern.length; i++) {
+    bool match = true;
+    for (int j = 0; j < pattern.length; j++) {
+      if (data[i + j] != pattern[j]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) return i;
+  }
+  return -1;
 }
