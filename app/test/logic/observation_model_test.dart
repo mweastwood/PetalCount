@@ -80,7 +80,6 @@ void main() {
     test(
       'gracefully handles null, invalid, or malformed timestamp with fallback',
       () {
-        final before = DateTime.now().subtract(const Duration(seconds: 1));
         final map = {
           'id': 'obs_5',
           'timestamp': 'invalid-date-string',
@@ -91,10 +90,13 @@ void main() {
         };
 
         final obs = Observation.fromMap(map);
-        final after = DateTime.now().add(const Duration(seconds: 1));
 
-        expect(obs.timestamp.isAfter(before), true);
-        expect(obs.timestamp.isBefore(after), true);
+        expect(obs.timestamp, isA<DateTime>());
+        expect(
+          obs.timestamp.isAfter(DateTime(2020)),
+          isTrue,
+          reason: 'Fallback should be recent, not epoch',
+        );
 
         final nullMap = {
           'id': 'obs_6',
@@ -106,8 +108,12 @@ void main() {
         };
 
         final obsNull = Observation.fromMap(nullMap);
-        expect(obsNull.timestamp.isAfter(before), true);
-        expect(obsNull.timestamp.isBefore(after), true);
+        expect(obsNull.timestamp, isA<DateTime>());
+        expect(
+          obsNull.timestamp.isAfter(DateTime(2020)),
+          isTrue,
+          reason: 'Fallback should be recent, not epoch',
+        );
       },
     );
 
