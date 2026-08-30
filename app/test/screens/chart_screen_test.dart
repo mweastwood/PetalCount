@@ -167,4 +167,150 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'ChartScreen hides unpopulated extra days for past cycle after new cycle starts',
+    (WidgetTester tester) async {
+      final cycle1Start = DateTime(2026, 6, 1);
+      final cycle2Start = DateTime(2026, 6, 20); // 19 days in Cycle 1
+
+      final cycle1 = Cycle(
+        id: 'cycle_1',
+        startDate: cycle1Start,
+        dailyEntries: {
+          '2026-06-01': CreightonLogic.resolveDailyEntry(
+            date: cycle1Start,
+            observations: [
+              Observation(
+                id: '1',
+                timestamp: cycle1Start,
+                sensation: Sensation.dry,
+                stretch: Stretch.none,
+                colors: [],
+                consistencies: [],
+                bleeding: Bleeding.heavy,
+                userId: 'test',
+              ),
+            ],
+          ),
+        },
+      );
+
+      final cycle2 = Cycle(
+        id: 'cycle_2',
+        startDate: cycle2Start,
+        dailyEntries: {
+          '2026-06-20': CreightonLogic.resolveDailyEntry(
+            date: cycle2Start,
+            observations: [
+              Observation(
+                id: '2',
+                timestamp: cycle2Start,
+                sensation: Sensation.dry,
+                stretch: Stretch.none,
+                colors: [],
+                consistencies: [],
+                bleeding: Bleeding.heavy,
+                userId: 'test',
+              ),
+            ],
+          ),
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChartScreen(
+              cycles: [cycle1, cycle2],
+              onSelectEntry: (entry, c) {},
+              onAddForDate: (c, date) {},
+            ),
+          ),
+        ),
+      );
+
+      // Verify Cycle 1 has Day 19 (Jun 19)
+      expect(find.text('Jun 19'), findsOneWidget);
+
+      // Verify Jun 20 is only present for Cycle 2 (header & cell), not duplicated in Cycle 1
+      expect(find.text('Jun 20'), findsWidgets);
+
+      // Verify dates after Jun 20 are only from Cycle 2, and Cycle 1 did not generate June 21+ cells
+      // Day 35 from Cycle 2 is July 24
+      expect(find.text('Jul 24'), findsOneWidget);
+    },
+  );
+
+  testGoldens(
+    'ChartScreen hides unpopulated extra days for past cycle golden',
+    (WidgetTester tester) async {
+      final cycle1Start = DateTime(2026, 6, 1);
+      final cycle2Start = DateTime(2026, 6, 20); // 19 days in Cycle 1
+
+      final cycle1 = Cycle(
+        id: 'cycle_1',
+        startDate: cycle1Start,
+        dailyEntries: {
+          '2026-06-01': CreightonLogic.resolveDailyEntry(
+            date: cycle1Start,
+            observations: [
+              Observation(
+                id: '1',
+                timestamp: cycle1Start,
+                sensation: Sensation.dry,
+                stretch: Stretch.none,
+                colors: [],
+                consistencies: [],
+                bleeding: Bleeding.heavy,
+                userId: 'test',
+              ),
+            ],
+          ),
+        },
+      );
+
+      final cycle2 = Cycle(
+        id: 'cycle_2',
+        startDate: cycle2Start,
+        dailyEntries: {
+          '2026-06-20': CreightonLogic.resolveDailyEntry(
+            date: cycle2Start,
+            observations: [
+              Observation(
+                id: '2',
+                timestamp: cycle2Start,
+                sensation: Sensation.dry,
+                stretch: Stretch.none,
+                colors: [],
+                consistencies: [],
+                bleeding: Bleeding.heavy,
+                userId: 'test',
+              ),
+            ],
+          ),
+        },
+      );
+
+      await tester.pumpWidgetBuilder(
+        MaterialApp(
+          theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.pink),
+          home: Scaffold(
+            body: ChartScreen(
+              cycles: [cycle1, cycle2],
+              onSelectEntry: (entry, c) {},
+              onAddForDate: (c, date) {},
+            ),
+          ),
+        ),
+        surfaceSize: const Size(800, 600),
+      );
+      await tester.pumpAndSettle();
+
+      await screenMatchesGolden(
+        tester,
+        'chart_screen_past_cycle_hidden_unpopulated_days',
+      );
+    },
+  );
 }
