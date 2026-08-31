@@ -226,4 +226,97 @@ void main() {
       },
     );
   });
+
+  group('Observation hasMucus & isPeakType Evaluation Tests', () {
+    test('hasMucus is false when stretch is none and lists are empty', () {
+      final obs = Observation(
+        id: 'test_dry',
+        timestamp: DateTime(2026, 8, 31),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'user_1',
+      );
+      expect(obs.hasMucus, isFalse);
+      expect(obs.isPeakType, isFalse);
+    });
+
+    test('hasMucus is true when stretch is not none', () {
+      final obs = Observation(
+        id: 'test_sticky',
+        timestamp: DateTime(2026, 8, 31),
+        sensation: Sensation.dry,
+        stretch: Stretch.sticky,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'user_1',
+      );
+      expect(obs.hasMucus, isTrue);
+    });
+
+    test(
+      'hasMucus is true when consistencies contains pasty or gummy with Stretch.none',
+      () {
+        final pastyObs = Observation(
+          id: 'test_pasty',
+          timestamp: DateTime(2026, 8, 31),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [Consistency.pasty],
+          bleeding: Bleeding.none,
+          userId: 'user_1',
+        );
+        expect(pastyObs.hasMucus, isTrue);
+        expect(pastyObs.isPeakType, isFalse);
+
+        final gummyObs = Observation(
+          id: 'test_gummy',
+          timestamp: DateTime(2026, 8, 31),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [Consistency.gummy],
+          bleeding: Bleeding.none,
+          userId: 'user_1',
+        );
+        expect(gummyObs.hasMucus, isTrue);
+        expect(gummyObs.isPeakType, isFalse);
+      },
+    );
+
+    test(
+      'hasMucus is true and isPeakType evaluates properly when colors are present with Stretch.none',
+      () {
+        final clearObs = Observation(
+          id: 'test_clear',
+          timestamp: DateTime(2026, 8, 31),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [MucusColor.clear],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'user_1',
+        );
+        expect(clearObs.hasMucus, isTrue);
+        expect(clearObs.isPeakType, isTrue);
+
+        final cloudyObs = Observation(
+          id: 'test_cloudy',
+          timestamp: DateTime(2026, 8, 31),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [MucusColor.cloudy],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'user_1',
+        );
+        expect(cloudyObs.hasMucus, isTrue);
+        expect(cloudyObs.isPeakType, isFalse);
+      },
+    );
+  });
 }
