@@ -6,8 +6,14 @@ import 'supplements/supplements.dart';
 class SupplementScreen extends StatefulWidget {
   final DateTime? initialDate;
   final Cycle? activeCycle;
+  final UserRole? initialRole;
 
-  const SupplementScreen({super.key, this.initialDate, this.activeCycle});
+  const SupplementScreen({
+    super.key,
+    this.initialDate,
+    this.activeCycle,
+    this.initialRole,
+  });
 
   @override
   State<SupplementScreen> createState() => _SupplementScreenState();
@@ -17,12 +23,14 @@ class _SupplementScreenState extends State<SupplementScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late DateTime _selectedDate;
+  late UserRole _activeRole;
 
   @override
   void initState() {
     super.initState();
     final now = widget.initialDate ?? DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
+    _activeRole = widget.initialRole ?? UserRole.wife;
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       if (mounted) {
@@ -85,7 +93,7 @@ class _SupplementScreenState extends State<SupplementScreen>
       builder: (context) => AlertDialog(
         title: const Text('Reset Supplement Presets?'),
         content: const Text(
-          'This will reset your supplement list to the 14 standard Creighton / NaPro prescription and supplement instructions from your chart formulary.',
+          'This will reset your supplement list to the standard Creighton / NaPro prescription and supplement instructions for wife and husband.',
         ),
         actions: [
           TextButton(
@@ -116,8 +124,8 @@ class _SupplementScreenState extends State<SupplementScreen>
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Delete ${item.name}?'),
-        content: const Text(
-          'Are you sure you want to remove this supplement from your formulary?',
+        content: Text(
+          'Are you sure you want to remove this supplement from your ${item.targetRole.displayName.toLowerCase()} formulary?',
         ),
         actions: [
           TextButton(
@@ -190,7 +198,12 @@ class _SupplementScreenState extends State<SupplementScreen>
                           if (value == 'reset') {
                             _showResetPresetsConfirmation(context);
                           } else if (value == 'add') {
-                            AddEditSupplementDialog.show(context);
+                            AddEditSupplementDialog.show(
+                              context,
+                              null,
+                              null,
+                              _activeRole,
+                            );
                           }
                         },
                         itemBuilder: (context) => [
@@ -229,15 +242,28 @@ class _SupplementScreenState extends State<SupplementScreen>
                         hasPeakOccurred: hasPeakOccurred,
                         supplements: supplements,
                         dailyLog: dailyLog,
+                        initialRole: _activeRole,
+                        onRoleChanged: (role) {
+                          setState(() {
+                            _activeRole = role;
+                          });
+                        },
                         onDateChanged: _changeDate,
                         onGoToToday: _goToToday,
                       ),
                       CyclePlanTab(
                         supplements: supplements,
                         cycle: activeCycle,
+                        initialRole: _activeRole,
+                        onRoleChanged: (role) {
+                          setState(() {
+                            _activeRole = role;
+                          });
+                        },
                       ),
                       FormularyTab(
                         supplements: supplements,
+                        initialRoleFilter: null,
                         onEdit: (item) =>
                             AddEditSupplementDialog.show(context, item),
                         onDelete: (item) =>
@@ -248,8 +274,12 @@ class _SupplementScreenState extends State<SupplementScreen>
                   floatingActionButton: _tabController.index == 2
                       ? FloatingActionButton.extended(
                           key: const Key('btn_add_supplement_fab'),
-                          onPressed: () =>
-                              AddEditSupplementDialog.show(context),
+                          onPressed: () => AddEditSupplementDialog.show(
+                            context,
+                            null,
+                            null,
+                            _activeRole,
+                          ),
                           icon: const Icon(Icons.add),
                           label: const Text('Add Supplement'),
                         )

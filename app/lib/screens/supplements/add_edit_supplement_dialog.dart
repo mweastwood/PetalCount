@@ -5,18 +5,28 @@ import '../../logic/logic.dart';
 class AddEditSupplementDialog extends StatefulWidget {
   final SupplementItem? supplement;
   final Future<void> Function(SupplementItem item)? onSave;
+  final UserRole? defaultRole;
 
-  const AddEditSupplementDialog({super.key, this.supplement, this.onSave});
+  const AddEditSupplementDialog({
+    super.key,
+    this.supplement,
+    this.onSave,
+    this.defaultRole,
+  });
 
   static Future<SupplementItem?> show(
     BuildContext context, [
     SupplementItem? supplement,
     Future<void> Function(SupplementItem item)? onSave,
+    UserRole? defaultRole,
   ]) {
     return showDialog<SupplementItem>(
       context: context,
-      builder: (context) =>
-          AddEditSupplementDialog(supplement: supplement, onSave: onSave),
+      builder: (context) => AddEditSupplementDialog(
+        supplement: supplement,
+        onSave: onSave,
+        defaultRole: defaultRole,
+      ),
     );
   }
 
@@ -40,6 +50,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
   late int _afternoonDose;
   late int _eveningDose;
   late SupplementScheduleRuleType _ruleType;
+  late UserRole _targetRole;
 
   String? _nameError;
   String? _quantityError;
@@ -58,6 +69,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
     _afternoonDose = existing?.afternoonDose ?? 0;
     _eveningDose = existing?.eveningDose ?? 0;
     _ruleType = existing?.ruleType ?? SupplementScheduleRuleType.allDays;
+    _targetRole = existing?.targetRole ?? widget.defaultRole ?? UserRole.wife;
 
     _startDayCtrl = TextEditingController(
       text: existing?.startCycleDay?.toString() ?? '',
@@ -127,6 +139,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
       durationDays: int.tryParse(_durationCtrl.text.trim()),
       instructions: _instructionsCtrl.text.trim(),
       isActive: widget.supplement?.isActive ?? true,
+      targetRole: _targetRole,
     );
 
     Navigator.pop(context, item);
@@ -148,6 +161,35 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              'Person / Assigned Partner',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<UserRole>(
+              key: const Key('supplement_role_segmented_button'),
+              segments: const [
+                ButtonSegment<UserRole>(
+                  value: UserRole.wife,
+                  label: Text('👩 Wife'),
+                  icon: Icon(Icons.female),
+                ),
+                ButtonSegment<UserRole>(
+                  value: UserRole.husband,
+                  label: Text('👨 Husband'),
+                  icon: Icon(Icons.male),
+                ),
+              ],
+              selected: {_targetRole},
+              onSelectionChanged: (Set<UserRole> newSelection) {
+                setState(() {
+                  _targetRole = newSelection.first;
+                });
+              },
+            ),
+            const SizedBox(height: 16),
             TextField(
               controller: _nameCtrl,
               decoration: InputDecoration(

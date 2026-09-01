@@ -4,26 +4,39 @@ import 'package:petal_count/logic/logic.dart';
 void main() {
   group('Supplement Model Tests', () {
     test(
-      'SupplementPresets defaultList contains all 14 Google Sheet items',
+      'SupplementPresets defaultList contains 14 wife items and male presets',
       () {
         final presets = SupplementPresets.defaultList;
-        expect(presets.length, 14);
+        final wifePresets = presets
+            .where((s) => s.targetRole == UserRole.wife)
+            .toList();
+        final husbandPresets = presets
+            .where((s) => s.targetRole == UserRole.husband)
+            .toList();
 
-        final names = presets.map((s) => s.name).toList();
-        expect(names, contains('Prenatal'));
-        expect(names, contains('CoQ10'));
-        expect(names, contains('Vitamin D'));
-        expect(names, contains('NAC (N-Acetyl Cysteine)'));
-        expect(names, contains('L-methylfolate and sublingual B12'));
-        expect(names, contains('Myo-inositol'));
-        expect(names, contains('Berberine'));
-        expect(names, contains('Fatty 15'));
-        expect(names, contains('Magnesium L-Theonate'));
-        expect(names, contains('Perfect Amino'));
-        expect(names, contains('Clomid'));
-        expect(names, contains('FertileCM'));
-        expect(names, contains('Mucinex ER'));
-        expect(names, contains('Progesterone (sustained release)'));
+        expect(wifePresets.length, 14);
+        expect(husbandPresets.length, 6);
+
+        final wifeNames = wifePresets.map((s) => s.name).toList();
+        expect(wifeNames, contains('Prenatal'));
+        expect(wifeNames, contains('CoQ10'));
+        expect(wifeNames, contains('Vitamin D'));
+        expect(wifeNames, contains('NAC (N-Acetyl Cysteine)'));
+        expect(wifeNames, contains('L-methylfolate and sublingual B12'));
+        expect(wifeNames, contains('Myo-inositol'));
+        expect(wifeNames, contains('Berberine'));
+        expect(wifeNames, contains('Fatty 15'));
+        expect(wifeNames, contains('Magnesium L-Theonate'));
+        expect(wifeNames, contains('Perfect Amino'));
+        expect(wifeNames, contains('Clomid'));
+        expect(wifeNames, contains('FertileCM'));
+        expect(wifeNames, contains('Mucinex ER'));
+        expect(wifeNames, contains('Progesterone (sustained release)'));
+
+        final husbandNames = husbandPresets.map((s) => s.name).toList();
+        expect(husbandNames, contains("Men's Multivitamin"));
+        expect(husbandNames, contains('CoQ10 (Male Support)'));
+        expect(husbandNames, contains('Zinc & L-Methylfolate'));
       },
     );
 
@@ -198,6 +211,7 @@ void main() {
         eveningDose: 1,
         ruleType: SupplementScheduleRuleType.allDays,
         instructions: 'Take with food',
+        targetRole: UserRole.husband,
       );
 
       final map = original.toMap();
@@ -212,6 +226,7 @@ void main() {
       expect(reconstructed.afternoonDose, 0);
       expect(reconstructed.totalDailyDoses, 2);
       expect(reconstructed.instructions, 'Take with food');
+      expect(reconstructed.targetRole, UserRole.husband);
     });
 
     test('DailySupplementLog toggles doses correctly', () {

@@ -387,8 +387,9 @@ void main() {
   group('Supplement Database Operations', () {
     test('streamSupplements yields preset list for initial chart', () async {
       final supps = await db.streamSupplements().first;
-      expect(supps.length, 14);
+      expect(supps.length, 20);
       expect(supps.any((s) => s.name == 'Prenatal'), isTrue);
+      expect(supps.any((s) => s.name == "Men's Multivitamin"), isTrue);
     });
 
     test('saveSupplement adds new supplement and updates stream', () async {
@@ -402,7 +403,7 @@ void main() {
       await db.saveSupplement(newSupp);
 
       final supps = await db.streamSupplements().first;
-      expect(supps.length, 15);
+      expect(supps.length, 21);
       expect(supps.any((s) => s.id == 'supp_custom_1'), isTrue);
     });
 
@@ -410,12 +411,12 @@ void main() {
       'deleteSupplement removes supplement and does not re-seed when empty',
       () async {
         var supps = await db.streamSupplements().first;
-        expect(supps.length, 14);
+        expect(supps.length, 20);
 
         // Delete one supplement
         await db.deleteSupplement('preset_prenatal');
         supps = await db.streamSupplements().first;
-        expect(supps.length, 13);
+        expect(supps.length, 19);
         expect(supps.any((s) => s.id == 'preset_prenatal'), isFalse);
 
         // Delete all remaining supplements to verify empty list does not silently re-seed
@@ -429,7 +430,7 @@ void main() {
       },
     );
 
-    test('resetDefaultSupplements restores all 14 standard presets', () async {
+    test('resetDefaultSupplements restores all standard presets', () async {
       // Clear all supplements first
       final suppsInitial = await db.streamSupplements().first;
       for (final s in suppsInitial) {
@@ -441,10 +442,10 @@ void main() {
       await db.resetDefaultSupplements();
 
       final suppsReset = await db.streamSupplements().first;
-      expect(suppsReset.length, 14);
+      expect(suppsReset.length, 20);
       expect(
         suppsReset.map((s) => s.name),
-        containsAll(['Prenatal', 'CoQ10', 'Vitamin D']),
+        containsAll(['Prenatal', 'CoQ10', 'Vitamin D', "Men's Multivitamin"]),
       );
     });
 
@@ -506,7 +507,7 @@ void main() {
         });
 
         await Future.delayed(Duration.zero);
-        expect(supplementEmissions.last.length, 14);
+        expect(supplementEmissions.last.length, 20);
         expect(logEmissions.last, isEmpty);
 
         // Unlink chart
@@ -518,7 +519,7 @@ void main() {
         // Create new chart
         await db.createChart();
         await Future.delayed(Duration.zero);
-        expect(supplementEmissions.last.length, 14);
+        expect(supplementEmissions.last.length, 20);
 
         // Log dose on new chart
         final testDate = DateTime(2026, 8, 30);
