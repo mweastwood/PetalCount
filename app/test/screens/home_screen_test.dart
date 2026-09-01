@@ -598,4 +598,114 @@ void main() {
       expect(find.byKey(const Key('banner_day_7_bse')), findsNothing);
     },
   );
+
+  group('DashboardScreen wide screen tests', () {
+    testWidgets(
+      'DashboardScreen initial state on wide screen (Observations tab with NavigationRail)',
+      (WidgetTester tester) async {
+        await tester.pumpWidgetBuilder(
+          PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+          surfaceSize: const Size(900, 600),
+        );
+        await tester.pumpAndSettle();
+
+        // Verify NavigationBar is NOT present, NavigationRail IS present
+        expect(find.byType(NavigationBar), findsNothing);
+        expect(find.byType(NavigationRail), findsOneWidget);
+
+        // Verify default selected destination is Observations (index 0)
+        final NavigationRail rail = tester.widget(find.byType(NavigationRail));
+        expect(rail.selectedIndex, 0);
+
+        // Verify ObservationsScreen is visible, ChartScreen is not
+        expect(find.byType(ObservationsScreen), findsOneWidget);
+        expect(find.byType(ChartScreen), findsNothing);
+
+        // Verify FloatingActionButton is shown
+        expect(find.byType(FloatingActionButton), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'DashboardScreen switch tabs on wide screen with NavigationRail',
+      (WidgetTester tester) async {
+        await tester.pumpWidgetBuilder(
+          PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+          surfaceSize: const Size(900, 600),
+        );
+        await tester.pumpAndSettle();
+
+        // 1. Switch to Chart tab
+        await tester.tap(find.text('Chart'));
+        await tester.pumpAndSettle();
+
+        final NavigationRail rail1 = tester.widget(find.byType(NavigationRail));
+        expect(rail1.selectedIndex, 1);
+        expect(find.byType(ChartScreen), findsOneWidget);
+        expect(find.byType(ObservationsScreen), findsNothing);
+        expect(find.byType(FloatingActionButton), findsOneWidget);
+
+        // 2. Switch to Supplements tab
+        await tester.tap(find.text('Supplements'));
+        await tester.pumpAndSettle();
+
+        final NavigationRail rail2 = tester.widget(find.byType(NavigationRail));
+        expect(rail2.selectedIndex, 2);
+        expect(find.byType(SupplementScreen), findsOneWidget);
+        expect(find.byType(ObservationsScreen), findsNothing);
+        expect(find.byType(FloatingActionButton), findsNothing);
+
+        // 3. Switch back to Observations tab
+        await tester.tap(find.text('Observations'));
+        await tester.pumpAndSettle();
+
+        final NavigationRail rail3 = tester.widget(find.byType(NavigationRail));
+        expect(rail3.selectedIndex, 0);
+        expect(find.byType(ObservationsScreen), findsOneWidget);
+        expect(find.byType(ChartScreen), findsNothing);
+        expect(find.byType(FloatingActionButton), findsOneWidget);
+      },
+    );
+
+    testGoldens('DashboardScreen wide screen Observations tab golden', (
+      tester,
+    ) async {
+      await tester.pumpWidgetBuilder(
+        PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+        surfaceSize: const Size(900, 600),
+      );
+      await tester.pumpAndSettle();
+      await screenMatchesGolden(
+        tester,
+        'dashboard_screen_wide_observations_tab',
+      );
+    });
+
+    testGoldens('DashboardScreen wide screen Chart tab golden', (tester) async {
+      await tester.pumpWidgetBuilder(
+        PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+        surfaceSize: const Size(900, 600),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Chart'));
+      await tester.pumpAndSettle();
+      await screenMatchesGolden(tester, 'dashboard_screen_wide_chart_tab');
+    });
+
+    testGoldens('DashboardScreen wide screen Supplements tab golden', (
+      tester,
+    ) async {
+      await tester.pumpWidgetBuilder(
+        PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+        surfaceSize: const Size(900, 600),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Supplements'));
+      await tester.pumpAndSettle();
+      await screenMatchesGolden(
+        tester,
+        'dashboard_screen_wide_supplements_tab',
+      );
+    });
+  });
 }
