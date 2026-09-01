@@ -320,6 +320,9 @@ class InMemoryDatabaseService implements DatabaseService {
     _chartId = null;
     _authController.add(null);
     _emitCharts();
+    _emitCycles();
+    _emitSupplements();
+    _emitSupplementLogs();
   }
 
   @override
@@ -342,6 +345,9 @@ class InMemoryDatabaseService implements DatabaseService {
     };
     _authController.add(_currentUser); // Trigger refresh
     _emitCharts();
+    _emitCycles();
+    _emitSupplements();
+    _emitSupplementLogs();
   }
 
   @override
@@ -400,6 +406,9 @@ class InMemoryDatabaseService implements DatabaseService {
 
     _authController.add(_currentUser);
     _emitCharts();
+    _emitCycles();
+    _emitSupplements();
+    _emitSupplementLogs();
   }
 
   @override
@@ -423,6 +432,9 @@ class InMemoryDatabaseService implements DatabaseService {
     _chartId = null;
     _authController.add(_currentUser);
     _emitCharts();
+    _emitCycles();
+    _emitSupplements();
+    _emitSupplementLogs();
   }
 
   void _emitCharts() {
@@ -454,6 +466,9 @@ class InMemoryDatabaseService implements DatabaseService {
     _chartId = chartId;
     _authController.add(_currentUser);
     _emitCharts();
+    _emitCycles();
+    _emitSupplements();
+    _emitSupplementLogs();
   }
 
   @override
@@ -475,6 +490,9 @@ class InMemoryDatabaseService implements DatabaseService {
 
     _authController.add(_currentUser);
     _emitCharts();
+    _emitCycles();
+    _emitSupplements();
+    _emitSupplementLogs();
   }
 
   @override
@@ -511,6 +529,9 @@ class InMemoryDatabaseService implements DatabaseService {
 
     _authController.add(_currentUser);
     _emitCharts();
+    _emitCycles();
+    _emitSupplements();
+    _emitSupplementLogs();
   }
 
   @override

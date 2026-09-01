@@ -491,5 +491,49 @@ void main() {
         );
       },
     );
+
+    test(
+      'streamSupplements and streamDailySupplementLogs update dynamically when active chart changes or unlinks',
+      () async {
+        final supplementEmissions = <List<SupplementItem>>[];
+        final logEmissions = <Map<String, DailySupplementLog>>[];
+
+        final suppSub = db.streamSupplements().listen((supps) {
+          supplementEmissions.add(supps);
+        });
+        final logSub = db.streamDailySupplementLogs().listen((logs) {
+          logEmissions.add(logs);
+        });
+
+        await Future.delayed(Duration.zero);
+        expect(supplementEmissions.last.length, 14);
+        expect(logEmissions.last, isEmpty);
+
+        // Unlink chart
+        await db.unlinkChart();
+        await Future.delayed(Duration.zero);
+        expect(supplementEmissions.last, isEmpty);
+        expect(logEmissions.last, isEmpty);
+
+        // Create new chart
+        await db.createChart();
+        await Future.delayed(Duration.zero);
+        expect(supplementEmissions.last.length, 14);
+
+        // Log dose on new chart
+        final testDate = DateTime(2026, 8, 30);
+        await db.logSupplementDose(
+          date: testDate,
+          supplementId: 'prenatal',
+          timeOfDay: SupplementTimeOfDay.morning,
+          taken: true,
+        );
+        await Future.delayed(Duration.zero);
+        expect(logEmissions.last[testDate.dateKey], isNotNull);
+
+        await suppSub.cancel();
+        await logSub.cancel();
+      },
+    );
   });
 }
