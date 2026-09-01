@@ -6,3 +6,4 @@ export 'observations_screen.dart';
 export 'settings/settings.dart';
 export 'settings_screen.dart';
 export 'supplement_screen.dart';
+export 'supplements/supplements.dart';
