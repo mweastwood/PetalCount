@@ -492,4 +492,78 @@ void main() {
       expect(item.vdrsCode, 'H I');
     });
   });
+
+  group(
+    '10. Non-stretch mucus observations (Pasty, Gummy, Colors with stretch == Stretch.none)',
+    () {
+      test(
+        'Pasty consistency with Stretch.none maps to "6CP" and hasMucus == true',
+        () {
+          final item = obs(
+            stretch: Stretch.none,
+            consistencies: [Consistency.pasty],
+          );
+          expect(item.hasMucus, isTrue);
+          expect(item.vdrsCode, '6CP');
+          expect(item.isPeakType, isFalse);
+        },
+      );
+
+      test(
+        'Gummy consistency with Stretch.none maps to "6CG" and hasMucus == true',
+        () {
+          final item = obs(
+            stretch: Stretch.none,
+            consistencies: [Consistency.gummy],
+          );
+          expect(item.hasMucus, isTrue);
+          expect(item.vdrsCode, '6CG');
+          expect(item.isPeakType, isFalse);
+        },
+      );
+
+      test(
+        'Gummy and Pasty consistency with Stretch.none maps to "6CGP" and hasMucus == true',
+        () {
+          final item = obs(
+            stretch: Stretch.none,
+            consistencies: [Consistency.gummy, Consistency.pasty],
+          );
+          expect(item.hasMucus, isTrue);
+          expect(item.vdrsCode, '6CGP');
+          expect(item.isPeakType, isFalse);
+        },
+      );
+
+      test(
+        'Clear mucus color with Stretch.none maps to "0K", hasMucus == true, and isPeakType == true',
+        () {
+          final item = obs(stretch: Stretch.none, colors: [MucusColor.clear]);
+          expect(item.hasMucus, isTrue);
+          expect(item.vdrsCode, '0K');
+          expect(item.isPeakType, isTrue);
+        },
+      );
+
+      test(
+        'Cloudy mucus color with Stretch.none maps to "0C", hasMucus == true, and isPeakType == false',
+        () {
+          final item = obs(stretch: Stretch.none, colors: [MucusColor.cloudy]);
+          expect(item.hasMucus, isTrue);
+          expect(item.vdrsCode, '0C');
+          expect(item.isPeakType, isFalse);
+        },
+      );
+
+      test(
+        'Yellow mucus color with Stretch.none maps to "0Y", hasMucus == true, and isPeakType == false',
+        () {
+          final item = obs(stretch: Stretch.none, colors: [MucusColor.yellow]);
+          expect(item.hasMucus, isTrue);
+          expect(item.vdrsCode, '0Y');
+          expect(item.isPeakType, isFalse);
+        },
+      );
+    },
+  );
 }

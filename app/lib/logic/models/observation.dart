@@ -137,8 +137,7 @@ class Observation {
                intercourse);
 
   bool get hasMucus =>
-      stretch != Stretch.none ||
-      consistencies.contains(Consistency.lubricative);
+      stretch != Stretch.none || consistencies.isNotEmpty || colors.isNotEmpty;
   bool get hasBleeding => bleeding != Bleeding.none;
   bool get isMenstrualFlow => bleeding.isMenstrualFlow;
 
