@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../logic/logic.dart';
 
-class DailyIntakeTab extends StatelessWidget {
+class DailyIntakeTab extends StatefulWidget {
   final DateTime selectedDate;
   final Cycle? cycle;
   final int cycleDay;
@@ -18,6 +18,8 @@ class DailyIntakeTab extends StatelessWidget {
     bool taken,
   )?
   onToggleDose;
+  final UserRole? initialRole;
+  final ValueChanged<UserRole>? onRoleChanged;
 
   const DailyIntakeTab({
     super.key,
@@ -31,17 +33,45 @@ class DailyIntakeTab extends StatelessWidget {
     this.onDateChanged,
     this.onGoToToday,
     this.onToggleDose,
+    this.initialRole,
+    this.onRoleChanged,
   });
+
+  @override
+  State<DailyIntakeTab> createState() => _DailyIntakeTabState();
+}
+
+class _DailyIntakeTabState extends State<DailyIntakeTab> {
+  late UserRole _selectedRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedRole = widget.initialRole ?? UserRole.wife;
+  }
+
+  @override
+  void didUpdateWidget(DailyIntakeTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialRole != null &&
+        widget.initialRole != oldWidget.initialRole) {
+      _selectedRole = widget.initialRole!;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final activeSupplements = supplements
+    final roleSupplements = widget.supplements
+        .where((s) => s.targetRole == _selectedRole)
+        .toList();
+
+    final activeSupplements = roleSupplements
         .where(
           (s) => s.isScheduledFor(
-            cycleDay: cycleDay,
-            daysPastPeak: daysPastPeak,
-            hasPeakOccurred: hasPeakOccurred,
+            cycleDay: widget.cycleDay,
+            daysPastPeak: widget.daysPastPeak,
+            hasPeakOccurred: widget.hasPeakOccurred,
           ),
         )
         .toList();
@@ -53,7 +83,7 @@ class DailyIntakeTab extends StatelessWidget {
       for (final supp in activeSupplements) {
         if (supp.doseForTime(time) > 0) {
           totalDoses++;
-          if (dailyLog.isTaken(supp.id, time)) {
+          if (widget.dailyLog.isTaken(supp.id, time)) {
             takenDoses++;
           }
         }
@@ -67,6 +97,31 @@ class DailyIntakeTab extends StatelessWidget {
       children: [
         // Date Navigator Card
         _buildDateNavigatorCard(theme),
+        const SizedBox(height: 12),
+
+        // Role Switcher SegmentedButton
+        SegmentedButton<UserRole>(
+          key: const Key('daily_intake_role_segmented_button'),
+          segments: const [
+            ButtonSegment<UserRole>(
+              value: UserRole.wife,
+              label: Text('👩 Wife'),
+              icon: Icon(Icons.female),
+            ),
+            ButtonSegment<UserRole>(
+              value: UserRole.husband,
+              label: Text('👨 Husband'),
+              icon: Icon(Icons.male),
+            ),
+          ],
+          selected: {_selectedRole},
+          onSelectionChanged: (Set<UserRole> newSelection) {
+            setState(() {
+              _selectedRole = newSelection.first;
+            });
+            widget.onRoleChanged?.call(_selectedRole);
+          },
+        ),
         const SizedBox(height: 12),
 
         // Adherence Progress Card
@@ -139,17 +194,19 @@ class DailyIntakeTab extends StatelessWidget {
   }
 
   Widget _buildDateNavigatorCard(ThemeData theme) {
-    final dateStr = AppDateFormats.shortMonthDayYear.format(selectedDate);
-    final isToday = DateTime.now().dateKey == selectedDate.dateKey;
+    final dateStr = AppDateFormats.shortMonthDayYear.format(
+      widget.selectedDate,
+    );
+    final isToday = DateTime.now().dateKey == widget.selectedDate.dateKey;
 
-    String cycleStatus = 'Cycle Day $cycleDay';
-    if (daysPastPeak != null) {
-      if (daysPastPeak == 0) {
+    String cycleStatus = 'Cycle Day ${widget.cycleDay}';
+    if (widget.daysPastPeak != null) {
+      if (widget.daysPastPeak == 0) {
         cycleStatus += ' • Peak Day (P)';
-      } else if (daysPastPeak! > 0) {
-        cycleStatus += ' • Post-Peak (P+$daysPastPeak)';
+      } else if (widget.daysPastPeak! > 0) {
+        cycleStatus += ' • Post-Peak (P+${widget.daysPastPeak})';
       } else {
-        cycleStatus += ' • Pre-Peak (P$daysPastPeak)';
+        cycleStatus += ' • Pre-Peak (P${widget.daysPastPeak})';
       }
     }
 
@@ -164,8 +221,8 @@ class DailyIntakeTab extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.chevron_left),
               tooltip: 'Previous Day',
-              onPressed: onDateChanged != null
-                  ? () => onDateChanged!(-1)
+              onPressed: widget.onDateChanged != null
+                  ? () => widget.onDateChanged!(-1)
                   : null,
             ),
             Expanded(
@@ -218,12 +275,14 @@ class DailyIntakeTab extends StatelessWidget {
               IconButton(
                 icon: const Icon(Icons.today),
                 tooltip: 'Go to Today',
-                onPressed: onGoToToday,
+                onPressed: widget.onGoToToday,
               ),
             IconButton(
               icon: const Icon(Icons.chevron_right),
               tooltip: 'Next Day',
-              onPressed: onDateChanged != null ? () => onDateChanged!(1) : null,
+              onPressed: widget.onDateChanged != null
+                  ? () => widget.onDateChanged!(1)
+                  : null,
             ),
           ],
         ),
@@ -254,7 +313,7 @@ class DailyIntakeTab extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                '${items.where((i) => dailyLog.isTaken(i.id, time)).length} / ${items.length}',
+                '${items.where((i) => widget.dailyLog.isTaken(i.id, time)).length} / ${items.length}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.outline,
                 ),
@@ -287,7 +346,7 @@ class DailyIntakeTab extends StatelessWidget {
           )
         else
           ...items.map((item) {
-            final isTaken = dailyLog.isTaken(item.id, time);
+            final isTaken = widget.dailyLog.isTaken(item.id, time);
             final dose = item.doseForTime(time);
 
             return Card(
@@ -307,11 +366,11 @@ class DailyIntakeTab extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: () {
-                  if (onToggleDose != null) {
-                    onToggleDose!(item, time, !isTaken);
+                  if (widget.onToggleDose != null) {
+                    widget.onToggleDose!(item, time, !isTaken);
                   } else {
                     Services.db.logSupplementDose(
-                      date: selectedDate,
+                      date: widget.selectedDate,
                       supplementId: item.id,
                       timeOfDay: time,
                       taken: !isTaken,
@@ -329,11 +388,11 @@ class DailyIntakeTab extends StatelessWidget {
                         value: isTaken,
                         activeColor: Colors.green,
                         onChanged: (val) {
-                          if (onToggleDose != null) {
-                            onToggleDose!(item, time, val ?? false);
+                          if (widget.onToggleDose != null) {
+                            widget.onToggleDose!(item, time, val ?? false);
                           } else {
                             Services.db.logSupplementDose(
-                              date: selectedDate,
+                              date: widget.selectedDate,
                               supplementId: item.id,
                               timeOfDay: time,
                               taken: val ?? false,

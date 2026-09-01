@@ -6,6 +6,7 @@ import 'package:petal_count/screens/supplement_screen.dart';
 
 void main() {
   setUp(() async {
+    Services.db = InMemoryDatabaseService();
     await Services.db.resetDefaultSupplements();
   });
 
@@ -201,6 +202,101 @@ void main() {
         expect(find.text('Supplement name is required'), findsOneWidget);
         expect(find.text('Dosage / quantity is required'), findsOneWidget);
         expect(find.text('Add Supplement'), findsWidgets);
+      },
+    );
+
+    testWidgets(
+      'Can toggle between wife and husband daily intake checklists and log doses',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        // Initially Wife checklist is selected
+        expect(find.text('Prenatal'), findsOneWidget);
+        expect(find.text("Men's Multivitamin"), findsNothing);
+
+        // Switch to Husband checklist
+        await tester.tap(find.text('👨 Husband'));
+        await tester.pumpAndSettle();
+
+        expect(find.text("Men's Multivitamin"), findsOneWidget);
+        expect(find.text('Prenatal'), findsNothing);
+
+        // Check off husband's supplement dose
+        final husbandCheckbox = find.byType(Checkbox).first;
+        expect(tester.widget<Checkbox>(husbandCheckbox).value, isFalse);
+
+        await tester.tap(husbandCheckbox);
+        await tester.pumpAndSettle();
+
+        expect(
+          tester.widget<Checkbox>(find.byType(Checkbox).first).value,
+          isTrue,
+        );
+
+        // Switch back to Wife checklist and verify state is separate
+        await tester.tap(find.text('👩 Wife'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Prenatal'), findsOneWidget);
+        expect(
+          tester.widget<Checkbox>(find.byType(Checkbox).first).value,
+          isFalse,
+        );
+      },
+    );
+
+    testWidgets(
+      'Can filter formulary by wife and husband and edit each other supplements',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Formulary'));
+        await tester.pumpAndSettle();
+
+        // Filter to Wife and verify wife supplement is shown
+        await tester.tap(find.text('👩 Wife (14)'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Prenatal'), findsOneWidget);
+
+        // Filter to Husband and verify husband supplement is shown
+        await tester.tap(find.text('👨 Husband (6)'));
+        await tester.pumpAndSettle();
+
+        expect(find.text("Men's Multivitamin"), findsOneWidget);
+        expect(find.text('Prenatal'), findsNothing);
+
+        // Tap edit on husband supplement
+        await tester.tap(find.byTooltip('Edit Supplement').first);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Edit Supplement'), findsOneWidget);
+        expect(
+          find.widgetWithText(TextField, "Men's Multivitamin"),
+          findsOneWidget,
+        );
+
+        // Update quantity
+        final qtyField = find.widgetWithText(TextField, 'Dosage / Quantity *');
+        await tester.enterText(qtyField, '2 gummies');
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        final allSupps = await Services.db.streamSupplements().first;
+        final updatedMens = allSupps.firstWhere(
+          (s) => s.name == "Men's Multivitamin",
+        );
+        expect(updatedMens.quantity, equals('2 gummies'));
       },
     );
   });

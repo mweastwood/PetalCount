@@ -1,4 +1,5 @@
 import '../utils/date_utils.dart';
+import 'user_role.dart';
 
 /// Default total cycle days represented in the supplement schedule matrix.
 const int kSupplementPlanTotalCycleDays = 35;
@@ -49,6 +50,7 @@ class SupplementItem {
   final int? durationDays;
   final String instructions;
   final bool isActive;
+  final UserRole targetRole;
 
   const SupplementItem({
     required this.id,
@@ -66,6 +68,7 @@ class SupplementItem {
     this.durationDays,
     this.instructions = '',
     this.isActive = true,
+    this.targetRole = UserRole.wife,
   });
 
   bool get takesInMorning => morningDose > 0;
@@ -173,6 +176,7 @@ class SupplementItem {
       'durationDays': durationDays,
       'instructions': instructions,
       'isActive': isActive,
+      'targetRole': targetRole.code,
     };
   }
 
@@ -199,6 +203,7 @@ class SupplementItem {
       durationDays: (map['durationDays'] as num?)?.toInt(),
       instructions: map['instructions']?.toString() ?? '',
       isActive: map['isActive'] as bool? ?? true,
+      targetRole: UserRole.fromString(map['targetRole']?.toString()),
     );
   }
 
@@ -218,6 +223,7 @@ class SupplementItem {
     int? durationDays,
     String? instructions,
     bool? isActive,
+    UserRole? targetRole,
   }) {
     return SupplementItem(
       id: id ?? this.id,
@@ -235,6 +241,7 @@ class SupplementItem {
       durationDays: durationDays ?? this.durationDays,
       instructions: instructions ?? this.instructions,
       isActive: isActive ?? this.isActive,
+      targetRole: targetRole ?? this.targetRole,
     );
   }
 }
@@ -309,12 +316,14 @@ class DailySupplementLog {
 
 class SupplementPresets {
   static const List<SupplementItem> defaultList = [
+    // Wife Presets (14 standard Creighton / NaPro items)
     SupplementItem(
       id: 'preset_prenatal',
       name: 'Prenatal',
       quantity: 'tablet',
       takeWithFood: false,
       morningDose: 1,
+      targetRole: UserRole.wife,
       ruleType: SupplementScheduleRuleType.allDays,
       instructions: 'Baseline nutritional support',
     ),
@@ -324,6 +333,7 @@ class SupplementPresets {
       quantity: '200 mg',
       takeWithFood: false,
       morningDose: 1,
+      targetRole: UserRole.wife,
       ruleType: SupplementScheduleRuleType.allDays,
       instructions: 'Oocyte quality & mitochondrial support',
     ),
@@ -333,6 +343,7 @@ class SupplementPresets {
       quantity: '3000 units',
       takeWithFood: false,
       morningDose: 1,
+      targetRole: UserRole.wife,
       ruleType: SupplementScheduleRuleType.allDays,
       instructions: 'Endocrine & immune support',
     ),
@@ -343,6 +354,7 @@ class SupplementPresets {
       takeWithFood: true,
       morningDose: 1,
       eveningDose: 1,
+      targetRole: UserRole.wife,
       ruleType: SupplementScheduleRuleType.allDays,
       instructions: 'Antioxidant & cellular health',
     ),
@@ -352,6 +364,7 @@ class SupplementPresets {
       quantity: '1/2 lozenge',
       takeWithFood: false,
       morningDose: 1,
+      targetRole: UserRole.wife,
       ruleType: SupplementScheduleRuleType.allDays,
       instructions: 'Methylation support',
     ),
@@ -362,6 +375,7 @@ class SupplementPresets {
       takeWithFood: true,
       morningDose: 1,
       eveningDose: 1,
+      targetRole: UserRole.wife,
       ruleType: SupplementScheduleRuleType.allDays,
       instructions: 'Insulin sensitivity & ovarian function',
     ),
@@ -373,6 +387,7 @@ class SupplementPresets {
       morningDose: 1,
       afternoonDose: 1,
       eveningDose: 1,
+      targetRole: UserRole.wife,
       ruleType: SupplementScheduleRuleType.allDays,
       instructions: 'Metabolic & glucose regulation',
     ),
@@ -382,6 +397,7 @@ class SupplementPresets {
       quantity: '1 tablet',
       takeWithFood: false,
       morningDose: 1,
+      targetRole: UserRole.wife,
       ruleType: SupplementScheduleRuleType.allDays,
       instructions: 'Cellular membrane support',
     ),
@@ -391,6 +407,7 @@ class SupplementPresets {
       quantity: '2000mg (1 tablet)',
       takeWithFood: false,
       eveningDose: 1,
+      targetRole: UserRole.wife,
       ruleType: SupplementScheduleRuleType.allDays,
       instructions: 'Sleep & nervous system support',
     ),
@@ -401,6 +418,7 @@ class SupplementPresets {
       takeWithFood: true,
       morningDose: 1,
       eveningDose: 1,
+      targetRole: UserRole.wife,
       ruleType: SupplementScheduleRuleType.allDays,
       instructions: 'Essential amino acid support',
     ),
@@ -410,6 +428,7 @@ class SupplementPresets {
       quantity: '50 mg (1 tablet)',
       takeWithFood: false,
       morningDose: 1,
+      targetRole: UserRole.wife,
       ruleType: SupplementScheduleRuleType.cycleDays,
       startCycleDay: 4,
       endCycleDay: 8,
@@ -423,6 +442,7 @@ class SupplementPresets {
       morningDose: 1,
       afternoonDose: 1,
       eveningDose: 1,
+      targetRole: UserRole.wife,
       ruleType: SupplementScheduleRuleType.cycleDaysOrPeak,
       startCycleDay: 8,
       endCycleDay: 19,
@@ -437,6 +457,7 @@ class SupplementPresets {
       takeWithFood: false,
       morningDose: 1,
       eveningDose: 1,
+      targetRole: UserRole.wife,
       ruleType: SupplementScheduleRuleType.cycleDaysOrPeak,
       startCycleDay: 9,
       endCycleDay: 19,
@@ -450,11 +471,74 @@ class SupplementPresets {
       takeWithFood: false,
       morningDose: 1,
       eveningDose: 1,
+      targetRole: UserRole.wife,
       ruleType: SupplementScheduleRuleType.peakOffset,
       startPeakOffset: 3,
       startCycleDay: 21,
       durationDays: 10,
       instructions: 'Luteal phase support (P+3 or Day 21 for 10 days)',
+    ),
+
+    // Husband Presets (Standard male fertility & health support)
+    SupplementItem(
+      id: 'preset_mens_multi',
+      name: "Men's Multivitamin",
+      quantity: '1 tablet',
+      takeWithFood: true,
+      morningDose: 1,
+      targetRole: UserRole.husband,
+      ruleType: SupplementScheduleRuleType.allDays,
+      instructions: 'Baseline male nutritional & energy support',
+    ),
+    SupplementItem(
+      id: 'preset_mens_coq10',
+      name: 'CoQ10 (Male Support)',
+      quantity: '200 mg',
+      takeWithFood: false,
+      morningDose: 1,
+      targetRole: UserRole.husband,
+      ruleType: SupplementScheduleRuleType.allDays,
+      instructions: 'Sperm motility & mitochondrial antioxidant support',
+    ),
+    SupplementItem(
+      id: 'preset_mens_zinc_folate',
+      name: 'Zinc & L-Methylfolate',
+      quantity: '30 mg / 400 mcg',
+      takeWithFood: true,
+      morningDose: 1,
+      targetRole: UserRole.husband,
+      ruleType: SupplementScheduleRuleType.allDays,
+      instructions: 'Sperm morphology & cellular DNA integrity',
+    ),
+    SupplementItem(
+      id: 'preset_mens_lcarnitine',
+      name: 'L-Carnitine',
+      quantity: '1000 mg',
+      takeWithFood: false,
+      morningDose: 1,
+      targetRole: UserRole.husband,
+      ruleType: SupplementScheduleRuleType.allDays,
+      instructions: 'Sperm motility & energetic metabolism',
+    ),
+    SupplementItem(
+      id: 'preset_mens_ashwagandha',
+      name: 'Ashwagandha (KSM-66)',
+      quantity: '600 mg',
+      takeWithFood: false,
+      eveningDose: 1,
+      targetRole: UserRole.husband,
+      ruleType: SupplementScheduleRuleType.allDays,
+      instructions: 'Cortisol regulation & reproductive vitality',
+    ),
+    SupplementItem(
+      id: 'preset_mens_vitamind',
+      name: 'Vitamin D3',
+      quantity: '2000 units',
+      takeWithFood: false,
+      morningDose: 1,
+      targetRole: UserRole.husband,
+      ruleType: SupplementScheduleRuleType.allDays,
+      instructions: 'Endocrine & testosterone support',
     ),
   ];
 }
