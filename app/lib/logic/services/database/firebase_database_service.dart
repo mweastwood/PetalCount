@@ -331,22 +331,51 @@ class FirebaseDatabaseService implements DatabaseService {
     _authController.add(user);
   }
 
+  @visibleForTesting
+  static Future<void> commitBatchedOperations<T>({
+    required List<void Function(T batch)> operations,
+    required T Function() batchFactory,
+    required Future<void> Function(T batch) commitBatch,
+    int batchLimit = 450,
+  }) async {
+    if (operations.isEmpty) return;
+
+    for (var i = 0; i < operations.length; i += batchLimit) {
+      final end = (i + batchLimit < operations.length)
+          ? i + batchLimit
+          : operations.length;
+      final chunk = operations.sublist(i, end);
+      final batch = batchFactory();
+      for (final op in chunk) {
+        op(batch);
+      }
+      await commitBatch(batch);
+    }
+  }
+
+  Future<void> _commitBatchedWrites(
+    List<void Function(WriteBatch batch)> operations, {
+    int batchLimit = 450,
+  }) async {
+    return commitBatchedOperations<WriteBatch>(
+      operations: operations,
+      batchFactory: () => _db.batch(),
+      commitBatch: (batch) => batch.commit(),
+      batchLimit: batchLimit,
+    );
+  }
+
   Future<void> _deleteDocumentsInBatches(
     List<DocumentReference> docRefs,
   ) async {
     if (docRefs.isEmpty) return;
-    const batchSize = 500;
-    for (var i = 0; i < docRefs.length; i += batchSize) {
-      final chunk = docRefs.sublist(
-        i,
-        i + batchSize > docRefs.length ? docRefs.length : i + batchSize,
-      );
-      final batch = _db.batch();
-      for (final ref in chunk) {
-        batch.delete(ref);
-      }
-      await batch.commit();
-    }
+    final operations = docRefs
+        .map(
+          (ref) =>
+              (WriteBatch batch) => batch.delete(ref),
+        )
+        .toList();
+    await _commitBatchedWrites(operations);
   }
 
   @override
@@ -619,24 +648,29 @@ class FirebaseDatabaseService implements DatabaseService {
 
     final updatedCycles = CreightonLogic.reallocateAndRecalculateCycles(cycles);
 
-    final batch = _db.batch();
+    final operations = <void Function(WriteBatch batch)>[];
     for (final cycle in updatedCycles) {
       final ref = _db
           .collection('charts')
           .doc(chartId)
           .collection('cycles')
           .doc(cycle.id);
-      batch.update(ref, {
-        'dailyEntries': cycle.dailyEntries.map(
-          (k, v) => MapEntry(k, v.toMap()),
-        ),
+      operations.add((batch) {
+        batch.update(ref, {
+          'dailyEntries': cycle.dailyEntries.map(
+            (k, v) => MapEntry(k, v.toMap()),
+          ),
+        });
       });
       for (final entry in cycle.dailyEntries.values) {
         final subRef = ref.collection('dailyEntries').doc(entry.date.dateKey);
-        batch.set(subRef, entry.toMap());
+        operations.add((batch) {
+          batch.set(subRef, entry.toMap());
+        });
       }
     }
-    await batch.commit();
+
+    await _commitBatchedWrites(operations);
   }
 
   @override
