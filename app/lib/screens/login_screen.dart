@@ -21,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await Services.db.signInWithGoogle();
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
       });

@@ -190,5 +190,62 @@ void main() {
         expect(mockDb.signInCalledCount, equals(2));
       },
     );
+
+    testWidgets(
+      'Unmount resilience on success: does not throw setState after dispose when sign-in completes after unmount',
+      (WidgetTester tester) async {
+        mockDb.signInCompleter = Completer<void>();
+
+        await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.widgetWithText(FilledButton, 'Sign in with Google'),
+        );
+        await tester.pump();
+
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+        // Unmount widget
+        await tester.pumpWidget(
+          const MaterialApp(home: Scaffold(body: SizedBox())),
+        );
+
+        // Complete sign in
+        mockDb.signInCompleter!.complete();
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'Unmount resilience on error: does not throw setState after dispose when sign-in errors after unmount',
+      (WidgetTester tester) async {
+        mockDb.signInCompleter = Completer<void>();
+        mockDb.errorToThrow = Exception('Late authentication error');
+
+        await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.widgetWithText(FilledButton, 'Sign in with Google'),
+        );
+        await tester.pump();
+
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+        // Unmount widget
+        await tester.pumpWidget(
+          const MaterialApp(home: Scaffold(body: SizedBox())),
+        );
+
+        // Complete sign in with error
+        mockDb.signInCompleter!.complete();
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }

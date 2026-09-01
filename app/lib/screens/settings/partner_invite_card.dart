@@ -31,19 +31,23 @@ class _PartnerInviteCardState extends State<PartnerInviteCard> {
 
     try {
       await Services.db.invitePartner(email);
+      if (!mounted) return;
       setState(() {
         _inviteStatus = 'Invitation successfully sent to $email!';
         _inviteEmailController.clear();
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _inviteStatus =
             'Error: ${e.toString().replaceFirst("Exception: ", "")}';
       });
     } finally {
-      setState(() {
-        _isInviting = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isInviting = false;
+        });
+      }
     }
   }
 
