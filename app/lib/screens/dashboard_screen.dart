@@ -301,6 +301,54 @@ class _DashboardScreenState extends State<DashboardScreen>
         }
 
         final chartId = Services.db.currentChartId;
+        final isWide = isWideScreen(context);
+        final content = Column(
+          children: [
+            if (isDay7 && chartId != null && _viewMode != ViewMode.supplements)
+              StreamBuilder<NotificationPreferences>(
+                stream: Services.db.streamNotificationPreferences(chartId),
+                builder: (context, prefSnap) {
+                  final prefs =
+                      prefSnap.data ?? const NotificationPreferences();
+                  if (!prefs.breastSelfExamReminder) {
+                    return const SizedBox.shrink();
+                  }
+                  return _buildDay7BseBanner(context);
+                },
+              ),
+            Expanded(
+              child: _viewMode == ViewMode.observations
+                  ? ObservationsScreen(
+                      cycles: cycles,
+                      onSelectEntry: (entry, cycle) =>
+                          _showDailyDetailSheet(context, entry, cycle),
+                      onAddForDate: (cycle, date) =>
+                          _showAddObservationDialogForDate(
+                            context,
+                            cycle,
+                            date,
+                          ),
+                      todayOverride: widget.todayOverride,
+                    )
+                  : _viewMode == ViewMode.chart
+                  ? ChartScreen(
+                      cycles: cycles,
+                      onSelectEntry: (entry, cycle) =>
+                          _showDailyDetailSheet(context, entry, cycle),
+                      onAddForDate: (cycle, date) =>
+                          _showAddObservationDialogForDate(
+                            context,
+                            cycle,
+                            date,
+                          ),
+                    )
+                  : SupplementScreen(
+                      initialDate: widget.todayOverride,
+                      activeCycle: cycles.isNotEmpty ? cycles.first : null,
+                    ),
+            ),
+          ],
+        );
 
         return Scaffold(
           appBar: AppBar(
@@ -343,70 +391,44 @@ class _DashboardScreenState extends State<DashboardScreen>
             behavior: HitTestBehavior.opaque,
             child: cycles.isEmpty
                 ? _buildNoCyclesView(context)
-                : Column(
-                    children: [
-                      if (isDay7 &&
-                          chartId != null &&
-                          _viewMode != ViewMode.supplements)
-                        StreamBuilder<NotificationPreferences>(
-                          stream: Services.db.streamNotificationPreferences(
-                            chartId,
-                          ),
-                          builder: (context, prefSnap) {
-                            final prefs =
-                                prefSnap.data ??
-                                const NotificationPreferences();
-                            if (!prefs.breastSelfExamReminder) {
-                              return const SizedBox.shrink();
-                            }
-                            return _buildDay7BseBanner(context);
-                          },
-                        ),
-                      Expanded(
-                        child: _viewMode == ViewMode.observations
-                            ? ObservationsScreen(
-                                cycles: cycles,
-                                onSelectEntry: (entry, cycle) =>
-                                    _showDailyDetailSheet(
-                                      context,
-                                      entry,
-                                      cycle,
-                                    ),
-                                onAddForDate: (cycle, date) =>
-                                    _showAddObservationDialogForDate(
-                                      context,
-                                      cycle,
-                                      date,
-                                    ),
-                                todayOverride: widget.todayOverride,
-                              )
-                            : _viewMode == ViewMode.chart
-                            ? ChartScreen(
-                                cycles: cycles,
-                                onSelectEntry: (entry, cycle) =>
-                                    _showDailyDetailSheet(
-                                      context,
-                                      entry,
-                                      cycle,
-                                    ),
-                                onAddForDate: (cycle, date) =>
-                                    _showAddObservationDialogForDate(
-                                      context,
-                                      cycle,
-                                      date,
-                                    ),
-                              )
-                            : SupplementScreen(
-                                initialDate: widget.todayOverride,
-                                activeCycle: cycles.isNotEmpty
-                                    ? cycles.first
-                                    : null,
-                              ),
-                      ),
-                    ],
-                  ),
+                : (isWide
+                      ? Row(
+                          children: [
+                            NavigationRail(
+                              selectedIndex: _viewMode.index,
+                              onDestinationSelected: (index) {
+                                final newMode = ViewMode.values[index];
+                                setState(() {
+                                  _viewMode = newMode;
+                                });
+                                _routeManager.updateUrlPath(newMode);
+                              },
+                              labelType: NavigationRailLabelType.all,
+                              destinations: const [
+                                NavigationRailDestination(
+                                  icon: Icon(Icons.list_alt_outlined),
+                                  selectedIcon: Icon(Icons.list_alt),
+                                  label: Text('Observations'),
+                                ),
+                                NavigationRailDestination(
+                                  icon: Icon(Icons.grid_on_outlined),
+                                  selectedIcon: Icon(Icons.grid_on),
+                                  label: Text('Chart'),
+                                ),
+                                NavigationRailDestination(
+                                  icon: Icon(Icons.medication_outlined),
+                                  selectedIcon: Icon(Icons.medication),
+                                  label: Text('Supplements'),
+                                ),
+                              ],
+                            ),
+                            const VerticalDivider(thickness: 1, width: 1),
+                            Expanded(child: content),
+                          ],
+                        )
+                      : content),
           ),
-          bottomNavigationBar: cycles.isEmpty
+          bottomNavigationBar: (isWide || cycles.isEmpty)
               ? null
               : NavigationBar(
                   selectedIndex: _viewMode.index,
