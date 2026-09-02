@@ -1,3 +1,4 @@
+import 'package:async/async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/logic.dart';
 
@@ -22,7 +23,10 @@ void main() {
   });
 
   test('unlinkChart triggers authStateChanges stream broadcast', () async {
-    final expectAuthState = expectLater(db.authStateChanges, emits(isNotNull));
+    final expectAuthState = expectLater(
+      db.authStateChanges,
+      emitsInOrder([isNotNull, isNotNull]),
+    );
 
     // Perform unlink which triggers auth controller event
     await db.unlinkChart();
@@ -489,18 +493,21 @@ void main() {
     test(
       'streamSupplements and streamDailySupplementLogs update dynamically when active chart changes or unlinks',
       () async {
-        expect(await db.streamSupplements().first, hasLength(20));
-        expect(await db.streamDailySupplementLogs().first, isEmpty);
+        final suppQueue = StreamQueue(db.streamSupplements());
+        final logQueue = StreamQueue(db.streamDailySupplementLogs());
+
+        expect(await suppQueue.next, hasLength(20));
+        expect(await logQueue.next, isEmpty);
 
         // Unlink chart
         await db.unlinkChart();
-        expect(await db.streamSupplements().first, isEmpty);
-        expect(await db.streamDailySupplementLogs().first, isEmpty);
+        expect(await suppQueue.next, isEmpty);
+        expect(await logQueue.next, isEmpty);
 
         // Create new chart
         await db.createChart();
-        expect(await db.streamSupplements().first, hasLength(20));
-        expect(await db.streamDailySupplementLogs().first, isEmpty);
+        expect(await suppQueue.next, hasLength(20));
+        expect(await logQueue.next, isEmpty);
 
         // Log dose on new chart
         final testDate = DateTime(2026, 8, 30);
@@ -510,8 +517,11 @@ void main() {
           timeOfDay: SupplementTimeOfDay.morning,
           taken: true,
         );
-        final latestLogs = await db.streamDailySupplementLogs().first;
+        final latestLogs = await logQueue.next;
         expect(latestLogs[testDate.dateKey], isNotNull);
+
+        await suppQueue.cancel();
+        await logQueue.cancel();
       },
     );
   });
