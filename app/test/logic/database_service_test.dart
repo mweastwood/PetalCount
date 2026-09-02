@@ -23,16 +23,17 @@ void main() {
   });
 
   test('unlinkChart triggers authStateChanges stream broadcast', () async {
-    final expectAuthState = expectLater(
-      db.authStateChanges,
-      emitsInOrder([isNotNull, isNotNull]),
-    );
+    final authQueue = StreamQueue(db.authStateChanges.asBroadcastStream());
+    expect(await authQueue.next, isNotNull);
+    await pumpEventQueue();
 
     // Perform unlink which triggers auth controller event
     await db.unlinkChart();
 
-    await expectAuthState;
+    expect(await authQueue.next, isNotNull);
     expect(db.currentChartId, isNull);
+
+    await authQueue.cancel();
   });
 
   test(
@@ -493,11 +494,16 @@ void main() {
     test(
       'streamSupplements and streamDailySupplementLogs update dynamically when active chart changes or unlinks',
       () async {
-        final suppQueue = StreamQueue(db.streamSupplements());
-        final logQueue = StreamQueue(db.streamDailySupplementLogs());
+        final suppQueue = StreamQueue(
+          db.streamSupplements().asBroadcastStream(),
+        );
+        final logQueue = StreamQueue(
+          db.streamDailySupplementLogs().asBroadcastStream(),
+        );
 
         expect(await suppQueue.next, hasLength(20));
         expect(await logQueue.next, isEmpty);
+        await pumpEventQueue();
 
         // Unlink chart
         await db.unlinkChart();

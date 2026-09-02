@@ -288,9 +288,11 @@ class InMemoryDatabaseService implements DatabaseService {
   String? get currentChartId => _chartId;
 
   @override
-  Stream<User?> get authStateChanges {
-    Future.microtask(() => _authController.add(_currentUser));
-    return _authController.stream;
+  Stream<User?> get authStateChanges => _buildAuthStream();
+
+  Stream<User?> _buildAuthStream() async* {
+    yield _currentUser;
+    yield* _authController.stream;
   }
 
   @override
@@ -998,9 +1000,14 @@ class InMemoryDatabaseService implements DatabaseService {
   }
 
   @override
-  Stream<List<SupplementItem>> streamSupplements() {
-    Future.microtask(() => _emitSupplements());
-    return _supplementsController.stream;
+  Stream<List<SupplementItem>> streamSupplements() async* {
+    final chartId = _chartId;
+    if (chartId != null) {
+      yield (_supplements[chartId] ?? {}).values.toList();
+    } else {
+      yield [];
+    }
+    yield* _supplementsController.stream;
   }
 
   @override
@@ -1031,9 +1038,14 @@ class InMemoryDatabaseService implements DatabaseService {
   }
 
   @override
-  Stream<Map<String, DailySupplementLog>> streamDailySupplementLogs() {
-    Future.microtask(() => _emitSupplementLogs());
-    return _supplementLogsController.stream;
+  Stream<Map<String, DailySupplementLog>> streamDailySupplementLogs() async* {
+    final chartId = _chartId;
+    if (chartId != null) {
+      yield _supplementLogs[chartId] ?? {};
+    } else {
+      yield {};
+    }
+    yield* _supplementLogsController.stream;
   }
 
   @override
