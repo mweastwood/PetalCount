@@ -1,3 +1,4 @@
+import 'package:async/async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/logic.dart';
 
@@ -22,20 +23,17 @@ void main() {
   });
 
   test('unlinkChart triggers authStateChanges stream broadcast', () async {
-    final userStates = <Object?>[];
-    final subscription = db.authStateChanges.listen((user) {
-      userStates.add(user);
-    });
+    final authQueue = StreamQueue(db.authStateChanges.asBroadcastStream());
+    expect(await authQueue.next, isNotNull);
+    await pumpEventQueue();
 
     // Perform unlink which triggers auth controller event
     await db.unlinkChart();
 
-    await Future.delayed(Duration.zero); // Allow stream to flush events
-
-    expect(userStates, isNotEmpty);
+    expect(await authQueue.next, isNotNull);
     expect(db.currentChartId, isNull);
 
-    await subscription.cancel();
+    await authQueue.cancel();
   });
 
   test(
@@ -496,30 +494,26 @@ void main() {
     test(
       'streamSupplements and streamDailySupplementLogs update dynamically when active chart changes or unlinks',
       () async {
-        final supplementEmissions = <List<SupplementItem>>[];
-        final logEmissions = <Map<String, DailySupplementLog>>[];
+        final suppQueue = StreamQueue(
+          db.streamSupplements().asBroadcastStream(),
+        );
+        final logQueue = StreamQueue(
+          db.streamDailySupplementLogs().asBroadcastStream(),
+        );
 
-        final suppSub = db.streamSupplements().listen((supps) {
-          supplementEmissions.add(supps);
-        });
-        final logSub = db.streamDailySupplementLogs().listen((logs) {
-          logEmissions.add(logs);
-        });
-
-        await Future.delayed(Duration.zero);
-        expect(supplementEmissions.last.length, 20);
-        expect(logEmissions.last, isEmpty);
+        expect(await suppQueue.next, hasLength(20));
+        expect(await logQueue.next, isEmpty);
+        await pumpEventQueue();
 
         // Unlink chart
         await db.unlinkChart();
-        await Future.delayed(Duration.zero);
-        expect(supplementEmissions.last, isEmpty);
-        expect(logEmissions.last, isEmpty);
+        expect(await suppQueue.next, isEmpty);
+        expect(await logQueue.next, isEmpty);
 
         // Create new chart
         await db.createChart();
-        await Future.delayed(Duration.zero);
-        expect(supplementEmissions.last.length, 20);
+        expect(await suppQueue.next, hasLength(20));
+        expect(await logQueue.next, isEmpty);
 
         // Log dose on new chart
         final testDate = DateTime(2026, 8, 30);
@@ -529,11 +523,11 @@ void main() {
           timeOfDay: SupplementTimeOfDay.morning,
           taken: true,
         );
-        await Future.delayed(Duration.zero);
-        expect(logEmissions.last[testDate.dateKey], isNotNull);
+        final latestLogs = await logQueue.next;
+        expect(latestLogs[testDate.dateKey], isNotNull);
 
-        await suppSub.cancel();
-        await logSub.cancel();
+        await suppQueue.cancel();
+        await logQueue.cancel();
       },
     );
   });
