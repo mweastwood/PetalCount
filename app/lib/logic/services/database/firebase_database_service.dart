@@ -18,10 +18,15 @@ import '../services.dart';
 import 'database_service_interface.dart';
 
 class FirebaseDatabaseService implements DatabaseService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  final FirebaseAuth? _authInstance;
+  final FirebaseFirestore? _dbInstance;
+  final GoogleSignIn? _googleSignInInstance;
   bool _googleSignInInitialized = false;
+
+  FirebaseAuth get _auth => _authInstance ?? FirebaseAuth.instance;
+  FirebaseFirestore get _db => _dbInstance ?? FirebaseFirestore.instance;
+  GoogleSignIn get _googleSignIn =>
+      _googleSignInInstance ?? GoogleSignIn.instance;
 
   String? _cachedChartId;
   String? _cachedRole;
@@ -29,18 +34,33 @@ class FirebaseDatabaseService implements DatabaseService {
   final StreamController<User?> _authController =
       StreamController<User?>.broadcast();
 
-  FirebaseDatabaseService() {
-    _auth.authStateChanges().listen((user) async {
-      if (user != null) {
-        _cachedChartId = await _fetchChartId(user.uid);
-      } else {
-        _cachedChartId = null;
-        _cachedRole = null;
-        _cachedPreferencesByChart.clear();
-      }
-      _authController.add(user);
-    });
+  FirebaseDatabaseService({
+    FirebaseAuth? auth,
+    FirebaseFirestore? db,
+    GoogleSignIn? googleSignIn,
+  }) : _authInstance = auth,
+       _dbInstance = db,
+       _googleSignInInstance = googleSignIn {
+    try {
+      _auth.authStateChanges().listen((user) async {
+        if (user != null) {
+          _cachedChartId = await _fetchChartId(user.uid);
+        } else {
+          _cachedChartId = null;
+          _cachedRole = null;
+          _cachedPreferencesByChart.clear();
+        }
+        _authController.add(user);
+      });
+    } catch (_) {}
   }
+
+  @visibleForTesting
+  set cachedChartId(String? id) => _cachedChartId = id;
+
+  @visibleForTesting
+  Future<void> reallocateAndRecalculate(String chartId) =>
+      _reallocateAndRecalculate(chartId);
 
   @override
   User? get currentUser => _auth.currentUser;
@@ -744,13 +764,34 @@ class FirebaseDatabaseService implements DatabaseService {
 
     final updatedCycles = CreightonLogic.reallocateAndRecalculateCycles(cycles);
 
+    final subSnapshots = await Future.wait(
+      updatedCycles.map(
+        (cycle) => _db
+            .collection('charts')
+            .doc(chartId)
+            .collection('cycles')
+            .doc(cycle.id)
+            .collection('dailyEntries')
+            .get(),
+      ),
+    );
+
     final operations = <void Function(WriteBatch batch)>[];
-    for (final cycle in updatedCycles) {
+    for (var i = 0; i < updatedCycles.length; i++) {
+      final cycle = updatedCycles[i];
+      final subSnapshot = subSnapshots[i];
       final ref = _db
           .collection('charts')
           .doc(chartId)
           .collection('cycles')
           .doc(cycle.id);
+
+      for (final doc in subSnapshot.docs) {
+        if (!cycle.dailyEntries.containsKey(doc.id)) {
+          operations.add((batch) => batch.delete(doc.reference));
+        }
+      }
+
       operations.add((batch) {
         batch.update(ref, {
           'dailyEntries': cycle.dailyEntries.map(
@@ -838,12 +879,18 @@ class FirebaseDatabaseService implements DatabaseService {
     final newDateStr = newStartDate.dateKey;
 
     if (cycleId != newDateStr) {
-      await _db
+      final oldCycleRef = _db
           .collection('charts')
           .doc(chartId)
           .collection('cycles')
-          .doc(cycleId)
-          .delete();
+          .doc(cycleId);
+      final List<DocumentReference> toDelete = [];
+      final dailySnapshot = await oldCycleRef.collection('dailyEntries').get();
+      for (final dailyDoc in dailySnapshot.docs) {
+        toDelete.add(dailyDoc.reference);
+      }
+      toDelete.add(oldCycleRef);
+      await _deleteDocumentsInBatches(toDelete);
     }
 
     final updatedCycle = Cycle(
