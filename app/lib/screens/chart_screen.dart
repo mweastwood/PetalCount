@@ -363,7 +363,6 @@ class ChartScreen extends StatelessWidget {
                             child: _buildCycleRow(
                               context,
                               cycle,
-                              maxDays,
                               displayDaysMap[cycle.id] ?? maxDays,
                             ),
                           );
@@ -434,12 +433,7 @@ class ChartScreen extends StatelessWidget {
   }
 
   /// Renders a single cycle row with its left label card and day cells (Horizontal Layout)
-  Widget _buildCycleRow(
-    BuildContext context,
-    Cycle cycle,
-    int maxDays,
-    int displayDays,
-  ) {
+  Widget _buildCycleRow(BuildContext context, Cycle cycle, int displayDays) {
     final theme = Theme.of(context);
 
     return Row(
