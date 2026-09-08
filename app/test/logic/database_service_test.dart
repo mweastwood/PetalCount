@@ -530,5 +530,56 @@ void main() {
         await logQueue.cancel();
       },
     );
+
+    test(
+      'deleteChart cascades and removes supplements and supplement logs',
+      () async {
+        final activeId = db.currentChartId!;
+
+        // Add custom supplement and log dose
+        const customSupp = SupplementItem(
+          id: 'custom_iron',
+          name: 'Iron Glycinate',
+          quantity: '25 mg',
+          morningDose: 1,
+        );
+        await db.saveSupplement(customSupp);
+
+        final testDate = DateTime(2026, 9, 1);
+        await db.logSupplementDose(
+          date: testDate,
+          supplementId: 'custom_iron',
+          timeOfDay: SupplementTimeOfDay.morning,
+          taken: true,
+        );
+
+        final suppQueue = StreamQueue(
+          db.streamSupplements().asBroadcastStream(),
+        );
+        final logQueue = StreamQueue(
+          db.streamDailySupplementLogs().asBroadcastStream(),
+        );
+
+        final currentSupps = await suppQueue.next;
+        expect(currentSupps.any((s) => s.id == 'custom_iron'), isTrue);
+        final currentLogs = await logQueue.next;
+        expect(currentLogs[testDate.dateKey], isNotNull);
+
+        // Delete chart
+        await db.deleteChart(activeId);
+
+        // Streams should emit empty states
+        expect(await suppQueue.next, isEmpty);
+        expect(await logQueue.next, isEmpty);
+
+        // Accessing the deleted chart ID directly should yield empty state without orphaned entries
+        await db.setActiveChart(activeId);
+        expect(await db.streamSupplements().first, isEmpty);
+        expect(await db.streamDailySupplementLogs().first, isEmpty);
+
+        await suppQueue.cancel();
+        await logQueue.cancel();
+      },
+    );
   });
 }

@@ -383,11 +383,16 @@ class FirebaseDatabaseService implements DatabaseService {
     final user = currentUser;
     if (user == null) return;
 
-    final cyclesSnapshot = await _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('cycles')
-        .get();
+    final chartRef = _db.collection('charts').doc(chartId);
+    final results = await Future.wait([
+      chartRef.collection('cycles').get(),
+      chartRef.collection('supplements').get(),
+      chartRef.collection('supplementLogs').get(),
+    ]);
+
+    final cyclesSnapshot = results[0];
+    final supplementsSnapshot = results[1];
+    final supplementLogsSnapshot = results[2];
 
     final List<DocumentReference> toDelete = [];
 
@@ -401,7 +406,15 @@ class FirebaseDatabaseService implements DatabaseService {
       toDelete.add(doc.reference);
     }
 
-    toDelete.add(_db.collection('charts').doc(chartId));
+    for (final doc in supplementsSnapshot.docs) {
+      toDelete.add(doc.reference);
+    }
+
+    for (final doc in supplementLogsSnapshot.docs) {
+      toDelete.add(doc.reference);
+    }
+
+    toDelete.add(chartRef);
 
     await _deleteDocumentsInBatches(toDelete);
 
@@ -447,7 +460,16 @@ class FirebaseDatabaseService implements DatabaseService {
     });
 
     if (shouldDeleteAll) {
-      final cyclesSnapshot = await chartRef.collection('cycles').get();
+      final results = await Future.wait([
+        chartRef.collection('cycles').get(),
+        chartRef.collection('supplements').get(),
+        chartRef.collection('supplementLogs').get(),
+      ]);
+
+      final cyclesSnapshot = results[0];
+      final supplementsSnapshot = results[1];
+      final supplementLogsSnapshot = results[2];
+
       final List<DocumentReference> toDelete = [];
       for (final doc in cyclesSnapshot.docs) {
         final dailySnapshot = await doc.reference
@@ -458,6 +480,15 @@ class FirebaseDatabaseService implements DatabaseService {
         }
         toDelete.add(doc.reference);
       }
+
+      for (final doc in supplementsSnapshot.docs) {
+        toDelete.add(doc.reference);
+      }
+
+      for (final doc in supplementLogsSnapshot.docs) {
+        toDelete.add(doc.reference);
+      }
+
       await _deleteDocumentsInBatches(toDelete);
     }
 
