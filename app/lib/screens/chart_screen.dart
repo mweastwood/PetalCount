@@ -20,6 +20,8 @@ class ChartScreen extends StatelessWidget {
   static const double kCellWidth = CreightonTheme.cellWidth;
   static const double kCellHeight = CreightonTheme.cellHeight;
   static const double kHeaderRowHeight = CreightonTheme.headerRowHeight;
+  static const double kMobileHeaderRowHeight =
+      CreightonTheme.mobileHeaderRowHeight;
   static const double kCycleHeaderWidth = CreightonTheme.cycleHeaderWidth;
   static const double kCellGap = CreightonTheme.cellGap;
 
@@ -101,7 +103,7 @@ class ChartScreen extends StatelessWidget {
                         // Top-Left Corner Header Cell
                         Container(
                           width: 68.0,
-                          height: kHeaderRowHeight,
+                          height: kMobileHeaderRowHeight,
                           margin: const EdgeInsets.only(
                             bottom: kCellGap,
                             right: kCellGap,
@@ -154,28 +156,34 @@ class ChartScreen extends StatelessWidget {
                         margin: const EdgeInsets.only(right: kCellGap),
                         child: Column(
                           children: [
-                            // Column Top Header: Cycle Start Date + PDF
-                            Container(
-                              width: kCellWidth,
-                              height: kHeaderRowHeight,
-                              margin: const EdgeInsets.only(bottom: kCellGap),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 2.0,
+                            // Column Top Header: Cycle Start Date, Year, Actions & Options
+                            GestureDetector(
+                              onTap: () => CycleOptionsDialog.show(
+                                context,
+                                cycle: cycle,
+                                cycles: cycles,
                               ),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.surfaceContainerLow,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: theme.colorScheme.outlineVariant
-                                      .withValues(alpha: 0.5),
+                              child: Container(
+                                width: kCellWidth,
+                                height: kMobileHeaderRowHeight,
+                                margin: const EdgeInsets.only(bottom: kCellGap),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 2.0,
+                                  vertical: 3.0,
                                 ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Text(
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surfaceContainerLow,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: theme.colorScheme.outlineVariant
+                                        .withValues(alpha: 0.5),
+                                  ),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
                                       AppDateFormats.shortMonthDay.format(
                                         cycle.startDate,
                                       ),
@@ -188,21 +196,71 @@ class ChartScreen extends StatelessWidget {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.picture_as_pdf,
-                                      size: 14,
+                                    Text(
+                                      '${cycle.startDate.year}',
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(
+                                            color: theme
+                                                .colorScheme
+                                                .onSurfaceVariant,
+                                            fontSize: 9,
+                                          ),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
                                     ),
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(),
-                                    tooltip: 'Export Cycle PDF',
-                                    onPressed: () =>
-                                        PdfExportService.exportCyclesToPdf([
-                                          cycle,
-                                        ]),
-                                  ),
-                                ],
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.picture_as_pdf,
+                                            size: 14,
+                                          ),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          style: IconButton.styleFrom(
+                                            minimumSize: Size.zero,
+                                            padding: EdgeInsets.zero,
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                          ),
+                                          tooltip: 'Export Cycle PDF',
+                                          onPressed: () =>
+                                              PdfExportService.exportCyclesToPdf(
+                                                [cycle],
+                                              ),
+                                        ),
+                                        const SizedBox(width: 8.0),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.settings_suggest,
+                                            size: 14,
+                                          ),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(),
+                                          style: IconButton.styleFrom(
+                                            minimumSize: Size.zero,
+                                            padding: EdgeInsets.zero,
+                                            tapTargetSize: MaterialTapTargetSize
+                                                .shrinkWrap,
+                                            visualDensity:
+                                                VisualDensity.compact,
+                                          ),
+                                          tooltip: 'Cycle Options',
+                                          onPressed: () =>
+                                              CycleOptionsDialog.show(
+                                                context,
+                                                cycle: cycle,
+                                                cycles: cycles,
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                             // Cells for Day 1 .. Day N going DOWN
