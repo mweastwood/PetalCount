@@ -468,6 +468,8 @@ class FirebaseDatabaseService implements DatabaseService {
       await _deleteDocumentsInBatches(toDelete);
     }
 
+    _cachedPreferencesByChart.remove(chartId);
+
     if (_cachedChartId == chartId) {
       await _db.collection('users').doc(user.uid).set({
         'chartId': null,
@@ -479,6 +481,12 @@ class FirebaseDatabaseService implements DatabaseService {
 
   @override
   Future<void> updateChartReminderSettings(String chartId, bool enabled) async {
+    final cached = _cachedPreferencesByChart[chartId];
+    if (cached != null) {
+      _cachedPreferencesByChart[chartId] = cached.copyWith(
+        dailyLoggingReminder: enabled,
+      );
+    }
     await _db.collection('charts').doc(chartId).set({
       'reminderEnabled': enabled,
       'notificationPreferences': {'dailyLoggingReminder': enabled},
@@ -566,26 +574,6 @@ class FirebaseDatabaseService implements DatabaseService {
       _cachedRole = role;
       return role;
     });
-  }
-
-  @visibleForTesting
-  String? get cachedRole => _cachedRole;
-
-  @visibleForTesting
-  set cachedRole(String? role) => _cachedRole = role;
-
-  @visibleForTesting
-  void setCachedPreferencesForTesting(
-    String chartId,
-    NotificationPreferences prefs,
-  ) {
-    _cachedPreferencesByChart[chartId] = prefs;
-  }
-
-  @visibleForTesting
-  void clearCacheForTesting() {
-    _cachedRole = null;
-    _cachedPreferencesByChart.clear();
   }
 
   @override

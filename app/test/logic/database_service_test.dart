@@ -569,6 +569,48 @@ void main() {
     );
 
     test(
+      'updateChartReminderSettings synchronously updates cached preferences dailyLoggingReminder',
+      () async {
+        const chartId = 'mock_shared_chart';
+        expect(
+          db.getLatestNotificationPreferences(chartId)?.dailyLoggingReminder,
+          isTrue,
+        );
+
+        await db.updateChartReminderSettings(chartId, false);
+
+        expect(
+          db.getLatestNotificationPreferences(chartId)?.dailyLoggingReminder,
+          isFalse,
+        );
+        expect(db.latestNotificationPreferences?.dailyLoggingReminder, isFalse);
+      },
+    );
+
+    test(
+      'latestNotificationPreferences returns null after chart is deleted',
+      () async {
+        await db.deleteChart('mock_shared_chart');
+        expect(db.currentChartId, isNull);
+        expect(db.latestNotificationPreferences, isNull);
+        expect(
+          db.getLatestNotificationPreferences('mock_shared_chart'),
+          isNull,
+        );
+      },
+    );
+
+    test(
+      'latestNotificationPreferences returns null after leaving chart',
+      () async {
+        await db.invitePartner('partner@example.com');
+        await db.leaveChart('mock_shared_chart');
+        expect(db.currentChartId, isNull);
+        expect(db.latestNotificationPreferences, isNull);
+      },
+    );
+
+    test(
       'latestNotificationPreferences returns null when chart is unlinked',
       () async {
         await db.unlinkChart();
