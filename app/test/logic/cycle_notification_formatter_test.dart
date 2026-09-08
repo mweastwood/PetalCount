@@ -118,6 +118,11 @@ void main() {
       expect(UserRole.fromString('unknown_role'), UserRole.wife);
     });
 
+    test('UserRole.partnerRole returns the opposite spouse role', () {
+      expect(UserRole.husband.partnerRole, UserRole.wife);
+      expect(UserRole.wife.partnerRole, UserRole.husband);
+    });
+
     test('NotificationPreferences serialization, defaults and copyWith', () {
       const defaultPrefs = NotificationPreferences();
       expect(defaultPrefs.fertilePatternAlerts, isTrue);

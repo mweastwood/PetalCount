@@ -257,6 +257,7 @@ class InMemoryDatabaseService implements DatabaseService {
       painTypes: painTypes,
       comment: comment,
       userId: 'wife_uid',
+      userRole: UserRole.wife.code,
     );
 
     final currentEntries = Map<String, DailyEntry>.from(cycle.dailyEntries);
@@ -860,6 +861,11 @@ class InMemoryDatabaseService implements DatabaseService {
 
     final dateKey = date.dateKey;
 
+    final userRoleStr = _users[user.uid]?['role'] as String?;
+    final userRole = UserRole.fromString(
+      userRoleStr ?? (user.uid == 'husband_uid' ? 'husband' : 'wife'),
+    );
+
     final newObs = Observation(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       timestamp: DateTime.now(),
@@ -875,6 +881,7 @@ class InMemoryDatabaseService implements DatabaseService {
       painTypes: painTypes,
       comment: comment,
       userId: user.uid,
+      userRole: userRole.code,
       isVdrsExplicit: isVdrsExplicit,
     );
 
@@ -908,11 +915,6 @@ class InMemoryDatabaseService implements DatabaseService {
       bipCodes: targetCycle.bipCodes,
     );
     final peakLabel = resolvedDaily.peakDayLabel;
-
-    final userRoleStr = _users[user.uid]?['role'] as String?;
-    final userRole = UserRole.fromString(
-      userRoleStr ?? (user.uid == 'husband_uid' ? 'husband' : 'wife'),
-    );
 
     final chartPreferencesRaw = _charts[chartId]?['notificationPreferences'];
     final preferences = NotificationPreferences.fromMap(

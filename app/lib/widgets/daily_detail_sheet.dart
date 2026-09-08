@@ -7,11 +7,74 @@ import 'creighton_stamp_widget.dart';
 class DailyDetailSheet extends StatelessWidget {
   final DailyEntry entry;
   final Cycle cycle;
+  final Stream<String?>? userRoleStream;
+  final String? currentUserId;
 
-  const DailyDetailSheet({super.key, required this.entry, required this.cycle});
+  const DailyDetailSheet({
+    super.key,
+    required this.entry,
+    required this.cycle,
+    this.userRoleStream,
+    this.currentUserId,
+  });
+
+  static String resolveAuthor(
+    Observation obs, {
+    String? currentUserRole,
+    String? currentUserId,
+  }) {
+    // 1. Direct Role: If obs.userRole is present, display resolved displayName ("Husband" or "Wife").
+    if (obs.userRole != null && obs.userRole!.isNotEmpty) {
+      return UserRole.fromString(obs.userRole).displayName;
+    }
+
+    // 2. Mock UID Fallback: For in-memory / legacy mock UIDs.
+    if (obs.userId == 'husband_uid') {
+      return UserRole.husband.displayName;
+    }
+    if (obs.userId == 'wife_uid') {
+      return UserRole.wife.displayName;
+    }
+
+    // 3. Current User / Partner Fallback:
+    // Attribute to current user's known role if matching, or partner's opposite role.
+    final currentRole = UserRole.fromString(currentUserRole);
+    if (currentUserId != null &&
+        currentUserId.isNotEmpty &&
+        obs.userId.isNotEmpty) {
+      if (obs.userId == currentUserId) {
+        return currentRole.displayName;
+      } else {
+        return currentRole.partnerRole.displayName;
+      }
+    }
+
+    return currentRole.displayName;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final effectiveCurrentUserId =
+        currentUserId ?? Services.db.currentUser?.uid;
+    final initialRole = effectiveCurrentUserId == 'husband_uid'
+        ? 'husband'
+        : null;
+
+    return StreamBuilder<String?>(
+      stream: userRoleStream ?? Services.db.streamUserRole(),
+      initialData: initialRole,
+      builder: (context, snapshot) {
+        final currentRoleStr = snapshot.data;
+        return _buildContent(context, currentRoleStr, effectiveCurrentUserId);
+      },
+    );
+  }
+
+  Widget _buildContent(
+    BuildContext context,
+    String? currentRoleStr,
+    String? effectiveCurrentUserId,
+  ) {
     final theme = Theme.of(context);
     final observations = entry.observations;
 
@@ -159,7 +222,7 @@ class DailyDetailSheet extends StatelessWidget {
                         if (obs.comment.isNotEmpty)
                           Text('Notes: ${obs.comment}'),
                         Text(
-                          'Logged at ${AppDateFormats.timeOfDayPadded.format(obs.timestamp)} by ${obs.userId == "husband_uid" ? "Husband" : "Wife"}',
+                          'Logged at ${AppDateFormats.timeOfDayPadded.format(obs.timestamp)} by ${resolveAuthor(obs, currentUserRole: currentRoleStr, currentUserId: effectiveCurrentUserId)}',
                           style: theme.textTheme.bodySmall?.copyWith(
                             fontSize: 9,
                           ),

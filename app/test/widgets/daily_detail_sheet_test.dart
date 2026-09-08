@@ -48,6 +48,8 @@ void main() {
     required DailyEntry entry,
     required Cycle cycle,
     bool openAsBottomSheet = false,
+    Stream<String?>? userRoleStream,
+    String? currentUserId,
   }) {
     return MaterialApp(
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.pink),
@@ -59,15 +61,24 @@ void main() {
                     onPressed: () => showModalBottomSheet(
                       context: context,
                       isScrollControlled: true,
-                      builder: (context) =>
-                          DailyDetailSheet(entry: entry, cycle: cycle),
+                      builder: (context) => DailyDetailSheet(
+                        entry: entry,
+                        cycle: cycle,
+                        userRoleStream: userRoleStream,
+                        currentUserId: currentUserId,
+                      ),
                     ),
                     child: const Text('Open Daily Detail Sheet'),
                   ),
                 ),
               )
             : SingleChildScrollView(
-                child: DailyDetailSheet(entry: entry, cycle: cycle),
+                child: DailyDetailSheet(
+                  entry: entry,
+                  cycle: cycle,
+                  userRoleStream: userRoleStream,
+                  currentUserId: currentUserId,
+                ),
               ),
       ),
     );
@@ -401,6 +412,264 @@ void main() {
 
         // Verify delete buttons exist for both observations
         expect(find.byIcon(Icons.delete_outline), findsNWidgets(2));
+      },
+    );
+
+    test('resolveAuthor handles all fallback tiers correctly', () {
+      // 1. Direct role takes precedence
+      final obsDirectHusband = Observation(
+        id: '1',
+        timestamp: DateTime(2026, 8, 3, 10, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'arbitrary-uid',
+        userRole: 'husband',
+      );
+      expect(
+        DailyDetailSheet.resolveAuthor(
+          obsDirectHusband,
+          currentUserRole: 'wife',
+          currentUserId: 'arbitrary-uid',
+        ),
+        'Husband',
+      );
+
+      final obsDirectWife = Observation(
+        id: '2',
+        timestamp: DateTime(2026, 8, 3, 10, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'arbitrary-uid',
+        userRole: 'wife',
+      );
+      expect(
+        DailyDetailSheet.resolveAuthor(
+          obsDirectWife,
+          currentUserRole: 'husband',
+          currentUserId: 'arbitrary-uid',
+        ),
+        'Wife',
+      );
+
+      // 2. Mock UID fallback
+      final obsMockHusband = Observation(
+        id: '3',
+        timestamp: DateTime(2026, 8, 3, 10, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'husband_uid',
+      );
+      expect(DailyDetailSheet.resolveAuthor(obsMockHusband), 'Husband');
+
+      final obsMockWife = Observation(
+        id: '4',
+        timestamp: DateTime(2026, 8, 3, 10, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'wife_uid',
+      );
+      expect(DailyDetailSheet.resolveAuthor(obsMockWife), 'Wife');
+
+      // 3. Current User / Partner Fallback
+      final obsLegacyHusband = Observation(
+        id: '5',
+        timestamp: DateTime(2026, 8, 3, 10, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'husband-prod-uid',
+      );
+      // Viewed by Husband himself
+      expect(
+        DailyDetailSheet.resolveAuthor(
+          obsLegacyHusband,
+          currentUserRole: 'husband',
+          currentUserId: 'husband-prod-uid',
+        ),
+        'Husband',
+      );
+      // Viewed by Partner (Wife)
+      expect(
+        DailyDetailSheet.resolveAuthor(
+          obsLegacyHusband,
+          currentUserRole: 'wife',
+          currentUserId: 'wife-prod-uid',
+        ),
+        'Husband',
+      );
+
+      final obsLegacyWife = Observation(
+        id: '6',
+        timestamp: DateTime(2026, 8, 3, 10, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'wife-prod-uid',
+      );
+      // Viewed by Wife herself
+      expect(
+        DailyDetailSheet.resolveAuthor(
+          obsLegacyWife,
+          currentUserRole: 'wife',
+          currentUserId: 'wife-prod-uid',
+        ),
+        'Wife',
+      );
+      // Viewed by Partner (Husband)
+      expect(
+        DailyDetailSheet.resolveAuthor(
+          obsLegacyWife,
+          currentUserRole: 'husband',
+          currentUserId: 'husband-prod-uid',
+        ),
+        'Wife',
+      );
+    });
+
+    testWidgets(
+      'renders "by Husband" for observations logged by husbands with production Firebase UIDs',
+      (WidgetTester tester) async {
+        final husbandProdObs = Observation(
+          id: 'obs-prod-1',
+          timestamp: DateTime(2026, 8, 3, 11, 45),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'firebase-husband-uid-xyz987',
+          userRole: 'husband',
+        );
+
+        final entry = DailyEntry(
+          date: testDate,
+          resolvedVdrsCode: '',
+          stampType: StampType.greenBaby,
+          observations: [husbandProdObs],
+          painLevel: 0,
+          painTypes: [],
+          comments: '',
+        );
+
+        await tester.pumpWidget(
+          buildTestWidget(
+            entry: entry,
+            cycle: testCycle,
+            currentUserId: 'firebase-wife-uid-abc123',
+            userRoleStream: Stream.value('wife'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(
+            'Logged at ${AppDateFormats.timeOfDayPadded.format(husbandProdObs.timestamp)} by Husband',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'renders proper attribution for legacy observations without userRole using current user role and partner fallback',
+      (WidgetTester tester) async {
+        final legacyObs = Observation(
+          id: 'obs-legacy-1',
+          timestamp: DateTime(2026, 8, 3, 16, 20),
+          sensation: Sensation.wet,
+          stretch: Stretch.stretchy,
+          colors: [MucusColor.clear],
+          consistencies: [Consistency.lubricative],
+          bleeding: Bleeding.none,
+          userId: 'prod-husband-uid',
+        );
+
+        final entry = DailyEntry(
+          date: testDate,
+          resolvedVdrsCode: '10KL',
+          stampType: StampType.whiteBaby,
+          observations: [legacyObs],
+          painLevel: 0,
+          painTypes: [],
+          comments: '',
+        );
+
+        // When viewed by the husband himself:
+        await tester.pumpWidget(
+          buildTestWidget(
+            entry: entry,
+            cycle: testCycle,
+            currentUserId: 'prod-husband-uid',
+            userRoleStream: Stream.value('husband'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(
+            'Logged at ${AppDateFormats.timeOfDayPadded.format(legacyObs.timestamp)} by Husband',
+          ),
+          findsOneWidget,
+        );
+
+        // When viewed by partner (wife):
+        await tester.pumpWidget(
+          buildTestWidget(
+            entry: entry,
+            cycle: testCycle,
+            currentUserId: 'prod-wife-uid',
+            userRoleStream: Stream.value('wife'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(
+            'Logged at ${AppDateFormats.timeOfDayPadded.format(legacyObs.timestamp)} by Husband',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'DatabaseService.saveObservation persists userRole on new observations',
+      (WidgetTester tester) async {
+        await mockDb.saveObservation(
+          date: testDate,
+          sensation: Sensation.wet,
+          stretch: Stretch.stretchy,
+          colors: [MucusColor.clear],
+          consistencies: [Consistency.lubricative],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Logged by husband',
+        );
+
+        final cycles = await mockDb.streamCycles().first;
+        final latestCycle = cycles.first;
+        final entry = latestCycle.dailyEntries[testDate.dateKey]!;
+        expect(entry.observations, isNotEmpty);
+        final savedObs = entry.observations.last;
+        expect(savedObs.userRole, equals('husband'));
       },
     );
   });

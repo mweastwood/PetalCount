@@ -1130,6 +1130,17 @@ class FirebaseDatabaseService implements DatabaseService {
       final targetCycleId = targetCycle.id;
       final dateKey = dateStr;
 
+      UserRole userRole = UserRole.wife;
+      try {
+        final userDoc = await _db.collection('users').doc(user.uid).get();
+        final userRoleStr = userDoc.data()?['role'] as String?;
+        userRole = UserRole.fromString(userRoleStr);
+      } catch (e) {
+        Services.logger.warning(
+          'Failed to fetch user role for observation: $e',
+        );
+      }
+
       final newObs = Observation(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         timestamp: DateTime.now(),
@@ -1145,6 +1156,7 @@ class FirebaseDatabaseService implements DatabaseService {
         painTypes: painTypes,
         comment: comment,
         userId: user.uid,
+        userRole: userRole.code,
         isVdrsExplicit: isVdrsExplicit,
       );
 

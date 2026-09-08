@@ -319,4 +319,65 @@ void main() {
       },
     );
   });
+
+  group('Observation userRole Serialization & Deserialization Tests', () {
+    test('serializes userRole when non-null and omits when null', () {
+      final obsWithRole = Observation(
+        id: 'obs-role-1',
+        timestamp: DateTime(2026, 9, 8, 14, 0),
+        sensation: Sensation.shiny,
+        stretch: Stretch.stretchy,
+        colors: const [MucusColor.clear],
+        consistencies: const [Consistency.lubricative],
+        bleeding: Bleeding.none,
+        userId: 'husband-prod-uid-123',
+        userRole: 'husband',
+      );
+      final mapWithRole = obsWithRole.toMap();
+      expect(mapWithRole['userRole'], equals('husband'));
+
+      final obsWithoutRole = Observation(
+        id: 'obs-role-2',
+        timestamp: DateTime(2026, 9, 8, 14, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'wife-prod-uid-456',
+      );
+      final mapWithoutRole = obsWithoutRole.toMap();
+      expect(mapWithoutRole.containsKey('userRole'), isFalse);
+    });
+
+    test(
+      'deserializes userRole fromMap when present and defaults to null when missing',
+      () {
+        final mapWithRole = {
+          'id': 'obs-role-3',
+          'timestamp': DateTime(2026, 9, 8, 15, 0),
+          'sensation': 'wet',
+          'stretch': 'stretchy',
+          'colors': ['clear'],
+          'consistencies': ['lubricative'],
+          'bleeding': 'none',
+          'userId': 'user-123',
+          'userRole': 'husband',
+        };
+        final obsFromRole = Observation.fromMap(mapWithRole);
+        expect(obsFromRole.userRole, equals('husband'));
+
+        final mapWithoutRole = {
+          'id': 'obs-role-4',
+          'timestamp': DateTime(2026, 9, 8, 15, 0),
+          'sensation': 'dry',
+          'stretch': 'none',
+          'bleeding': 'none',
+          'userId': 'user-456',
+        };
+        final obsFromLegacy = Observation.fromMap(mapWithoutRole);
+        expect(obsFromLegacy.userRole, isNull);
+      },
+    );
+  });
 }
