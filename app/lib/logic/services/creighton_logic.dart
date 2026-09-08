@@ -139,7 +139,12 @@ class CreightonLogic {
           : '';
       final bleedingPart = '$bCode$colorSuffix';
 
-      if (bestObs.hasMucus ||
+      final isVeryLightOrSpotting =
+          worstBleeding == Bleeding.veryLight ||
+          worstBleeding == Bleeding.spotting;
+
+      if (isVeryLightOrSpotting ||
+          bestObs.hasMucus ||
           (bestObs.isVdrsExplicit && bestObs.sensation != Sensation.dry) ||
           (resolvedFrequency != Frequency.none && bestObs.isVdrsExplicit)) {
         resolvedCode = '$bleedingPart ${bestObs.mucusPart()}';

@@ -154,16 +154,16 @@ class Observation {
           : '';
       final bleedingPart = '$bCode$colorSuffix';
 
-      if (!hasMucus) {
-        if ((sensation != Sensation.dry && isVdrsExplicit) ||
-            (frequency != Frequency.none && isVdrsExplicit)) {
-          code = '$bleedingPart ${mucusPart()}';
-        } else {
-          code = bleedingPart;
-        }
-      } else {
-        // Combined bleeding and mucus (e.g. "L-R 10-K-L")
+      final isVeryLightOrSpotting =
+          bleeding == Bleeding.veryLight || bleeding == Bleeding.spotting;
+
+      if (isVeryLightOrSpotting ||
+          hasMucus ||
+          (sensation != Sensation.dry && isVdrsExplicit) ||
+          (frequency != Frequency.none && isVdrsExplicit)) {
         code = '$bleedingPart ${mucusPart()}';
+      } else {
+        code = bleedingPart;
       }
     } else {
       code = mucusPart();

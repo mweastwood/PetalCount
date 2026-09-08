@@ -10,6 +10,8 @@ void main() {
     List<Consistency> consistencies = const [],
     Bleeding bleeding = Bleeding.none,
     String bleedingColor = '',
+    Frequency frequency = Frequency.none,
+    bool intercourse = false,
     bool? isVdrsExplicit = true,
   }) {
     return Observation(
@@ -21,6 +23,8 @@ void main() {
       consistencies: consistencies,
       bleeding: bleeding,
       bleedingColor: bleedingColor,
+      frequency: frequency,
+      intercourse: intercourse,
       userId: 'test_user',
       isVdrsExplicit: isVdrsExplicit,
     );
@@ -269,20 +273,69 @@ void main() {
       expect(item.vdrsCode, 'L');
     });
 
-    test('Very Light Red bleeding maps to "VL"', () {
+    test('Very Light Red bleeding maps to "VL 0"', () {
       final item = obs(bleeding: Bleeding.veryLight, bleedingColor: 'R');
-      expect(item.vdrsCode, 'VL');
+      expect(item.vdrsCode, 'VL 0');
     });
 
-    test('Spotting Red bleeding maps to "VL"', () {
+    test('Spotting Red bleeding maps to "VL 0"', () {
       final item = obs(bleeding: Bleeding.spotting, bleedingColor: 'R');
-      expect(item.vdrsCode, 'VL');
+      expect(item.vdrsCode, 'VL 0');
     });
 
-    test('Spotting Brown bleeding maps to "VL-B"', () {
+    test('Spotting Brown bleeding maps to "VL-B 0"', () {
       final item = obs(bleeding: Bleeding.spotting, bleedingColor: 'B');
-      expect(item.vdrsCode, 'VL-B');
+      expect(item.vdrsCode, 'VL-B 0');
     });
+
+    test(
+      'Very Light bleeding with non-dry sensations without mucus maps to "VL 2", "VL 2W", "VL 4"',
+      () {
+        final damp = obs(
+          bleeding: Bleeding.veryLight,
+          sensation: Sensation.damp,
+        );
+        expect(damp.vdrsCode, 'VL 2');
+
+        final wet = obs(bleeding: Bleeding.veryLight, sensation: Sensation.wet);
+        expect(wet.vdrsCode, 'VL 2W');
+
+        final shiny = obs(
+          bleeding: Bleeding.veryLight,
+          sensation: Sensation.shiny,
+        );
+        expect(shiny.vdrsCode, 'VL 4');
+      },
+    );
+
+    test(
+      'Very Light bleeding with dry sensation and intercourse maps to "VL 0 I"',
+      () {
+        final item = obs(
+          bleeding: Bleeding.veryLight,
+          sensation: Sensation.dry,
+          intercourse: true,
+        );
+        expect(item.vdrsCode, 'VL 0 I');
+      },
+    );
+
+    test(
+      'Preserves H, M, L mappings without mucus and dry sensation as "H", "M", "L"',
+      () {
+        final heavy = obs(bleeding: Bleeding.heavy, sensation: Sensation.dry);
+        expect(heavy.vdrsCode, 'H');
+
+        final moderate = obs(
+          bleeding: Bleeding.moderate,
+          sensation: Sensation.dry,
+        );
+        expect(moderate.vdrsCode, 'M');
+
+        final light = obs(bleeding: Bleeding.light, sensation: Sensation.dry);
+        expect(light.vdrsCode, 'L');
+      },
+    );
 
     test('Brown bleeding maps to "B-B"', () {
       final item = obs(bleeding: Bleeding.brown, bleedingColor: 'B');
@@ -319,6 +372,16 @@ void main() {
         colors: [MucusColor.yellow],
       );
       expect(item.vdrsCode, 'VL-B 8Y');
+    });
+
+    test('Very Light bleeding + Stretchy Clear Mucus maps to "VL 10K"', () {
+      final item = obs(
+        bleeding: Bleeding.veryLight,
+        bleedingColor: 'R',
+        stretch: Stretch.stretchy,
+        colors: [MucusColor.clear],
+      );
+      expect(item.vdrsCode, 'VL 10K');
     });
   });
 
