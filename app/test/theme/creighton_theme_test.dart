@@ -9,6 +9,7 @@ void main() {
       expect(CreightonTheme.cellWidth, 66.0);
       expect(CreightonTheme.cellHeight, 114.0);
       expect(CreightonTheme.headerRowHeight, 36.0);
+      expect(CreightonTheme.mobileHeaderRowHeight, 56.0);
       expect(CreightonTheme.cycleHeaderWidth, 110.0);
       expect(CreightonTheme.cellGap, 3.0);
     });
