@@ -35,47 +35,66 @@ class ChartScreen extends StatelessWidget {
 
     // Determine the maximum number of days to display across all cycles (at least 35 days)
     final int maxDays = Cycle.calculateMaxDisplayDays(cycles);
+    final displayDaysMap = computeDisplayDaysMap(cycles, maxDays);
 
     final media = MediaQuery.of(context);
     final isNarrow =
         media.size.width < media.size.height || media.size.width < 600;
 
     if (isNarrow) {
-      return _buildVerticalSpreadsheet(context, maxDays);
+      return _buildVerticalSpreadsheet(context, maxDays, displayDaysMap);
     } else {
-      return _buildHorizontalSpreadsheet(context, maxDays);
+      return _buildHorizontalSpreadsheet(context, maxDays, displayDaysMap);
     }
   }
 
-  /// Determines the number of days to display for a cycle.
-  /// If a subsequent cycle has started or the cycle has ended, extra days
-  /// beyond the end of this cycle that will never be populated are hidden.
-  int _getCycleDisplayDays(Cycle cycle, int maxDays) {
-    if (cycle.endDate != null) {
-      final endDays = calendarDaysBetween(cycle.startDate, cycle.endDate!) + 1;
-      return endDays < maxDays ? endDays : maxDays;
-    }
+  /// Computes a map of cycle ID to the number of days to display for that cycle.
+  ///
+  /// Pre-computes display days in a single O(N log N) pass:
+  /// - Cycles with an `endDate` are displayed up to their end date (or `maxDays`).
+  /// - Cycles without an `endDate` that are followed by another cycle are displayed up to the next cycle's start date (or `maxDays`).
+  /// - The latest open cycle defaults to `maxDays`.
+  @visibleForTesting
+  static Map<String, int> computeDisplayDaysMap(
+    List<Cycle> cycles,
+    int maxDays,
+  ) {
+    if (cycles.isEmpty) return const {};
 
     final sortedCycles = List<Cycle>.from(cycles)
       ..sort((a, b) => a.startDate.compareTo(b.startDate));
-    final index = sortedCycles.indexWhere((c) => c.id == cycle.id);
 
-    if (index != -1 && index < sortedCycles.length - 1) {
-      final nextCycle = sortedCycles[index + 1];
-      final daysToNext = calendarDaysBetween(
-        cycle.startDate,
-        nextCycle.startDate,
-      );
-      if (daysToNext > 0) {
-        return daysToNext < maxDays ? daysToNext : maxDays;
+    final map = <String, int>{};
+    for (int i = 0; i < sortedCycles.length; i++) {
+      final cycle = sortedCycles[i];
+      if (cycle.endDate != null) {
+        final endDays =
+            calendarDaysBetween(cycle.startDate, cycle.endDate!) + 1;
+        map[cycle.id] = endDays < maxDays ? endDays : maxDays;
+      } else if (i < sortedCycles.length - 1) {
+        final nextCycle = sortedCycles[i + 1];
+        final daysToNext = calendarDaysBetween(
+          cycle.startDate,
+          nextCycle.startDate,
+        );
+        if (daysToNext > 0) {
+          map[cycle.id] = daysToNext < maxDays ? daysToNext : maxDays;
+        } else {
+          map[cycle.id] = maxDays;
+        }
+      } else {
+        map[cycle.id] = maxDays;
       }
     }
-
-    return maxDays;
+    return map;
   }
 
   /// Narrow Screens (Portrait): Vertical Cycle Columns with a shared Day column on the left
-  Widget _buildVerticalSpreadsheet(BuildContext context, int maxDays) {
+  Widget _buildVerticalSpreadsheet(
+    BuildContext context,
+    int maxDays,
+    Map<String, int> displayDaysMap,
+  ) {
     final theme = Theme.of(context);
 
     return LayoutBuilder(
@@ -151,7 +170,7 @@ class ChartScreen extends StatelessWidget {
                     ),
                     // Cycle Columns (Side-by-Side)
                     ...cycles.map((cycle) {
-                      final displayDays = _getCycleDisplayDays(cycle, maxDays);
+                      final displayDays = displayDaysMap[cycle.id] ?? maxDays;
                       return Container(
                         margin: const EdgeInsets.only(right: kCellGap),
                         child: Column(
@@ -297,7 +316,11 @@ class ChartScreen extends StatelessWidget {
   }
 
   /// Wide Screens (Landscape): Horizontal Cycle Rows with a shared Day header row across the top
-  Widget _buildHorizontalSpreadsheet(BuildContext context, int maxDays) {
+  Widget _buildHorizontalSpreadsheet(
+    BuildContext context,
+    int maxDays,
+    Map<String, int> displayDaysMap,
+  ) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final contentWidth =
@@ -337,7 +360,12 @@ class ChartScreen extends StatelessWidget {
                           final cycle = cycles[index];
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 6.0),
-                            child: _buildCycleRow(context, cycle, maxDays),
+                            child: _buildCycleRow(
+                              context,
+                              cycle,
+                              maxDays,
+                              displayDaysMap[cycle.id] ?? maxDays,
+                            ),
                           );
                         },
                       ),
@@ -406,7 +434,12 @@ class ChartScreen extends StatelessWidget {
   }
 
   /// Renders a single cycle row with its left label card and day cells (Horizontal Layout)
-  Widget _buildCycleRow(BuildContext context, Cycle cycle, int maxDays) {
+  Widget _buildCycleRow(
+    BuildContext context,
+    Cycle cycle,
+    int maxDays,
+    int displayDays,
+  ) {
     final theme = Theme.of(context);
 
     return Row(
@@ -493,7 +526,7 @@ class ChartScreen extends StatelessWidget {
           ),
         ),
         // Day Stamp Cells for Day 1 .. Day N going ACROSS
-        ...List.generate(_getCycleDisplayDays(cycle, maxDays), (index) {
+        ...List.generate(displayDays, (index) {
           final dayNum = index + 1;
           final dayDate = cycle.startDate.addCalendarDays(index);
           final dateKey = dayDate.dateKey;
@@ -538,7 +571,7 @@ class ChartScreen extends StatelessWidget {
         height: kCellHeight,
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: const BorderRadius.all(Radius.circular(8)),
           border: Border.all(color: borderCol, width: entry != null ? 1.5 : 1),
           boxShadow: [
             BoxShadow(
@@ -549,7 +582,7 @@ class ChartScreen extends StatelessWidget {
           ],
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(6.5),
+          borderRadius: const BorderRadius.all(Radius.circular(6.5)),
           child: Column(
             children: [
               // TOP EDGE-TO-EDGE STICKER BOX

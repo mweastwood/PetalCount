@@ -378,4 +378,72 @@ void main() {
       await tester.pumpAndSettle();
     },
   );
+
+  group('ChartScreen.computeDisplayDaysMap', () {
+    test('returns empty map for empty cycles', () {
+      final result = ChartScreen.computeDisplayDaysMap([], 35);
+      expect(result, isEmpty);
+    });
+
+    test('correctly handles completed cycles with endDate', () {
+      final start = DateTime(2026, 1, 1);
+      final end = DateTime(2026, 1, 15); // 15 days
+      final cycle = Cycle(id: 'c1', startDate: start, endDate: end);
+
+      final result = ChartScreen.computeDisplayDaysMap([cycle], 35);
+      expect(result['c1'], equals(15));
+    });
+
+    test('correctly handles open cycles bounded by subsequent cycles', () {
+      final cycle1 = Cycle(id: 'c1', startDate: DateTime(2026, 1, 1));
+      final cycle2 = Cycle(id: 'c2', startDate: DateTime(2026, 1, 21));
+
+      final result = ChartScreen.computeDisplayDaysMap([cycle1, cycle2], 35);
+      expect(result['c1'], equals(20));
+      expect(result['c2'], equals(35));
+    });
+
+    test('defaults the latest open cycle to maxDays', () {
+      final cycle = Cycle(id: 'c1', startDate: DateTime(2026, 1, 1));
+      final result = ChartScreen.computeDisplayDaysMap([cycle], 40);
+      expect(result['c1'], equals(40));
+    });
+
+    test(
+      'correctly produces sorted chronological bounds for unsorted cycle inputs',
+      () {
+        final cycle3 = Cycle(id: 'c3', startDate: DateTime(2026, 3, 1));
+        final cycle1 = Cycle(id: 'c1', startDate: DateTime(2026, 1, 1));
+        final cycle2 = Cycle(id: 'c2', startDate: DateTime(2026, 2, 1));
+
+        // Pass in reverse order [c3, c1, cycle2]
+        final result = ChartScreen.computeDisplayDaysMap([
+          cycle3,
+          cycle1,
+          cycle2,
+        ], 35);
+        expect(result['c1'], equals(31)); // Jan 1 to Feb 1
+        expect(result['c2'], equals(28)); // Feb 1 to Mar 1
+        expect(result['c3'], equals(35)); // latest open cycle
+      },
+    );
+
+    test('truncates endDays to maxDays if cycle duration exceeds maxDays', () {
+      final cycle = Cycle(
+        id: 'c1',
+        startDate: DateTime(2026, 1, 1),
+        endDate: DateTime(2026, 2, 20), // 51 days
+      );
+      final result = ChartScreen.computeDisplayDaysMap([cycle], 35);
+      expect(result['c1'], equals(35));
+    });
+
+    test('handles same-day start dates by falling back to maxDays', () {
+      final cycle1 = Cycle(id: 'c1', startDate: DateTime(2026, 1, 1));
+      final cycle2 = Cycle(id: 'c2', startDate: DateTime(2026, 1, 1));
+      final result = ChartScreen.computeDisplayDaysMap([cycle1, cycle2], 35);
+      expect(result['c1'], equals(35));
+      expect(result['c2'], equals(35));
+    });
+  });
 }
