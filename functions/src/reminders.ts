@@ -70,20 +70,6 @@ export async function checkChartHasObservationForDate(
     .get();
 
   if (eligibleCyclesSnap.empty) {
-    // If no cycle starts before dateKey, check any cycle that might have this entry
-    const allCyclesSnap = await chartRef.collection("cycles").limit(5).get();
-    for (const cycleDoc of allCyclesSnap.docs) {
-      const dailyEntryDoc = await cycleDoc.ref
-        .collection("dailyEntries")
-        .doc(dateKey)
-        .get();
-      if (dailyEntryDoc.exists) {
-        const data = dailyEntryDoc.data() as DailyEntryData;
-        if (Array.isArray(data.observations) && data.observations.length > 0) {
-          return true;
-        }
-      }
-    }
     return false;
   }
 
@@ -115,6 +101,127 @@ export async function checkChartHasObservationForDate(
 }
 
 /**
+ * Processes reminder notifications for a single eligible chart.
+ */
+async function processSingleChartReminder(
+  db: admin.firestore.Firestore,
+  messaging: admin.messaging.Messaging,
+  eligibleChart: { chart: ChartData; chartId: string; dateKey: string },
+  userCache: Map<string, UserData>
+): Promise<{ reminderSent: boolean; tokensNotified: number }> {
+  const { chart, chartId, dateKey } = eligibleChart;
+
+  const hasObservation = await checkChartHasObservationForDate(
+    db,
+    chartId,
+    dateKey
+  );
+
+  if (hasObservation) {
+    // An observation has already been logged for today by user or partner
+    return { reminderSent: false, tokensNotified: 0 };
+  }
+
+  const userIds = chart.userIds || [];
+  if (userIds.length === 0) {
+    return { reminderSent: false, tokensNotified: 0 };
+  }
+
+  // Collect all FCM tokens for all collaborators on this chart
+  const tokensByUserId: Map<string, string[]> = new Map();
+  const allTokens: string[] = [];
+
+  for (const uid of userIds) {
+    const userData = userCache.get(uid);
+    if (userData) {
+      const tokens = Array.isArray(userData.fcmTokens)
+        ? userData.fcmTokens.filter((t) => typeof t === "string" && t.length > 0)
+        : [];
+      if (tokens.length > 0) {
+        tokensByUserId.set(uid, tokens);
+        allTokens.push(...tokens);
+      }
+    }
+  }
+
+  if (allTokens.length === 0) {
+    return { reminderSent: false, tokensNotified: 0 };
+  }
+
+  // Dispatch Multicast Push Notification via Firebase Cloud Messaging
+  const response = await messaging.sendEachForMulticast({
+    tokens: allTokens,
+    notification: {
+      title: "Daily Observation Reminder",
+      body: "Don't forget to log your Creighton observations for today!",
+    },
+    data: {
+      chartId: chartId,
+      date: dateKey,
+      type: "daily_reminder",
+    },
+    android: {
+      priority: "high",
+      notification: {
+        channelId: "daily_logging_reminders",
+        priority: "high",
+        defaultSound: true,
+      },
+    },
+    apns: {
+      payload: {
+        aps: {
+          alert: {
+            title: "Daily Observation Reminder",
+            body: "Don't forget to log your Creighton observations for today!",
+          },
+          sound: "default",
+          badge: 1,
+        },
+      },
+    },
+  });
+
+  const reminderSent = true;
+  const tokensNotified = response.successCount;
+
+  // Prune stale / unregistered tokens
+  if (response.failureCount > 0) {
+    const invalidTokens = new Set<string>();
+    response.responses.forEach((resp, idx) => {
+      if (!resp.success && resp.error) {
+        const errorCode = resp.error.code;
+        if (
+          errorCode === "messaging/invalid-registration-token" ||
+          errorCode === "messaging/registration-token-not-registered"
+        ) {
+          invalidTokens.add(allTokens[idx]);
+        }
+      }
+    });
+
+    if (invalidTokens.size > 0) {
+      for (const [uid, tokens] of tokensByUserId.entries()) {
+        const validTokens = tokens.filter((t) => !invalidTokens.has(t));
+        if (validTokens.length !== tokens.length) {
+          await db
+            .collection("users")
+            .doc(uid)
+            .update({ fcmTokens: validTokens });
+
+          const cached = userCache.get(uid);
+          if (cached) {
+            cached.fcmTokens = validTokens;
+          }
+        }
+      }
+    }
+  }
+
+  return { reminderSent, tokensNotified };
+}
+
+/**
  * Process all active charts and send 9:00 PM reminder notifications if no observations logged.
  */
 export async function processDailyReminders(
@@ -141,9 +248,15 @@ export async function processDailyReminders(
   }
 
   const chartsSnap = await chartsQuery.get();
-  let chartsChecked = 0;
-  let remindersSent = 0;
-  let tokensNotified = 0;
+  if (chartsSnap.empty) {
+    return { chartsChecked: 0, remindersSent: 0, tokensNotified: 0 };
+  }
+
+  const eligibleCharts: Array<{
+    chart: ChartData;
+    chartId: string;
+    dateKey: string;
+  }> = [];
 
   for (const chartDoc of chartsSnap.docs) {
     const chart = chartDoc.data() as ChartData;
@@ -162,110 +275,58 @@ export async function processDailyReminders(
       continue;
     }
 
-    chartsChecked++;
+    eligibleCharts.push({ chart, chartId, dateKey });
+  }
 
-    const hasObservation = await checkChartHasObservationForDate(
-      db,
-      chartId,
-      dateKey
-    );
+  if (eligibleCharts.length === 0) {
+    return { chartsChecked: 0, remindersSent: 0, tokensNotified: 0 };
+  }
 
-    if (hasObservation) {
-      // An observation has already been logged for today by user or partner
-      continue;
-    }
-
+  // Aggregate all unique userIds across all eligible charts
+  const distinctUserIds = new Set<string>();
+  for (const { chart } of eligibleCharts) {
     const userIds = chart.userIds || [];
-    if (userIds.length === 0) continue;
-
-    // Collect all FCM tokens for all collaborators on this chart
-    const tokensByUserId: Map<string, string[]> = new Map();
-    const allTokens: string[] = [];
-
-    const userRefs = userIds.map((uid) => db.collection("users").doc(uid));
-    const userDocs = await db.getAll(...userRefs);
-    for (const userDoc of userDocs) {
-      if (userDoc.exists) {
-        const userData = userDoc.data() as UserData;
-        const tokens = Array.isArray(userData.fcmTokens)
-          ? userData.fcmTokens.filter((t) => typeof t === "string" && t.length > 0)
-          : [];
-        if (tokens.length > 0) {
-          tokensByUserId.set(userDoc.id, tokens);
-          allTokens.push(...tokens);
-        }
+    for (const uid of userIds) {
+      if (uid) {
+        distinctUserIds.add(uid);
       }
     }
+  }
 
-    if (allTokens.length === 0) {
-      continue;
-    }
-
-    // Dispatch Multicast Push Notification via Firebase Cloud Messaging
-    const response = await messaging.sendEachForMulticast({
-      tokens: allTokens,
-      notification: {
-        title: "Daily Observation Reminder",
-        body: "Don't forget to log your Creighton observations for today!",
-      },
-      data: {
-        chartId: chartId,
-        date: dateKey,
-        type: "daily_reminder",
-      },
-      android: {
-        priority: "high",
-        notification: {
-          channelId: "daily_logging_reminders",
-          priority: "high",
-          defaultSound: true,
-        },
-      },
-      apns: {
-        payload: {
-          aps: {
-            alert: {
-              title: "Daily Observation Reminder",
-              body: "Don't forget to log your Creighton observations for today!",
-            },
-            sound: "default",
-            badge: 1,
-          },
-        },
-      },
-    });
-
-    remindersSent++;
-    tokensNotified += response.successCount;
-
-    // Prune stale / unregistered tokens
-    if (response.failureCount > 0) {
-      const invalidTokens = new Set<string>();
-      response.responses.forEach((resp, idx) => {
-        if (!resp.success && resp.error) {
-          const errorCode = resp.error.code;
-          if (
-            errorCode === "messaging/invalid-registration-token" ||
-            errorCode === "messaging/registration-token-not-registered"
-          ) {
-            invalidTokens.add(allTokens[idx]);
-          }
-        }
-      });
-
-      if (invalidTokens.size > 0) {
-        for (const [uid, tokens] of tokensByUserId.entries()) {
-          const validTokens = tokens.filter((t) => !invalidTokens.has(t));
-          if (validTokens.length !== tokens.length) {
-            await db
-              .collection("users")
-              .doc(uid)
-              .update({ fcmTokens: validTokens });
-          }
+  const userCache = new Map<string, UserData>();
+  if (distinctUserIds.size > 0) {
+    const uids = Array.from(distinctUserIds);
+    const CHUNK_SIZE = 500;
+    for (let i = 0; i < uids.length; i += CHUNK_SIZE) {
+      const chunkUids = uids.slice(i, i + CHUNK_SIZE);
+      const userRefs = chunkUids.map((uid) => db.collection("users").doc(uid));
+      const userDocs = await db.getAll(...userRefs);
+      for (const userDoc of userDocs) {
+        if (userDoc.exists) {
+          userCache.set(userDoc.id, userDoc.data() as UserData);
         }
       }
     }
   }
 
-  return { chartsChecked, remindersSent, tokensNotified };
+  const results = await Promise.all(
+    eligibleCharts.map((item) =>
+      processSingleChartReminder(db, messaging, item, userCache)
+    )
+  );
+
+  let remindersSent = 0;
+  let tokensNotified = 0;
+  for (const result of results) {
+    if (result.reminderSent) {
+      remindersSent++;
+    }
+    tokensNotified += result.tokensNotified;
+  }
+
+  return {
+    chartsChecked: eligibleCharts.length,
+    remindersSent,
+    tokensNotified,
+  };
 }
