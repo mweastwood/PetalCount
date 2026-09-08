@@ -426,5 +426,64 @@ void main() {
         expect(reallocated[1].dailyEntries.keys.toList(), ['2026-08-01']);
       },
     );
+
+    test('Cycle.maxEntryDate and sortedEntries memoization', () {
+      final cycleEmpty = Cycle(
+        id: 'cycle_empty',
+        startDate: DateTime(2026, 1, 1),
+        dailyEntries: const {},
+      );
+      expect(cycleEmpty.maxEntryDate, isNull);
+
+      final entry1 = DailyEntry(
+        date: DateTime(2026, 1, 5),
+        resolvedVdrsCode: 'H',
+        stampType: StampType.red,
+        observations: const [],
+        painLevel: 0,
+        painTypes: const [],
+        comments: '',
+      );
+      final entry2 = DailyEntry(
+        date: DateTime(2026, 1, 15),
+        resolvedVdrsCode: '0',
+        stampType: StampType.green,
+        observations: const [],
+        painLevel: 0,
+        painTypes: const [],
+        comments: '',
+      );
+      final entry3 = DailyEntry(
+        date: DateTime(2026, 1, 10),
+        resolvedVdrsCode: '0',
+        stampType: StampType.green,
+        observations: const [],
+        painLevel: 0,
+        painTypes: const [],
+        comments: '',
+      );
+
+      final cycleWithEntries = Cycle(
+        id: 'cycle_with_entries',
+        startDate: DateTime(2026, 1, 1),
+        dailyEntries: {
+          '2026-01-15': entry2,
+          '2026-01-05': entry1,
+          '2026-01-10': entry3,
+        },
+      );
+
+      expect(cycleWithEntries.maxEntryDate, DateTime(2026, 1, 15));
+
+      // Memoization verification: repeated calls return the identical list instance
+      final firstAccess = cycleWithEntries.sortedEntries;
+      final secondAccess = cycleWithEntries.sortedEntries;
+      expect(identical(firstAccess, secondAccess), isTrue);
+      expect(firstAccess.map((e) => e.date).toList(), [
+        DateTime(2026, 1, 5),
+        DateTime(2026, 1, 10),
+        DateTime(2026, 1, 15),
+      ]);
+    });
   });
 }
