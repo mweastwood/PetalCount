@@ -8,6 +8,7 @@ class DailyDetailSheet extends StatelessWidget {
   final DailyEntry entry;
   final Cycle cycle;
   final Stream<String?>? userRoleStream;
+  final String? currentUserRole;
   final String? currentUserId;
 
   const DailyDetailSheet({
@@ -15,6 +16,7 @@ class DailyDetailSheet extends StatelessWidget {
     required this.entry,
     required this.cycle,
     this.userRoleStream,
+    this.currentUserRole,
     this.currentUserId,
   });
 
@@ -37,6 +39,12 @@ class DailyDetailSheet extends StatelessWidget {
     }
 
     // 3. Current User / Partner Fallback:
+    // If current user role is not yet available (e.g. stream loading), return empty string
+    // to avoid prematurely defaulting to "Wife".
+    if (currentUserRole == null || currentUserRole.trim().isEmpty) {
+      return '';
+    }
+
     // Attribute to current user's known role if matching, or partner's opposite role.
     final currentRole = UserRole.fromString(currentUserRole);
     if (currentUserId != null &&
@@ -56,13 +64,10 @@ class DailyDetailSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final effectiveCurrentUserId =
         currentUserId ?? Services.db.currentUser?.uid;
-    final initialRole = effectiveCurrentUserId == 'husband_uid'
-        ? 'husband'
-        : null;
 
     return StreamBuilder<String?>(
       stream: userRoleStream ?? Services.db.streamUserRole(),
-      initialData: initialRole,
+      initialData: currentUserRole,
       builder: (context, snapshot) {
         final currentRoleStr = snapshot.data;
         return _buildContent(context, currentRoleStr, effectiveCurrentUserId);
@@ -222,7 +227,13 @@ class DailyDetailSheet extends StatelessWidget {
                         if (obs.comment.isNotEmpty)
                           Text('Notes: ${obs.comment}'),
                         Text(
-                          'Logged at ${AppDateFormats.timeOfDayPadded.format(obs.timestamp)} by ${resolveAuthor(obs, currentUserRole: currentRoleStr, currentUserId: effectiveCurrentUserId)}',
+                          resolveAuthor(
+                                obs,
+                                currentUserRole: currentRoleStr,
+                                currentUserId: effectiveCurrentUserId,
+                              ).isNotEmpty
+                              ? 'Logged at ${AppDateFormats.timeOfDayPadded.format(obs.timestamp)} by ${resolveAuthor(obs, currentUserRole: currentRoleStr, currentUserId: effectiveCurrentUserId)}'
+                              : 'Logged at ${AppDateFormats.timeOfDayPadded.format(obs.timestamp)}',
                           style: theme.textTheme.bodySmall?.copyWith(
                             fontSize: 9,
                           ),

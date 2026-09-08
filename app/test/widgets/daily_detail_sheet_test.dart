@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/logic.dart';
@@ -49,6 +51,7 @@ void main() {
     required Cycle cycle,
     bool openAsBottomSheet = false,
     Stream<String?>? userRoleStream,
+    String? currentUserRole,
     String? currentUserId,
   }) {
     return MaterialApp(
@@ -65,6 +68,7 @@ void main() {
                         entry: entry,
                         cycle: cycle,
                         userRoleStream: userRoleStream,
+                        currentUserRole: currentUserRole,
                         currentUserId: currentUserId,
                       ),
                     ),
@@ -77,6 +81,7 @@ void main() {
                   entry: entry,
                   cycle: cycle,
                   userRoleStream: userRoleStream,
+                  currentUserRole: currentUserRole,
                   currentUserId: currentUserId,
                 ),
               ),
@@ -540,7 +545,76 @@ void main() {
         ),
         'Wife',
       );
+
+      // Loading state: when currentUserRole is null, does not prematurely default to "Wife"
+      expect(
+        DailyDetailSheet.resolveAuthor(
+          obsLegacyHusband,
+          currentUserRole: null,
+          currentUserId: 'husband-prod-uid',
+        ),
+        '',
+      );
     });
+
+    testWidgets(
+      'does not prematurely default to "Wife" for legacy observation while userRoleStream is loading',
+      (WidgetTester tester) async {
+        final roleController = StreamController<String?>.broadcast();
+        addTearDown(roleController.close);
+
+        final legacyObs = Observation(
+          id: 'obs-legacy-loading',
+          timestamp: DateTime(2026, 8, 3, 15, 30),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'prod-husband-uid',
+        );
+
+        final entry = DailyEntry(
+          date: testDate,
+          resolvedVdrsCode: '',
+          stampType: StampType.green,
+          observations: [legacyObs],
+          painLevel: 0,
+          painTypes: const [],
+          comments: '',
+        );
+
+        await tester.pumpWidget(
+          buildTestWidget(
+            entry: entry,
+            cycle: testCycle,
+            currentUserId: 'prod-husband-uid',
+            userRoleStream: roleController.stream,
+          ),
+        );
+        await tester.pump();
+
+        // While stream is loading, should NOT prematurely display "by Wife"
+        expect(find.textContaining('by Wife'), findsNothing);
+        expect(
+          find.text(
+            'Logged at ${AppDateFormats.timeOfDayPadded.format(legacyObs.timestamp)}',
+          ),
+          findsOneWidget,
+        );
+
+        // Once stream emits 'husband', updates to "by Husband"
+        roleController.add('husband');
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(
+            'Logged at ${AppDateFormats.timeOfDayPadded.format(legacyObs.timestamp)} by Husband',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
 
     testWidgets(
       'renders "by Husband" for observations logged by husbands with production Firebase UIDs',
