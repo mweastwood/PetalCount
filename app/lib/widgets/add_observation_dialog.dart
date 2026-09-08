@@ -27,12 +27,16 @@ class AddObservationDialog extends StatefulWidget {
 }
 
 class _AddObservationDialogState extends State<AddObservationDialog> {
-  late final WizardController _controller;
-  late final bool _ownsController;
+  late WizardController _controller;
+  late bool _ownsController;
 
   @override
   void initState() {
     super.initState();
+    _initController();
+  }
+
+  void _initController() {
     if (widget.controller != null) {
       _controller = widget.controller!;
       _ownsController = false;
@@ -44,6 +48,17 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
         dbService: widget.dbService,
       );
       _ownsController = true;
+    }
+  }
+
+  @override
+  void didUpdateWidget(AddObservationDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.controller != oldWidget.controller) {
+      if (_ownsController) {
+        _controller.dispose();
+      }
+      _initController();
     }
   }
 

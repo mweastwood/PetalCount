@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/logic.dart';
@@ -220,6 +222,27 @@ void main() {
 
       controller.dispose();
     });
+
+    test(
+      'setSensation(Sensation.dry) resets hasLubrication from true to false',
+      () {
+        final controller = WizardController(
+          category: ObservationCategory.full,
+          defaultDate: defaultDate,
+          dbService: db,
+        );
+
+        controller.setSensation(Sensation.wet);
+        controller.setLubrication(true);
+        expect(controller.hasLubrication, isTrue);
+
+        controller.setSensation(Sensation.dry);
+        expect(controller.sensation, Sensation.dry);
+        expect(controller.hasLubrication, isFalse);
+
+        controller.dispose();
+      },
+    );
 
     test('wet or damp sensation includes lubrication step', () {
       final controller = WizardController(
@@ -495,6 +518,43 @@ void main() {
 
       controller.dispose();
     });
+
+    test(
+      'navigation resilience when activeSteps changes dynamically while at an advanced index',
+      () {
+        final controller = WizardController(
+          category: ObservationCategory.full,
+          defaultDate: defaultDate,
+          dbService: db,
+        );
+
+        // Steps in default full flow: [bleedingFlow, sensation, mucus, pain, comments] (5 steps, indexes 0..4)
+        expect(controller.activeSteps.length, 5);
+        controller.goToStep(4);
+        expect(controller.currentStepIndex, 4);
+        expect(controller.currentStep, WizardStep.comments);
+
+        // Dynamically change state so activeSteps shortens:
+        // Setting heavy bleeding yields: [bleedingFlow, bleedingColor, pain, comments] (4 steps, indexes 0..3)
+        controller.setBleedingFlow(Bleeding.heavy);
+        expect(controller.activeSteps.length, 4);
+        expect(controller.currentStepIndex, 3);
+        expect(controller.currentStep, WizardStep.comments);
+
+        // previousStep decrements directly from clamped currentStepIndex (3 -> 2)
+        // rather than taking multiple calls due to stale internal index
+        controller.previousStep();
+        expect(controller.currentStepIndex, 2);
+        expect(controller.currentStep, WizardStep.pain);
+
+        // nextStep advances directly from currentStepIndex (2 -> 3)
+        controller.nextStep();
+        expect(controller.currentStepIndex, 3);
+        expect(controller.currentStep, WizardStep.comments);
+
+        controller.dispose();
+      },
+    );
   });
 
   group('WizardController saveObservation Persistence', () {
@@ -636,7 +696,95 @@ void main() {
       failingController.dispose();
       controller.dispose();
     });
+
+    test(
+      'saveObservation guards against re-entrant calls when already saving',
+      () async {
+        final delayedDb = _DelayedDatabaseService();
+        final controller = WizardController(
+          category: ObservationCategory.full,
+          defaultDate: defaultDate,
+          dbService: delayedDb,
+        );
+
+        final firstSaveFuture = controller.saveObservation();
+        expect(controller.isSaving, isTrue);
+
+        final secondResult = await controller.saveObservation();
+        expect(secondResult, isFalse);
+
+        delayedDb.completer.complete();
+        final firstResult = await firstSaveFuture;
+        expect(firstResult, isTrue);
+        expect(controller.isSaving, isFalse);
+
+        controller.dispose();
+      },
+    );
+
+    test(
+      'disposing controller while saveObservation is pending completes without throwing disposed notifier errors',
+      () async {
+        final delayedDb = _DelayedDatabaseService();
+        final controller = WizardController(
+          category: ObservationCategory.full,
+          defaultDate: defaultDate,
+          dbService: delayedDb,
+        );
+
+        final saveFuture = controller.saveObservation();
+        expect(controller.isSaving, isTrue);
+
+        controller.dispose();
+        expect(controller.isDisposed, isTrue);
+
+        delayedDb.completer.complete();
+        final result = await saveFuture;
+        expect(result, isTrue);
+        expect(controller.isSaving, isFalse);
+      },
+    );
   });
+}
+
+class _DelayedDatabaseService extends InMemoryDatabaseService {
+  final Completer<void> completer = Completer<void>();
+
+  @override
+  Future<void> saveObservation({
+    String? cycleId,
+    required DateTime date,
+    required Sensation sensation,
+    required Stretch stretch,
+    required List<MucusColor> colors,
+    required List<Consistency> consistencies,
+    required Bleeding bleeding,
+    required String bleedingColor,
+    Frequency frequency = Frequency.none,
+    bool intercourse = false,
+    required double painLevel,
+    required List<String> painTypes,
+    required String comment,
+    bool? isVdrsExplicit,
+  }) async {
+    await completer.future;
+    await super.saveObservation(
+      cycleId: cycleId,
+      date: date,
+      sensation: sensation,
+      stretch: stretch,
+      colors: colors,
+      consistencies: consistencies,
+      bleeding: bleeding,
+      bleedingColor: bleedingColor,
+      frequency: frequency,
+      intercourse: intercourse,
+      painLevel: painLevel,
+      painTypes: painTypes,
+      comment: comment,
+      isVdrsExplicit: isVdrsExplicit,
+    );
+  }
 }
 
 class _ThrowingDatabaseService extends InMemoryDatabaseService {

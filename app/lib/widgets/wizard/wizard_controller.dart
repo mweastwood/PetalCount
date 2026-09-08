@@ -80,6 +80,7 @@ class WizardController extends ChangeNotifier {
   // Comments
   final TextEditingController _commentController = TextEditingController();
   bool _isSaving = false;
+  bool _isDisposed = false;
 
   WizardController({
     this.category = ObservationCategory.full,
@@ -108,6 +109,7 @@ class WizardController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _isDisposed = true;
     _commentController.dispose();
     super.dispose();
   }
@@ -318,6 +320,7 @@ class WizardController extends ChangeNotifier {
 
   TextEditingController get commentController => _commentController;
   bool get isSaving => _isSaving;
+  bool get isDisposed => _isDisposed;
 
   // --- Summary Visibility Helpers ---
 
@@ -434,15 +437,17 @@ class WizardController extends ChangeNotifier {
 
   void nextStep() {
     final steps = activeSteps;
-    if (_currentStepIndex < steps.length - 1) {
-      _currentStepIndex++;
+    final current = currentStepIndex;
+    if (current < steps.length - 1) {
+      _currentStepIndex = current + 1;
       notifyListeners();
     }
   }
 
   void previousStep() {
-    if (_currentStepIndex > 0) {
-      _currentStepIndex--;
+    final current = currentStepIndex;
+    if (current > 0) {
+      _currentStepIndex = current - 1;
       notifyListeners();
     }
   }
@@ -458,6 +463,7 @@ class WizardController extends ChangeNotifier {
   // --- Save & Persistence ---
 
   Future<bool> saveObservation() async {
+    if (_isSaving) return false;
     _isSaving = true;
     notifyListeners();
 
@@ -535,7 +541,9 @@ class WizardController extends ChangeNotifier {
       rethrow;
     } finally {
       _isSaving = false;
-      notifyListeners();
+      if (!_isDisposed) {
+        notifyListeners();
+      }
     }
   }
 }
