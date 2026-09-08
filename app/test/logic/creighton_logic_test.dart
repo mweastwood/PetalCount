@@ -150,6 +150,160 @@ void main() {
       expect(daily.resolvedVdrsCode, 'L-B');
     });
 
+    test(
+      'Single observation: spotting with dry sensation resolves to "VL 0"',
+      () {
+        final spottingObs = Observation(
+          id: '1',
+          timestamp: DateTime(2026, 6, 28, 8, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.spotting,
+          bleedingColor: 'R',
+          userId: 'test_user',
+        );
+
+        final daily = CreightonLogic.resolveDailyEntry(
+          date: DateTime(2026, 6, 28),
+          observations: [spottingObs],
+        );
+
+        expect(daily.resolvedVdrsCode, 'VL 0');
+      },
+    );
+
+    test(
+      'Single observation: spotting brown with dry sensation resolves to "VL-B 0"',
+      () {
+        final spottingBrownObs = Observation(
+          id: '1',
+          timestamp: DateTime(2026, 6, 28, 8, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.spotting,
+          bleedingColor: 'B',
+          userId: 'test_user',
+        );
+
+        final daily = CreightonLogic.resolveDailyEntry(
+          date: DateTime(2026, 6, 28),
+          observations: [spottingBrownObs],
+        );
+
+        expect(daily.resolvedVdrsCode, 'VL-B 0');
+      },
+    );
+
+    test(
+      'Multi-observation combination: spotting + dry observation resolves to "VL 0"',
+      () {
+        final spottingObs = Observation(
+          id: '1',
+          timestamp: DateTime(2026, 6, 28, 8, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.spotting,
+          bleedingColor: 'R',
+          userId: 'test_user',
+        );
+
+        final dryObs = Observation(
+          id: '2',
+          timestamp: DateTime(2026, 6, 28, 12, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test_user',
+        );
+
+        final daily = CreightonLogic.resolveDailyEntry(
+          date: DateTime(2026, 6, 28),
+          observations: [spottingObs, dryObs],
+        );
+
+        expect(daily.resolvedVdrsCode, 'VL 0');
+      },
+    );
+
+    test(
+      'Multi-observation combination: spotting + mucus observation resolves to "VL 10K"',
+      () {
+        final spottingObs = Observation(
+          id: '1',
+          timestamp: DateTime(2026, 6, 28, 8, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.spotting,
+          bleedingColor: 'R',
+          userId: 'test_user',
+        );
+
+        final mucusObs = Observation(
+          id: '2',
+          timestamp: DateTime(2026, 6, 28, 14, 0),
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: [MucusColor.clear],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          userId: 'test_user',
+        );
+
+        final daily = CreightonLogic.resolveDailyEntry(
+          date: DateTime(2026, 6, 28),
+          observations: [spottingObs, mucusObs],
+        );
+
+        expect(daily.resolvedVdrsCode, 'VL 10K');
+      },
+    );
+
+    test(
+      'Multi-observation combination: heavy bleeding + spotting with dry sensation correctly prioritizes menstrual flow and resolves to "H"',
+      () {
+        final heavyObs = Observation(
+          id: '1',
+          timestamp: DateTime(2026, 6, 28, 8, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.heavy,
+          bleedingColor: 'R',
+          userId: 'test_user',
+        );
+
+        final spottingObs = Observation(
+          id: '2',
+          timestamp: DateTime(2026, 6, 28, 14, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.spotting,
+          bleedingColor: 'R',
+          userId: 'test_user',
+        );
+
+        final daily = CreightonLogic.resolveDailyEntry(
+          date: DateTime(2026, 6, 28),
+          observations: [heavyObs, spottingObs],
+        );
+
+        expect(daily.resolvedVdrsCode, 'H');
+      },
+    );
+
     test('Resolves daily entry with frequency and intercourse markers', () {
       final obs1 = Observation(
         id: '1',
@@ -1294,7 +1448,7 @@ void main() {
             ),
             '2026-08-24': DailyEntry(
               date: DateTime(2026, 8, 24),
-              resolvedVdrsCode: 'VL-B',
+              resolvedVdrsCode: 'VL-B 0',
               stampType: StampType.red,
               observations: [
                 Observation(
@@ -1358,7 +1512,7 @@ void main() {
           dailyEntries: {
             '2026-08-24': DailyEntry(
               date: DateTime(2026, 8, 24),
-              resolvedVdrsCode: 'VL-B',
+              resolvedVdrsCode: 'VL-B 0',
               stampType: StampType.red,
               observations: [
                 Observation(

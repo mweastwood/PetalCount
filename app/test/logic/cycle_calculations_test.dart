@@ -145,7 +145,7 @@ void main() {
           dailyEntries: {
             '2026-05-20': DailyEntry(
               date: DateTime(2026, 5, 20),
-              resolvedVdrsCode: 'VL',
+              resolvedVdrsCode: 'VL 0',
               stampType: StampType.red,
               observations: [
                 Observation(
