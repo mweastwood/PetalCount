@@ -30,6 +30,8 @@ abstract class DatabaseService {
     NotificationPreferences preferences,
   );
   Stream<NotificationPreferences> streamNotificationPreferences(String chartId);
+  NotificationPreferences? getLatestNotificationPreferences(String chartId);
+  NotificationPreferences? get latestNotificationPreferences;
   Future<void> updateUserRole(String role);
   Stream<String?> streamUserRole();
   Future<void> saveFcmToken(String token);
