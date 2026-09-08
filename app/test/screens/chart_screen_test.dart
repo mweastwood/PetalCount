@@ -313,4 +313,69 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'ChartScreen renders readable cycle headers in narrow (portrait) mobile mode and opens options dialog and PDF export',
+    (WidgetTester tester) async {
+      final startDate = DateTime(2026, 7, 1);
+      final cycle = Cycle(
+        id: 'cycle_1',
+        startDate: startDate,
+        dailyEntries: {},
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.pink),
+          home: Scaffold(
+            body: MediaQuery(
+              data: const MediaQueryData(size: Size(390, 844)),
+              child: ChartScreen(
+                cycles: [cycle],
+                onSelectEntry: (entry, c) {},
+                onAddForDate: (c, date) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify corner cell 'Day' is rendered
+      expect(find.text('Day'), findsOneWidget);
+
+      // Verify cycle start date (Jul 01) and year (2026) are rendered in the header
+      expect(find.text('Jul 01'), findsWidgets);
+      expect(find.text('2026'), findsOneWidget);
+
+      // Verify PDF export button and Cycle Options button are rendered
+      expect(find.byIcon(Icons.picture_as_pdf), findsOneWidget);
+      expect(find.byIcon(Icons.settings_suggest), findsOneWidget);
+
+      // Tap the cycle header card to open CycleOptionsDialog
+      await tester.tap(find.text('Jul 01').first);
+      await tester.pumpAndSettle();
+
+      // Verify Cycle Options modal bottom sheet is shown
+      expect(find.text('Cycle Boundary Options'), findsOneWidget);
+
+      // Dismiss dialog
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      expect(find.text('Cycle Boundary Options'), findsNothing);
+
+      // Tap settings_suggest button to verify it also opens options dialog
+      await tester.tap(find.byIcon(Icons.settings_suggest));
+      await tester.pumpAndSettle();
+      expect(find.text('Cycle Boundary Options'), findsOneWidget);
+
+      // Dismiss dialog
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+
+      // Verify tapping PDF icon button does not throw
+      await tester.tap(find.byIcon(Icons.picture_as_pdf));
+      await tester.pumpAndSettle();
+    },
+  );
 }

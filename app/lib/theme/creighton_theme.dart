@@ -10,6 +10,7 @@ class CreightonTheme {
   static const double cellWidth = 66.0;
   static const double cellHeight = 114.0;
   static const double headerRowHeight = 36.0;
+  static const double mobileHeaderRowHeight = 56.0;
   static const double cycleHeaderWidth = 110.0;
   static const double cellGap = 3.0;
 
