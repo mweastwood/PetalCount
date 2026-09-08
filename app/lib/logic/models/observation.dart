@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:collection/collection.dart';
 
 enum Sensation {
   dry('0', 'Dry'),
@@ -284,19 +285,13 @@ class Observation {
     );
     final colors = ((map['colors'] as List?) ?? [])
         .map(
-          (item) => MucusColor.values.cast<MucusColor?>().firstWhere(
-            (e) => e?.name == item,
-            orElse: () => null,
-          ),
+          (item) => MucusColor.values.firstWhereOrNull((e) => e.name == item),
         )
         .whereType<MucusColor>()
         .toList();
     final consistencies = ((map['consistencies'] as List?) ?? [])
         .map(
-          (item) => Consistency.values.cast<Consistency?>().firstWhere(
-            (e) => e?.name == item,
-            orElse: () => null,
-          ),
+          (item) => Consistency.values.firstWhereOrNull((e) => e.name == item),
         )
         .whereType<Consistency>()
         .toList();
