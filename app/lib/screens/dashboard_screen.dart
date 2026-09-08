@@ -65,6 +65,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  Cycle? _findLatestCycle(List<Cycle> cycles) {
+    if (cycles.isEmpty) return null;
+    return cycles.reduce((a, b) => a.startDate.isAfter(b.startDate) ? a : b);
+  }
+
   void _syncReminderStatus(List<Cycle> cycles) {
     final chartId = Services.db.currentChartId;
     if (chartId == null) return;
@@ -74,7 +79,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       (cycle) => cycle.dailyEntries[todayKey]?.observations.isNotEmpty == true,
     );
     _syncDailyLoggingReminder(chartId, isTodayLogged, now);
-    _maybeNotifyBreastSelfExam(chartId, cycles, now);
+    final latestCycle = _findLatestCycle(cycles);
+    _maybeNotifyBreastSelfExam(chartId, latestCycle, now);
   }
 
   Future<void> _syncDailyLoggingReminder(
@@ -97,13 +103,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Future<void> _maybeNotifyBreastSelfExam(
     String chartId,
-    List<Cycle> cycles,
+    Cycle? latestCycle,
     DateTime now,
   ) async {
-    if (cycles.isEmpty) return;
-    final sortedCycles = List<Cycle>.from(cycles)
-      ..sort((a, b) => a.startDate.compareTo(b.startDate));
-    final latestCycle = sortedCycles.last;
+    if (latestCycle == null) return;
     final today = DateTime(now.year, now.month, now.day);
     final currentDay = calendarDaysBetween(latestCycle.startDate, today) + 1;
     if (currentDay != 7) return;
@@ -288,17 +291,12 @@ class _DashboardScreenState extends State<DashboardScreen>
         }
 
         final cycles = snapshot.data ?? [];
+        final latestCycle = _findLatestCycle(cycles);
         final now = widget.todayOverride ?? DateTime.now();
         final today = DateTime(now.year, now.month, now.day);
-        bool isDay7 = false;
-        if (cycles.isNotEmpty) {
-          final sortedCycles = List<Cycle>.from(cycles)
-            ..sort((a, b) => a.startDate.compareTo(b.startDate));
-          final latestCycle = sortedCycles.last;
-          final currentDay =
-              calendarDaysBetween(latestCycle.startDate, today) + 1;
-          isDay7 = currentDay == 7;
-        }
+        final bool isDay7 =
+            latestCycle != null &&
+            calendarDaysBetween(latestCycle.startDate, today) + 1 == 7;
 
         final chartId = Services.db.currentChartId;
         final isWide = isWideScreen(context);
@@ -344,7 +342,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     )
                   : SupplementScreen(
                       initialDate: widget.todayOverride,
-                      activeCycle: cycles.isNotEmpty ? cycles.first : null,
+                      activeCycle: latestCycle,
                     ),
             ),
           ],
@@ -370,11 +368,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                       .push(
                         MaterialPageRoute(
                           settings: const RouteSettings(name: '/settings'),
-                          builder: (context) => SettingsScreen(
-                            activeCycle: cycles.isNotEmpty
-                                ? cycles.first
-                                : null,
-                          ),
+                          builder: (context) =>
+                              SettingsScreen(activeCycle: latestCycle),
                         ),
                       )
                       .then((_) {
@@ -385,7 +380,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
             ],
           ),
-          drawer: _buildDrawer(context, cycles),
+          drawer: _buildDrawer(context, cycles, latestCycle),
           body: GestureDetector(
             onTap: _isSpeedDialOpen ? _closeSpeedDial : null,
             behavior: HitTestBehavior.opaque,
@@ -459,10 +454,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
           floatingActionButton: _viewMode == ViewMode.supplements
               ? null
-              : _buildSpeedDialFab(
-                  context,
-                  cycles.isNotEmpty ? cycles.first : null,
-                ),
+              : _buildSpeedDialFab(context, latestCycle),
         );
       },
     );
@@ -575,7 +567,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _buildDrawer(BuildContext context, List<Cycle> cycles) {
+  Widget _buildDrawer(
+    BuildContext context,
+    List<Cycle> cycles,
+    Cycle? latestCycle,
+  ) {
     return Drawer(
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       child: ListView(
@@ -633,9 +629,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                   .push(
                     MaterialPageRoute(
                       settings: const RouteSettings(name: '/settings'),
-                      builder: (context) => SettingsScreen(
-                        activeCycle: cycles.isNotEmpty ? cycles.first : null,
-                      ),
+                      builder: (context) =>
+                          SettingsScreen(activeCycle: latestCycle),
                     ),
                   )
                   .then((_) {
