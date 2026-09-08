@@ -577,61 +577,88 @@ class FirebaseDatabaseService implements DatabaseService {
     }
   }
 
-  @override
-  Stream<List<Cycle>> streamCycles() {
-    late StreamController<List<Cycle>> controller;
-    StreamSubscription<User?>? authSub;
-    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? cyclesSub;
+  /// Creates a broadcast stream gated by the active chart ID and auth state changes.
+  ///
+  /// Emits [emptyValue] when no chart ID is active or when an error occurs.
+  Stream<T> _buildAuthGatedStream<T>({
+    required T emptyValue,
+    required Stream<T> Function(String chartId) subscribe,
+    String? debugLabel,
+  }) {
+    return buildAuthGatedStreamHelper<T>(
+      getCurrentChartId: () => currentChartId,
+      authStateChanges: authStateChanges,
+      emptyValue: emptyValue,
+      subscribe: subscribe,
+      debugLabel: debugLabel,
+    );
+  }
 
-    void listenToCycles(String chartId) {
-      cyclesSub?.cancel();
-      cyclesSub = _db
-          .collection('charts')
-          .doc(chartId)
-          .collection('cycles')
-          .snapshots()
-          .listen(
-            (snap) {
-              final cycles = snap.docs
-                  .map((doc) => Cycle.fromMap(doc.data()))
-                  .toList();
-              cycles.sort(
-                (a, b) => b.startDate.compareTo(a.startDate),
-              ); // descending order
-              controller.add(cycles);
-            },
-            onError: (e) {
-              debugPrint('Error streaming cycles: $e');
-              controller.add([]);
-            },
-          );
-    }
+  @visibleForTesting
+  static Stream<T> buildAuthGatedStreamHelper<T>({
+    required String? Function() getCurrentChartId,
+    required Stream<dynamic> authStateChanges,
+    required T emptyValue,
+    required Stream<T> Function(String chartId) subscribe,
+    String? debugLabel,
+  }) {
+    late StreamController<T> controller;
+    StreamSubscription<dynamic>? authSub;
+    StreamSubscription<T>? dataSub;
 
     void updateListener() {
-      final chartId = currentChartId;
+      final chartId = getCurrentChartId();
+      dataSub?.cancel();
       if (chartId == null) {
-        cyclesSub?.cancel();
-        cyclesSub = null;
-        controller.add([]);
-      } else {
-        listenToCycles(chartId);
+        dataSub = null;
+        controller.add(emptyValue);
+        return;
       }
+      dataSub = subscribe(chartId).listen(
+        (data) => controller.add(data),
+        onError: (e) {
+          if (debugLabel != null) {
+            debugPrint('Error streaming $debugLabel: $e');
+          }
+          controller.add(emptyValue);
+        },
+      );
     }
 
-    controller = StreamController<List<Cycle>>.broadcast(
+    controller = StreamController<T>.broadcast(
       onListen: () {
         updateListener();
-        authSub = authStateChanges.listen((_) {
-          updateListener();
-        });
+        authSub = authStateChanges.listen((_) => updateListener());
       },
       onCancel: () {
-        cyclesSub?.cancel();
+        dataSub?.cancel();
+        dataSub = null;
         authSub?.cancel();
+        authSub = null;
       },
     );
 
     return controller.stream;
+  }
+
+  @override
+  Stream<List<Cycle>> streamCycles() {
+    return _buildAuthGatedStream<List<Cycle>>(
+      emptyValue: const [],
+      debugLabel: 'cycles',
+      subscribe: (chartId) => _db
+          .collection('charts')
+          .doc(chartId)
+          .collection('cycles')
+          .snapshots()
+          .map((snap) {
+            final cycles = snap.docs
+                .map((doc) => Cycle.fromMap(doc.data()))
+                .toList();
+            cycles.sort((a, b) => b.startDate.compareTo(a.startDate));
+            return cycles;
+          }),
+    );
   }
 
   Future<void> _reallocateAndRecalculate(String chartId) async {
@@ -1145,56 +1172,20 @@ class FirebaseDatabaseService implements DatabaseService {
 
   @override
   Stream<List<SupplementItem>> streamSupplements() {
-    late StreamController<List<SupplementItem>> controller;
-    StreamSubscription<User?>? authSub;
-    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? suppSub;
-
-    void listenToSupplements(String chartId) {
-      suppSub?.cancel();
-      suppSub = _db
+    return _buildAuthGatedStream<List<SupplementItem>>(
+      emptyValue: const [],
+      debugLabel: 'supplements',
+      subscribe: (chartId) => _db
           .collection('charts')
           .doc(chartId)
           .collection('supplements')
           .snapshots()
-          .listen(
-            (snap) {
-              final items = snap.docs
-                  .map((doc) => SupplementItem.fromMap(doc.data()))
-                  .toList();
-              controller.add(items);
-            },
-            onError: (e) {
-              debugPrint('Error streaming supplements: $e');
-              controller.add([]);
-            },
-          );
-    }
-
-    void updateListener() {
-      final chartId = currentChartId;
-      if (chartId == null) {
-        suppSub?.cancel();
-        suppSub = null;
-        controller.add([]);
-      } else {
-        listenToSupplements(chartId);
-      }
-    }
-
-    controller = StreamController<List<SupplementItem>>.broadcast(
-      onListen: () {
-        updateListener();
-        authSub = authStateChanges.listen((_) {
-          updateListener();
-        });
-      },
-      onCancel: () {
-        suppSub?.cancel();
-        authSub?.cancel();
-      },
+          .map(
+            (snap) => snap.docs
+                .map((doc) => SupplementItem.fromMap(doc.data()))
+                .toList(),
+          ),
     );
-
-    return controller.stream;
   }
 
   @override
@@ -1245,57 +1236,22 @@ class FirebaseDatabaseService implements DatabaseService {
 
   @override
   Stream<Map<String, DailySupplementLog>> streamDailySupplementLogs() {
-    late StreamController<Map<String, DailySupplementLog>> controller;
-    StreamSubscription<User?>? authSub;
-    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? logsSub;
-
-    void listenToLogs(String chartId) {
-      logsSub?.cancel();
-      logsSub = _db
+    return _buildAuthGatedStream<Map<String, DailySupplementLog>>(
+      emptyValue: const {},
+      debugLabel: 'daily supplement logs',
+      subscribe: (chartId) => _db
           .collection('charts')
           .doc(chartId)
           .collection('supplementLogs')
           .snapshots()
-          .listen(
-            (snap) {
-              final map = <String, DailySupplementLog>{};
-              for (final doc in snap.docs) {
-                map[doc.id] = DailySupplementLog.fromMap(doc.data());
-              }
-              controller.add(map);
-            },
-            onError: (e) {
-              debugPrint('Error streaming daily supplement logs: $e');
-              controller.add({});
-            },
-          );
-    }
-
-    void updateListener() {
-      final chartId = currentChartId;
-      if (chartId == null) {
-        logsSub?.cancel();
-        logsSub = null;
-        controller.add({});
-      } else {
-        listenToLogs(chartId);
-      }
-    }
-
-    controller = StreamController<Map<String, DailySupplementLog>>.broadcast(
-      onListen: () {
-        updateListener();
-        authSub = authStateChanges.listen((_) {
-          updateListener();
-        });
-      },
-      onCancel: () {
-        logsSub?.cancel();
-        authSub?.cancel();
-      },
+          .map((snap) {
+            final map = <String, DailySupplementLog>{};
+            for (final doc in snap.docs) {
+              map[doc.id] = DailySupplementLog.fromMap(doc.data());
+            }
+            return map;
+          }),
     );
-
-    return controller.stream;
   }
 
   @override
