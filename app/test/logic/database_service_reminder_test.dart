@@ -75,11 +75,35 @@ void main() {
       expect(db.fcmTokens, ['token_xyz_456']);
     });
 
-    test('updateUserTimezone saves user timezone setting', () async {
+    test('updateUserTimezone saves user timezone setting and updates active chart in streamAvailableCharts', () async {
       expect(db.userTimezone, isNull);
 
-      await db.updateUserTimezone('America/Los_Angeles');
-      expect(db.userTimezone, 'America/Los_Angeles');
+      // Before update, default chart does not have timezone set
+      final initialCharts = await db.streamAvailableCharts().first;
+      expect(initialCharts.first['timezone'], isNull);
+
+      await db.updateUserTimezone('America/New_York');
+      expect(db.userTimezone, 'America/New_York');
+
+      // Verify active chart was updated and emitted
+      final updatedCharts = await db.streamAvailableCharts().first;
+      expect(updatedCharts.first['timezone'], 'America/New_York');
     });
+
+    test(
+      'createChart initializes new chart with user timezone if set',
+      () async {
+        await db.updateUserTimezone('America/Chicago');
+        expect(db.userTimezone, 'America/Chicago');
+
+        await db.createChart();
+        final currentId = db.currentChartId;
+        expect(currentId, isNotNull);
+
+        final charts = await db.streamAvailableCharts().first;
+        final newChart = charts.firstWhere((c) => c['id'] == currentId);
+        expect(newChart['timezone'], 'America/Chicago');
+      },
+    );
   });
 }
