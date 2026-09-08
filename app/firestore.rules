@@ -34,6 +34,14 @@ service cloud.firestore {
           allow read, write: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/charts/$(chartId)).data.userIds;
         }
       }
+
+      match /supplements/{supplementId} {
+        allow read, write: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/charts/$(chartId)).data.userIds;
+      }
+
+      match /supplementLogs/{logId} {
+        allow read, write: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/charts/$(chartId)).data.userIds;
+      }
     }
 
     match /invitations/{invitationId} {
