@@ -6,4 +6,5 @@ export 'observation_summary_step_card.dart';
 export 'option_card.dart';
 export 'pain_step_card.dart';
 export 'sensation_step_card.dart';
+export 'wizard_controller.dart';
 export 'wizard_step_card.dart';

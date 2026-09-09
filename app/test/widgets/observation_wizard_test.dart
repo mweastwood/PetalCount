@@ -845,4 +845,49 @@ void main() {
       },
     );
   });
+
+  group('AddObservationDialog didUpdateWidget tests', () {
+    testWidgets(
+      'properly updates to new external controller when widget is reconfigured',
+      (tester) async {
+        final controller1 = WizardController(
+          category: ObservationCategory.bleeding,
+          defaultDate: DateTime(2026, 7, 27, 10, 30),
+        );
+        final controller2 = WizardController(
+          category: ObservationCategory.pain,
+          defaultDate: DateTime(2026, 7, 27, 10, 30),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: AddObservationDialog(
+                defaultDate: DateTime(2026, 7, 27, 10, 30),
+                controller: controller1,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Log Bleeding'), findsOneWidget);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: AddObservationDialog(
+                defaultDate: DateTime(2026, 7, 27, 10, 30),
+                controller: controller2,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Log Pain'), findsOneWidget);
+
+        controller1.dispose();
+        controller2.dispose();
+      },
+    );
+  });
 }
