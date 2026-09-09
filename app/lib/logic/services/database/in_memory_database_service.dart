@@ -477,6 +477,8 @@ class InMemoryDatabaseService implements DatabaseService {
 
     _charts.remove(chartId);
     _cycles.remove(chartId);
+    _supplements.remove(chartId);
+    _supplementLogs.remove(chartId);
 
     for (final userVal in _users.values) {
       if (userVal['chartId'] == chartId) {
@@ -516,6 +518,8 @@ class InMemoryDatabaseService implements DatabaseService {
       if (userIds.isEmpty) {
         _charts.remove(chartId);
         _cycles.remove(chartId);
+        _supplements.remove(chartId);
+        _supplementLogs.remove(chartId);
       } else {
         chart['userIds'] = userIds;
         chart['emails'] = emails;
