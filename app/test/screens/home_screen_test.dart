@@ -599,6 +599,141 @@ void main() {
     },
   );
 
+  testWidgets(
+    'Dashboard displays Day 7 BSE banner when latest cycle is on day 7 with multiple cycles in arbitrary order',
+    (WidgetTester tester) async {
+      await Services.init();
+
+      // Cycle 1: Earlier cycle (June 1, 2026)
+      await Services.db.saveObservation(
+        date: DateTime(2026, 6, 1, 8, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.heavy,
+        bleedingColor: 'R',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Cycle 1 start',
+        isVdrsExplicit: true,
+      );
+
+      // Cycle 2: Latest cycle (Aug 1, 2026)
+      await Services.db.saveObservation(
+        date: DateTime(2026, 8, 1, 8, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.heavy,
+        bleedingColor: 'R',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Cycle 2 start',
+        isVdrsExplicit: true,
+      );
+
+      // On Day 7 of latest cycle (Aug 7), banner should be displayed
+      await tester.pumpWidgetBuilder(
+        PetalCountApp(todayOverride: DateTime(2026, 8, 7)),
+        surfaceSize: const Size(400, 800),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('banner_day_7_bse')), findsOneWidget);
+      expect(
+        find.text('Cycle Day 7: Routine Breast Self-Exam'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'SupplementScreen and SettingsScreen receive the correct latest cycle',
+    (WidgetTester tester) async {
+      await Services.init();
+
+      // Cycle 1: Earlier cycle (June 1, 2026)
+      await Services.db.saveObservation(
+        date: DateTime(2026, 6, 1, 8, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.heavy,
+        bleedingColor: 'R',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Cycle 1 start',
+        isVdrsExplicit: true,
+      );
+
+      // Cycle 2: Latest cycle (Aug 1, 2026)
+      await Services.db.saveObservation(
+        date: DateTime(2026, 8, 1, 8, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.heavy,
+        bleedingColor: 'R',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Cycle 2 start',
+        isVdrsExplicit: true,
+      );
+
+      await tester.pumpWidgetBuilder(
+        PetalCountApp(todayOverride: DateTime(2026, 8, 7)),
+        surfaceSize: const Size(400, 800),
+      );
+      await tester.pumpAndSettle();
+
+      // Switch to Supplements tab and verify activeCycle is the latest cycle
+      await tester.tap(find.text('Supplements'));
+      await tester.pumpAndSettle();
+
+      final supplementScreen = tester.widget<SupplementScreen>(
+        find.byType(SupplementScreen),
+      );
+      expect(
+        supplementScreen.activeCycle?.startDate,
+        equals(DateTime(2026, 8, 1)),
+      );
+
+      // Tap Settings icon in AppBar and verify activeCycle is the latest cycle
+      await tester.tap(find.byIcon(Icons.settings));
+      await tester.pumpAndSettle();
+
+      final settingsScreen = tester.widget<SettingsScreen>(
+        find.byType(SettingsScreen),
+      );
+      expect(
+        settingsScreen.activeCycle?.startDate,
+        equals(DateTime(2026, 8, 1)),
+      );
+
+      // Go back to dashboard
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      // Open drawer and navigate to Settings to verify drawer passes latest cycle
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('drawer_settings_tile')));
+      await tester.pumpAndSettle();
+
+      final drawerSettingsScreen = tester.widget<SettingsScreen>(
+        find.byType(SettingsScreen),
+      );
+      expect(
+        drawerSettingsScreen.activeCycle?.startDate,
+        equals(DateTime(2026, 8, 1)),
+      );
+    },
+  );
+
   group('DashboardScreen wide screen tests', () {
     testWidgets(
       'DashboardScreen initial state on wide screen (Observations tab with NavigationRail)',
