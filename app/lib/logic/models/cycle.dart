@@ -17,13 +17,20 @@ class Cycle {
   }) : startDate = startDate.toNormalizedDate(),
        endDate = endDate?.toNormalizedDate();
 
+  List<DailyEntry>? _sortedEntries;
+
   bool get isActive => endDate == null;
 
   List<DailyEntry> get sortedEntries {
+    if (_sortedEntries != null) return _sortedEntries!;
     final list = dailyEntries.values.toList();
     list.sort((a, b) => a.date.compareTo(b.date));
-    return list;
+    return _sortedEntries = list;
   }
+
+  /// Returns the date of the latest entry in this cycle, or null if [dailyEntries] is empty.
+  DateTime? get maxEntryDate =>
+      sortedEntries.isEmpty ? null : sortedEntries.last.date;
 
   /// Calculates the maximum 1-based day index reached by entries or [endDate]
   /// relative to [startDate].

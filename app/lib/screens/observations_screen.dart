@@ -64,17 +64,10 @@ class ObservationsScreen extends StatelessWidget {
         ).subtractCalendarDays(1);
       } else {
         // Active/latest cycle ends at max(today, maxEntryDate)
-        DateTime maxEntryDate = cycleStart;
-        for (final entry in cycle.sortedEntries) {
-          final entryDate = DateTime(
-            entry.date.year,
-            entry.date.month,
-            entry.date.day,
-          );
-          if (entryDate.isAfter(maxEntryDate)) {
-            maxEntryDate = entryDate;
-          }
-        }
+        final maxEntry = cycle.maxEntryDate;
+        final maxEntryDate = (maxEntry != null && maxEntry.isAfter(cycleStart))
+            ? maxEntry
+            : cycleStart;
         cycleEnd = maxEntryDate.isAfter(today) ? maxEntryDate : today;
       }
 
