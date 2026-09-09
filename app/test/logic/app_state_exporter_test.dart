@@ -78,6 +78,59 @@ void main() {
     );
 
     test(
+      'sanitizeForJson handles map PII sanitization edge cases correctly',
+      () {
+        // 1. Non-string keys in maps
+        final nonStringKeyMap = {42: 'number_key', true: 'bool_key'};
+        final sanitizedNonString =
+            exporter.sanitizeForJson(nonStringKeyMap) as Map<String, dynamic>;
+        expect(sanitizedNonString['42'], 'number_key');
+        expect(sanitizedNonString['true'], 'bool_key');
+
+        // 2. Map with null values in email lists
+        final emailListMap = {
+          'emails': ['first@example.com', null, 'second@example.com'],
+        };
+        final sanitizedEmails =
+            exporter.sanitizeForJson(emailListMap, sanitizePii: true)
+                as Map<String, dynamic>;
+        final emails = sanitizedEmails['emails'] as List;
+        expect(emails[0], 'f***t@example.com');
+        expect(emails[1], isNull);
+        expect(emails[2], 's***d@example.com');
+
+        // 3. Email key with non-string, non-iterable value
+        final emailNumberMap = {'email': 12345};
+        final sanitizedEmailNumber =
+            exporter.sanitizeForJson(emailNumberMap, sanitizePii: true)
+                as Map<String, dynamic>;
+        expect(sanitizedEmailNumber['email'], 12345);
+
+        // 4. Nested maps and iterables containing email keys
+        final nestedMap = {
+          'user': {
+            'user_email': 'nested@example.com',
+            'details': [
+              {'secondary_email': 'support@example.com'},
+            ],
+          },
+        };
+        final sanitizedNested =
+            exporter.sanitizeForJson(nestedMap, sanitizePii: true)
+                as Map<String, dynamic>;
+        final user = sanitizedNested['user'] as Map<String, dynamic>;
+        expect(user['user_email'], 'n***d@example.com');
+        final details = user['details'] as List;
+        expect((details[0] as Map)['secondary_email'], 's***t@example.com');
+
+        // 5. Catch-all fallback returns toString()
+        final customObject = Uri(scheme: 'https', host: 'example.com');
+        final fallback = exporter.sanitizeForJson(customObject);
+        expect(fallback, 'https://example.com');
+      },
+    );
+
+    test(
       'exportStateRaw includes metadata, auth, database, and event logs',
       () async {
         mockLogger.info('Test log event 1', category: 'auth');

@@ -8,9 +8,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'app_config.dart';
 import 'app_logger.dart';
-import 'models/cycle.dart';
-import 'models/daily_entry.dart';
-import 'models/observation.dart';
 import 'services/database_service.dart';
 import 'services/services.dart';
 import 'services/web_download_helper.dart';
@@ -50,6 +47,43 @@ class AppStateExporter {
     });
   }
 
+  Map<String, dynamic> _sanitizeMap(
+    Map<dynamic, dynamic> map, {
+    required bool sanitizePii,
+  }) {
+    final sanitizedMap = <String, dynamic>{};
+    map.forEach((k, v) {
+      final keyStr = k.toString();
+      final isEmailKey =
+          sanitizePii &&
+          (keyStr.toLowerCase().contains('email') || keyStr == 'emails');
+
+      if (isEmailKey) {
+        if (v is String) {
+          sanitizedMap[keyStr] = maskEmail(v);
+        } else if (v is Iterable) {
+          sanitizedMap[keyStr] = v
+              .map((e) => e != null ? maskEmail(e.toString()) : null)
+              .toList();
+        } else {
+          sanitizedMap[keyStr] = sanitizeForJson(v, sanitizePii: sanitizePii);
+        }
+      } else {
+        sanitizedMap[keyStr] = sanitizeForJson(v, sanitizePii: sanitizePii);
+      }
+    });
+    return sanitizedMap;
+  }
+
+  /// Recursively sanitizes data into JSON-encodable types.
+  ///
+  /// Supported types:
+  /// - Primitives: [bool], [num], [String] (with optional PII masking)
+  /// - Dates & Times: [DateTime], [Timestamp], [Duration]
+  /// - Firestore / Geo: [DocumentReference], [GeoPoint]
+  /// - Enums: [Enum] (serialized to `.name`)
+  /// - Collections: [Map] (delegated to [_sanitizeMap]), [Iterable]
+  /// - Catch-all fallback: [Object.toString]
   dynamic sanitizeForJson(dynamic value, {bool sanitizePii = false}) {
     if (value == null) return null;
 
@@ -85,45 +119,12 @@ class AppStateExporter {
       return value.inMilliseconds;
     }
 
-    if (value is Cycle) {
-      return sanitizeForJson(value.toMap(), sanitizePii: sanitizePii);
-    }
-
-    if (value is DailyEntry) {
-      return sanitizeForJson(value.toMap(), sanitizePii: sanitizePii);
-    }
-
-    if (value is Observation) {
-      return sanitizeForJson(value.toMap(), sanitizePii: sanitizePii);
-    }
-
     if (value is AppLogEvent) {
       return sanitizeForJson(value.toJson(), sanitizePii: sanitizePii);
     }
 
     if (value is Map) {
-      final sanitizedMap = <String, dynamic>{};
-      value.forEach((k, v) {
-        final keyStr = k.toString();
-        final isEmailKey =
-            sanitizePii &&
-            (keyStr.toLowerCase().contains('email') || keyStr == 'emails');
-
-        if (isEmailKey) {
-          if (v is String) {
-            sanitizedMap[keyStr] = maskEmail(v);
-          } else if (v is Iterable) {
-            sanitizedMap[keyStr] = v
-                .map((e) => e != null ? maskEmail(e.toString()) : null)
-                .toList();
-          } else {
-            sanitizedMap[keyStr] = sanitizeForJson(v, sanitizePii: sanitizePii);
-          }
-        } else {
-          sanitizedMap[keyStr] = sanitizeForJson(v, sanitizePii: sanitizePii);
-        }
-      });
-      return sanitizedMap;
+      return _sanitizeMap(value, sanitizePii: sanitizePii);
     }
 
     if (value is Iterable) {
