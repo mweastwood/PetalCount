@@ -174,11 +174,23 @@ class FirebaseDatabaseService implements DatabaseService {
     final chartRef = _db.collection('charts').doc();
     final chartId = chartRef.id;
 
+    String? userTimezone;
+    try {
+      final userDoc = await _db.collection('users').doc(user.uid).get();
+      if (userDoc.exists) {
+        userTimezone = userDoc.data()?['timezone'] as String?;
+      }
+    } catch (e) {
+      debugPrint('Error fetching user timezone on createChart: $e');
+    }
+
     await chartRef.set({
       'id': chartId,
       'userIds': [user.uid],
       'emails': [user.email],
       'reminderEnabled': true,
+      if (userTimezone != null && userTimezone.isNotEmpty)
+        'timezone': userTimezone,
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -661,6 +673,13 @@ class FirebaseDatabaseService implements DatabaseService {
       await _db.collection('users').doc(user.uid).set({
         'timezone': timezone,
       }, SetOptions(merge: true));
+
+      final chartId = currentChartId;
+      if (chartId != null) {
+        await _db.collection('charts').doc(chartId).set({
+          'timezone': timezone,
+        }, SetOptions(merge: true));
+      }
     } catch (e) {
       debugPrint('Error updating user timezone: $e');
     }

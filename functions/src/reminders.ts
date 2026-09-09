@@ -267,7 +267,38 @@ export async function processDailyReminders(
       continue;
     }
 
-    const timezone = chart.timezone || "America/Los_Angeles";
+    let timezone = chart.timezone;
+    if (!timezone) {
+      const primaryUserId =
+        chart.userIds && chart.userIds.length > 0
+          ? chart.userIds[0]
+          : undefined;
+      if (primaryUserId) {
+        try {
+          const userDoc = await db.collection("users").doc(primaryUserId).get();
+          if (userDoc.exists) {
+            const userData = userDoc.data() as UserData;
+            if (
+              userData &&
+              typeof userData.timezone === "string" &&
+              userData.timezone.trim().length > 0
+            ) {
+              timezone = userData.timezone.trim();
+              if (chartDoc.ref && typeof chartDoc.ref.set === "function") {
+                await chartDoc.ref.set({ timezone }, { merge: true });
+              }
+            }
+          }
+        } catch {
+          // Graceful fallback if user read or backfill write fails
+        }
+      }
+    }
+
+    if (!timezone) {
+      timezone = "America/Los_Angeles";
+    }
+    chart.timezone = timezone;
     const { hour, dateKey } = getLocalTimeInfo(now, timezone);
 
     // Only process charts that are currently in their 9:00 PM hour (unless forced)

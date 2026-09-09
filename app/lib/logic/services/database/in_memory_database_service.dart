@@ -335,6 +335,8 @@ class InMemoryDatabaseService implements DatabaseService {
       'userIds': [_currentUser!.uid],
       'emails': [_currentUser!.email],
       'reminderEnabled': true,
+      if (_userTimezone != null && _userTimezone!.isNotEmpty)
+        'timezone': _userTimezone,
     };
 
     _users[_currentUser!.uid]!['chartId'] = chartId;
@@ -997,6 +999,11 @@ class InMemoryDatabaseService implements DatabaseService {
   @override
   Future<void> updateUserTimezone(String timezone) async {
     _userTimezone = timezone;
+    final chartId = currentChartId;
+    if (chartId != null && _charts.containsKey(chartId)) {
+      _charts[chartId]!['timezone'] = timezone;
+      _emitCharts();
+    }
   }
 
   void _emitSupplements() {
