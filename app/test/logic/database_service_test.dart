@@ -531,4 +531,102 @@ void main() {
       },
     );
   });
+
+  group('DatabaseService Notification Preferences Cache', () {
+    test(
+      'latestNotificationPreferences returns current chart preferences synchronously',
+      () async {
+        final initialPrefs = db.latestNotificationPreferences;
+        expect(initialPrefs, isNotNull);
+        expect(initialPrefs!.fertilePatternAlerts, isTrue);
+        expect(initialPrefs.partnerSupportReminders, isTrue);
+        expect(initialPrefs.dailyLoggingReminder, isTrue);
+
+        final byChartPrefs = db.getLatestNotificationPreferences(
+          'mock_shared_chart',
+        );
+        expect(byChartPrefs, isNotNull);
+        expect(byChartPrefs!.fertilePatternAlerts, isTrue);
+      },
+    );
+
+    test(
+      'updateNotificationPreferences synchronously updates cached preferences',
+      () async {
+        const chartId = 'mock_shared_chart';
+        const updatedPrefs = NotificationPreferences(
+          fertilePatternAlerts: false,
+          partnerSupportReminders: false,
+          dailyLoggingReminder: false,
+          breastSelfExamReminder: false,
+        );
+
+        await db.updateNotificationPreferences(chartId, updatedPrefs);
+
+        expect(db.getLatestNotificationPreferences(chartId), updatedPrefs);
+        expect(db.latestNotificationPreferences, updatedPrefs);
+      },
+    );
+
+    test(
+      'updateChartReminderSettings synchronously updates cached preferences dailyLoggingReminder',
+      () async {
+        const chartId = 'mock_shared_chart';
+        expect(
+          db.getLatestNotificationPreferences(chartId)?.dailyLoggingReminder,
+          isTrue,
+        );
+
+        await db.updateChartReminderSettings(chartId, false);
+
+        expect(
+          db.getLatestNotificationPreferences(chartId)?.dailyLoggingReminder,
+          isFalse,
+        );
+        expect(db.latestNotificationPreferences?.dailyLoggingReminder, isFalse);
+      },
+    );
+
+    test(
+      'latestNotificationPreferences returns null after chart is deleted',
+      () async {
+        await db.deleteChart('mock_shared_chart');
+        expect(db.currentChartId, isNull);
+        expect(db.latestNotificationPreferences, isNull);
+        expect(
+          db.getLatestNotificationPreferences('mock_shared_chart'),
+          isNull,
+        );
+      },
+    );
+
+    test(
+      'latestNotificationPreferences returns null after leaving chart',
+      () async {
+        await db.invitePartner('partner@example.com');
+        await db.leaveChart('mock_shared_chart');
+        expect(db.currentChartId, isNull);
+        expect(db.latestNotificationPreferences, isNull);
+      },
+    );
+
+    test(
+      'latestNotificationPreferences returns null when chart is unlinked',
+      () async {
+        await db.unlinkChart();
+        expect(db.currentChartId, isNull);
+        expect(db.latestNotificationPreferences, isNull);
+      },
+    );
+
+    test(
+      'getLatestNotificationPreferences returns null for non-existent chart',
+      () {
+        expect(
+          db.getLatestNotificationPreferences('non_existent_chart_id'),
+          isNull,
+        );
+      },
+    );
+  });
 }

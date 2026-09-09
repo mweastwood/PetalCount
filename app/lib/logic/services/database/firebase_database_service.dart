@@ -24,6 +24,8 @@ class FirebaseDatabaseService implements DatabaseService {
   bool _googleSignInInitialized = false;
 
   String? _cachedChartId;
+  String? _cachedRole;
+  final Map<String, NotificationPreferences> _cachedPreferencesByChart = {};
   final StreamController<User?> _authController =
       StreamController<User?>.broadcast();
 
@@ -33,6 +35,8 @@ class FirebaseDatabaseService implements DatabaseService {
         _cachedChartId = await _fetchChartId(user.uid);
       } else {
         _cachedChartId = null;
+        _cachedRole = null;
+        _cachedPreferencesByChart.clear();
       }
       _authController.add(user);
     });
@@ -138,6 +142,8 @@ class FirebaseDatabaseService implements DatabaseService {
       await _googleSignIn.signOut();
     }
     _cachedChartId = null;
+    _cachedRole = null;
+    _cachedPreferencesByChart.clear();
   }
 
   @override
@@ -404,6 +410,7 @@ class FirebaseDatabaseService implements DatabaseService {
     toDelete.add(_db.collection('charts').doc(chartId));
 
     await _deleteDocumentsInBatches(toDelete);
+    _cachedPreferencesByChart.remove(chartId);
 
     if (_cachedChartId == chartId) {
       await _db.collection('users').doc(user.uid).set({
@@ -461,6 +468,8 @@ class FirebaseDatabaseService implements DatabaseService {
       await _deleteDocumentsInBatches(toDelete);
     }
 
+    _cachedPreferencesByChart.remove(chartId);
+
     if (_cachedChartId == chartId) {
       await _db.collection('users').doc(user.uid).set({
         'chartId': null,
@@ -472,6 +481,12 @@ class FirebaseDatabaseService implements DatabaseService {
 
   @override
   Future<void> updateChartReminderSettings(String chartId, bool enabled) async {
+    final cached = _cachedPreferencesByChart[chartId];
+    if (cached != null) {
+      _cachedPreferencesByChart[chartId] = cached.copyWith(
+        dailyLoggingReminder: enabled,
+      );
+    }
     await _db.collection('charts').doc(chartId).set({
       'reminderEnabled': enabled,
       'notificationPreferences': {'dailyLoggingReminder': enabled},
@@ -492,6 +507,7 @@ class FirebaseDatabaseService implements DatabaseService {
     String chartId,
     NotificationPreferences preferences,
   ) async {
+    _cachedPreferencesByChart[chartId] = preferences;
     await _db.collection('charts').doc(chartId).set({
       'reminderEnabled': preferences.dailyLoggingReminder,
       'notificationPreferences': preferences.toMap(),
@@ -504,18 +520,40 @@ class FirebaseDatabaseService implements DatabaseService {
   ) {
     return _db.collection('charts').doc(chartId).snapshots().map((doc) {
       final data = doc.data();
-      if (data == null) return const NotificationPreferences();
+      if (data == null) {
+        const prefs = NotificationPreferences();
+        _cachedPreferencesByChart[chartId] = prefs;
+        return prefs;
+      }
       final raw = data['notificationPreferences'];
       if (raw != null) {
-        return NotificationPreferences.fromMap(Map<String, dynamic>.from(raw));
+        final prefs = NotificationPreferences.fromMap(
+          Map<String, dynamic>.from(raw),
+        );
+        _cachedPreferencesByChart[chartId] = prefs;
+        return prefs;
       }
       final reminder = (data['reminderEnabled'] as bool?) ?? true;
-      return NotificationPreferences(dailyLoggingReminder: reminder);
+      final prefs = NotificationPreferences(dailyLoggingReminder: reminder);
+      _cachedPreferencesByChart[chartId] = prefs;
+      return prefs;
     });
   }
 
   @override
+  NotificationPreferences? getLatestNotificationPreferences(String chartId) {
+    return _cachedPreferencesByChart[chartId];
+  }
+
+  @override
+  NotificationPreferences? get latestNotificationPreferences =>
+      _cachedChartId != null
+      ? getLatestNotificationPreferences(_cachedChartId!)
+      : null;
+
+  @override
   Future<void> updateUserRole(String role) async {
+    _cachedRole = role;
     final user = currentUser;
     if (user == null) return;
     try {
@@ -531,11 +569,11 @@ class FirebaseDatabaseService implements DatabaseService {
   Stream<String?> streamUserRole() {
     final user = currentUser;
     if (user == null) return Stream.value(null);
-    return _db
-        .collection('users')
-        .doc(user.uid)
-        .snapshots()
-        .map((doc) => doc.data()?['role'] as String? ?? 'wife');
+    return _db.collection('users').doc(user.uid).snapshots().map((doc) {
+      final role = doc.data()?['role'] as String? ?? 'wife';
+      _cachedRole = role;
+      return role;
+    });
   }
 
   @override
@@ -1028,15 +1066,26 @@ class FirebaseDatabaseService implements DatabaseService {
       final peakLabel = resolvedDaily.peakDayLabel;
 
       try {
-        final userDoc = await _db.collection('users').doc(user.uid).get();
-        final userRoleStr = userDoc.data()?['role'] as String?;
-        final userRole = UserRole.fromString(userRoleStr);
-
-        final chartDoc = await _db.collection('charts').doc(chartId).get();
-        final rawPrefs = chartDoc.data()?['notificationPreferences'];
-        final preferences = NotificationPreferences.fromMap(
-          rawPrefs != null ? Map<String, dynamic>.from(rawPrefs) : null,
+        final context = await resolveNotificationContext(
+          uid: user.uid,
+          chartId: chartId,
+          cachedRole: _cachedRole,
+          cachedPreferences: _cachedPreferencesByChart[chartId],
+          getUserData: (uid) async {
+            final doc = await _db.collection('users').doc(uid).get();
+            return doc.data();
+          },
+          getChartData: (cId) async {
+            final doc = await _db.collection('charts').doc(cId).get();
+            return doc.data();
+          },
         );
+
+        _cachedRole = context.roleToCache;
+        _cachedPreferencesByChart[chartId] = context.preferencesToCache;
+
+        final userRole = context.userRole;
+        final preferences = context.preferences;
 
         if (preferences.fertilePatternAlerts && isFertile) {
           await Services.notifications.notifyFertilePattern(role: userRole);
@@ -1326,4 +1375,88 @@ class FirebaseDatabaseService implements DatabaseService {
     final updatedLog = log.withToggled(supplementId, timeOfDay, taken);
     await logRef.set(updatedLog.toMap());
   }
+
+  @visibleForTesting
+  static Future<NotificationDispatchContext> resolveNotificationContext({
+    required String uid,
+    required String chartId,
+    required String? cachedRole,
+    required NotificationPreferences? cachedPreferences,
+    required Future<Map<String, dynamic>?> Function(String uid) getUserData,
+    required Future<Map<String, dynamic>?> Function(String chartId)
+    getChartData,
+  }) async {
+    NotificationPreferences parsePreferences(Map<String, dynamic>? chartData) {
+      if (chartData == null) return const NotificationPreferences();
+      final raw = chartData['notificationPreferences'];
+      if (raw != null) {
+        return NotificationPreferences.fromMap(Map<String, dynamic>.from(raw));
+      }
+      final reminder = (chartData['reminderEnabled'] as bool?) ?? true;
+      return NotificationPreferences(dailyLoggingReminder: reminder);
+    }
+
+    if (cachedRole != null && cachedPreferences != null) {
+      return NotificationDispatchContext(
+        userRole: UserRole.fromString(cachedRole),
+        preferences: cachedPreferences,
+        roleToCache: cachedRole,
+        preferencesToCache: cachedPreferences,
+      );
+    }
+
+    if (cachedRole != null) {
+      final chartData = await getChartData(chartId);
+      final preferences = parsePreferences(chartData);
+      return NotificationDispatchContext(
+        userRole: UserRole.fromString(cachedRole),
+        preferences: preferences,
+        roleToCache: cachedRole,
+        preferencesToCache: preferences,
+      );
+    }
+
+    if (cachedPreferences != null) {
+      final userData = await getUserData(uid);
+      final userRoleStr = (userData?['role'] as String?) ?? 'wife';
+      return NotificationDispatchContext(
+        userRole: UserRole.fromString(userRoleStr),
+        preferences: cachedPreferences,
+        roleToCache: userRoleStr,
+        preferencesToCache: cachedPreferences,
+      );
+    }
+
+    final results = await Future.wait([
+      getUserData(uid),
+      getChartData(chartId),
+    ]);
+    final userData = results[0];
+    final chartData = results[1];
+
+    final userRoleStr = (userData?['role'] as String?) ?? 'wife';
+    final preferences = parsePreferences(chartData);
+
+    return NotificationDispatchContext(
+      userRole: UserRole.fromString(userRoleStr),
+      preferences: preferences,
+      roleToCache: userRoleStr,
+      preferencesToCache: preferences,
+    );
+  }
+}
+
+@visibleForTesting
+class NotificationDispatchContext {
+  final UserRole userRole;
+  final NotificationPreferences preferences;
+  final String? roleToCache;
+  final NotificationPreferences preferencesToCache;
+
+  const NotificationDispatchContext({
+    required this.userRole,
+    required this.preferences,
+    required this.roleToCache,
+    required this.preferencesToCache,
+  });
 }

@@ -589,6 +589,22 @@ class InMemoryDatabaseService implements DatabaseService {
   }
 
   @override
+  NotificationPreferences? getLatestNotificationPreferences(String chartId) {
+    final chart = _charts[chartId];
+    if (chart == null) return null;
+    final raw = chart['notificationPreferences'];
+    if (raw != null) {
+      return NotificationPreferences.fromMap(Map<String, dynamic>.from(raw));
+    }
+    final reminder = (chart['reminderEnabled'] as bool?) ?? true;
+    return NotificationPreferences(dailyLoggingReminder: reminder);
+  }
+
+  @override
+  NotificationPreferences? get latestNotificationPreferences =>
+      _chartId != null ? getLatestNotificationPreferences(_chartId!) : null;
+
+  @override
   Future<void> updateUserRole(String role) async {
     final user = _currentUser;
     if (user == null) return;

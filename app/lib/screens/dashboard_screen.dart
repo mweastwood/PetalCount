@@ -112,9 +112,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (currentDay != 7) return;
 
     try {
-      final prefs = await Services.db
-          .streamNotificationPreferences(chartId)
-          .first;
+      final prefs =
+          Services.db.getLatestNotificationPreferences(chartId) ??
+          await Services.db.streamNotificationPreferences(chartId).first;
       if (!prefs.breastSelfExamReminder) return;
 
       final roleStr = await Services.db.streamUserRole().first;
@@ -305,6 +305,9 @@ class _DashboardScreenState extends State<DashboardScreen>
             if (isDay7 && chartId != null && _viewMode != ViewMode.supplements)
               StreamBuilder<NotificationPreferences>(
                 stream: Services.db.streamNotificationPreferences(chartId),
+                initialData: Services.db.getLatestNotificationPreferences(
+                  chartId,
+                ),
                 builder: (context, prefSnap) {
                   final prefs =
                       prefSnap.data ?? const NotificationPreferences();

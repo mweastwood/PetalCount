@@ -30,6 +30,14 @@ abstract class DatabaseService {
     NotificationPreferences preferences,
   );
   Stream<NotificationPreferences> streamNotificationPreferences(String chartId);
+
+  /// Synchronously returns in-memory cached [NotificationPreferences] for
+  /// the specified [chartId]. Returns `null` if not yet cached.
+  NotificationPreferences? getLatestNotificationPreferences(String chartId);
+
+  /// Synchronously returns in-memory cached [NotificationPreferences] for
+  /// the currently active chart. Returns `null` if unlinked or not yet cached.
+  NotificationPreferences? get latestNotificationPreferences;
   Future<void> updateUserRole(String role);
   Stream<String?> streamUserRole();
   Future<void> saveFcmToken(String token);
