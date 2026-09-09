@@ -86,41 +86,21 @@ describe("checkChartHasObservationForDate", () => {
     expect(result).toBe(true);
   });
 
-  it("returns true when eligibleCyclesSnap is empty but allCycles fallback finds observation", async () => {
-    const mockDailyDoc = {
-      exists: true,
-      data: () => ({
-        date: "2026-08-20",
-        observations: [{ id: "obs_fallback", sensation: "lubricative" }],
-      }),
-    };
+  it("returns false immediately when eligibleCyclesSnap is empty without querying allCycles fallback", async () => {
+    const mockLimit = jest.fn().mockReturnValue({
+      get: jest.fn().mockResolvedValue({ empty: true, docs: [] }),
+    });
 
-    const mockCycleDoc = {
-      ref: {
-        collection: jest.fn().mockReturnValue({
-          doc: jest.fn().mockReturnValue({
-            get: jest.fn().mockResolvedValue(mockDailyDoc),
-          }),
-        }),
-      },
-      data: () => ({}),
+    const mockCyclesCollection = {
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      limit: mockLimit,
     };
 
     const mockDb = {
       collection: jest.fn().mockReturnValue({
         doc: jest.fn().mockReturnValue({
-          collection: jest.fn().mockReturnValue({
-            where: jest.fn().mockReturnThis(),
-            orderBy: jest.fn().mockReturnThis(),
-            limit: jest.fn().mockImplementation((limitCount: number) => ({
-              get: jest.fn().mockImplementation(() => {
-                if (limitCount === 1) {
-                  return Promise.resolve({ empty: true, docs: [] });
-                }
-                return Promise.resolve({ empty: false, docs: [mockCycleDoc] });
-              }),
-            })),
-          }),
+          collection: jest.fn().mockReturnValue(mockCyclesCollection),
         }),
       }),
     } as unknown as admin.firestore.Firestore;
@@ -130,7 +110,9 @@ describe("checkChartHasObservationForDate", () => {
       "chart_fallback",
       "2026-08-20"
     );
-    expect(result).toBe(true);
+    expect(result).toBe(false);
+    expect(mockLimit).toHaveBeenCalledTimes(1);
+    expect(mockLimit).toHaveBeenCalledWith(1);
   });
 
   it("returns true when top-level dailyEntries map on cycle document contains observation", async () => {
@@ -663,5 +645,240 @@ describe("processDailyReminders", () => {
     expect(mockUserUpdate).toHaveBeenCalledWith({
       fcmTokens: ["valid_token_1"],
     });
+  });
+
+  it("returns early with zeroes when charts collection is empty without calling getAll", async () => {
+    const mockDb = {
+      collection: jest.fn().mockReturnValue({
+        get: jest.fn().mockResolvedValue({
+          empty: true,
+          docs: [],
+        }),
+      }),
+      getAll: jest.fn(),
+    } as unknown as admin.firestore.Firestore;
+
+    const mockMessaging = {
+      sendEachForMulticast: jest.fn(),
+    } as unknown as admin.messaging.Messaging;
+
+    const result = await processDailyReminders(mockDb, mockMessaging);
+
+    expect(result).toEqual({
+      chartsChecked: 0,
+      remindersSent: 0,
+      tokensNotified: 0,
+    });
+    expect(mockDb.getAll).not.toHaveBeenCalled();
+    expect(mockMessaging.sendEachForMulticast).not.toHaveBeenCalled();
+  });
+
+  it("processes multiple eligible charts concurrently with deduplicated batch user fetch and aggregates metrics", async () => {
+    const now = new Date(Date.UTC(2026, 7, 21, 4, 0, 0)); // 9:00 PM PDT on Aug 20
+
+    const mockChartDoc1 = {
+      id: "chart_1",
+      data: () => ({
+        id: "chart_1",
+        userIds: ["user_shared", "user_1"],
+        reminderEnabled: true,
+        timezone: "America/Los_Angeles",
+      }),
+    };
+
+    const mockChartDoc2 = {
+      id: "chart_2",
+      data: () => ({
+        id: "chart_2",
+        userIds: ["user_shared", "user_2"],
+        reminderEnabled: true,
+        timezone: "America/Los_Angeles",
+      }),
+    };
+
+    const mockUserShared = {
+      id: "user_shared",
+      exists: true,
+      data: () => ({
+        uid: "user_shared",
+        fcmTokens: ["token_shared_1"],
+      }),
+    };
+
+    const mockUser1 = {
+      id: "user_1",
+      exists: true,
+      data: () => ({
+        uid: "user_1",
+        fcmTokens: ["token_user1_1"],
+      }),
+    };
+
+    const mockUser2 = {
+      id: "user_2",
+      exists: true,
+      data: () => ({
+        uid: "user_2",
+        fcmTokens: ["token_user2_1"],
+      }),
+    };
+
+    // Chart 1 has no observation logged; Chart 2 has an observation logged
+    const mockCycleDocWithoutObs = {
+      ref: {
+        collection: jest.fn().mockReturnValue({
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue({ exists: false }),
+          }),
+        }),
+      },
+      data: () => ({ dailyEntries: {} }),
+    };
+
+    const mockCycleDocWithObs = {
+      ref: {
+        collection: jest.fn().mockReturnValue({
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue({
+              exists: true,
+              data: () => ({
+                observations: [{ id: "obs_today" }],
+              }),
+            }),
+          }),
+        }),
+      },
+      data: () => ({ dailyEntries: {} }),
+    };
+
+    const mockDb = {
+      collection: jest.fn((colName: string) => {
+        if (colName === "charts") {
+          return {
+            get: jest.fn().mockResolvedValue({
+              docs: [mockChartDoc1, mockChartDoc2],
+            }),
+            doc: jest.fn((chartId: string) => ({
+              collection: jest.fn().mockReturnValue({
+                where: jest.fn().mockReturnThis(),
+                orderBy: jest.fn().mockReturnThis(),
+                limit: jest.fn().mockReturnValue({
+                  get: jest.fn().mockResolvedValue({
+                    empty: false,
+                    docs: [
+                      chartId === "chart_1"
+                        ? mockCycleDocWithoutObs
+                        : mockCycleDocWithObs,
+                    ],
+                  }),
+                }),
+              }),
+            })),
+          };
+        }
+        if (colName === "users") {
+          return {
+            doc: jest.fn((uid: string) => ({
+              id: uid,
+              get: jest.fn().mockResolvedValue(
+                uid === "user_shared"
+                  ? mockUserShared
+                  : uid === "user_1"
+                  ? mockUser1
+                  : mockUser2
+              ),
+              update: jest.fn().mockResolvedValue(undefined),
+            })),
+          };
+        }
+        return {};
+      }),
+      getAll: jest.fn().mockImplementation((...refs) =>
+        Promise.all(refs.map((r: { get: () => Promise<unknown> }) => r.get()))
+      ),
+    } as unknown as admin.firestore.Firestore;
+
+    const mockMessaging = {
+      sendEachForMulticast: jest.fn().mockResolvedValue({
+        successCount: 2,
+        failureCount: 0,
+        responses: [{ success: true }, { success: true }],
+      }),
+    } as unknown as admin.messaging.Messaging;
+
+    const result = await processDailyReminders(mockDb, mockMessaging, { now });
+
+    expect(result.chartsChecked).toBe(2);
+    expect(result.remindersSent).toBe(1);
+    expect(result.tokensNotified).toBe(2);
+
+    // Verify deduplicated batch fetch across all eligible charts: exactly 1 getAll call with 3 user refs
+    expect(mockDb.getAll).toHaveBeenCalledTimes(1);
+    const getAllArgs = (mockDb.getAll as jest.Mock).mock.calls[0];
+    expect(getAllArgs).toHaveLength(3);
+    const fetchedUserIds = getAllArgs.map((ref: { id: string }) => ref.id).sort();
+    expect(fetchedUserIds).toEqual(["user_1", "user_2", "user_shared"].sort());
+
+    // Verify only Chart 1 sent notifications
+    expect(mockMessaging.sendEachForMulticast).toHaveBeenCalledTimes(1);
+    expect(mockMessaging.sendEachForMulticast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tokens: ["token_shared_1", "token_user1_1"],
+        data: expect.objectContaining({ chartId: "chart_1" }),
+      })
+    );
+  });
+
+  it("ignores non-eligible charts without fetching user docs or checking observations", async () => {
+    const now = new Date(Date.UTC(2026, 7, 21, 4, 0, 0)); // 9:00 PM PDT on Aug 20
+
+    const mockDisabledChart = {
+      id: "chart_disabled",
+      data: () => ({
+        id: "chart_disabled",
+        userIds: ["user_disabled"],
+        reminderEnabled: false,
+        timezone: "America/Los_Angeles",
+      }),
+    };
+
+    const mockWrongHourChart = {
+      id: "chart_wrong_hour",
+      data: () => ({
+        id: "chart_wrong_hour",
+        userIds: ["user_wrong_hour"],
+        reminderEnabled: true,
+        timezone: "Europe/London", // 5:00 AM local time, not 21:00
+      }),
+    };
+
+    const mockDb = {
+      collection: jest.fn((colName: string) => {
+        if (colName === "charts") {
+          return {
+            get: jest.fn().mockResolvedValue({
+              docs: [mockDisabledChart, mockWrongHourChart],
+            }),
+            doc: jest.fn(),
+          };
+        }
+        return {};
+      }),
+      getAll: jest.fn(),
+    } as unknown as admin.firestore.Firestore;
+
+    const mockMessaging = {
+      sendEachForMulticast: jest.fn(),
+    } as unknown as admin.messaging.Messaging;
+
+    const result = await processDailyReminders(mockDb, mockMessaging, { now });
+
+    expect(result).toEqual({
+      chartsChecked: 0,
+      remindersSent: 0,
+      tokensNotified: 0,
+    });
+    expect(mockDb.getAll).not.toHaveBeenCalled();
+    expect(mockMessaging.sendEachForMulticast).not.toHaveBeenCalled();
   });
 });
