@@ -59,6 +59,12 @@ class FirebaseDatabaseService implements DatabaseService {
   set cachedChartId(String? id) => _cachedChartId = id;
 
   @visibleForTesting
+  String? get cachedRole => _cachedRole;
+
+  @visibleForTesting
+  set cachedRole(String? role) => _cachedRole = role;
+
+  @visibleForTesting
   Future<void> reallocateAndRecalculate(String chartId) =>
       _reallocateAndRecalculate(chartId);
 
@@ -174,11 +180,23 @@ class FirebaseDatabaseService implements DatabaseService {
     final chartRef = _db.collection('charts').doc();
     final chartId = chartRef.id;
 
+    String? userTimezone;
+    try {
+      final userDoc = await _db.collection('users').doc(user.uid).get();
+      if (userDoc.exists) {
+        userTimezone = userDoc.data()?['timezone'] as String?;
+      }
+    } catch (e) {
+      debugPrint('Error fetching user timezone on createChart: $e');
+    }
+
     await chartRef.set({
       'id': chartId,
       'userIds': [user.uid],
       'emails': [user.email],
       'reminderEnabled': true,
+      if (userTimezone != null && userTimezone.isNotEmpty)
+        'timezone': userTimezone,
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -661,6 +679,13 @@ class FirebaseDatabaseService implements DatabaseService {
       await _db.collection('users').doc(user.uid).set({
         'timezone': timezone,
       }, SetOptions(merge: true));
+
+      final chartId = currentChartId;
+      if (chartId != null) {
+        await _db.collection('charts').doc(chartId).set({
+          'timezone': timezone,
+        }, SetOptions(merge: true));
+      }
     } catch (e) {
       debugPrint('Error updating user timezone: $e');
     }
@@ -1111,15 +1136,17 @@ class FirebaseDatabaseService implements DatabaseService {
       final targetCycleId = targetCycle.id;
       final dateKey = dateStr;
 
-      UserRole userRole = UserRole.wife;
-      try {
-        final userDoc = await _db.collection('users').doc(user.uid).get();
-        final userRoleStr = userDoc.data()?['role'] as String?;
-        userRole = UserRole.fromString(userRoleStr);
-      } catch (e) {
-        Services.logger.warning(
-          'Failed to fetch user role for observation: $e',
-        );
+      final roleContext = await resolveObservationRole(
+        uid: user.uid,
+        cachedRole: _cachedRole,
+        getUserData: (uid) async {
+          final userDoc = await _db.collection('users').doc(uid).get();
+          return userDoc.data();
+        },
+      );
+      final userRole = roleContext.userRole;
+      if (roleContext.roleToCache != null) {
+        _cachedRole = roleContext.roleToCache;
       }
 
       final newObs = Observation(
@@ -1490,6 +1517,33 @@ class FirebaseDatabaseService implements DatabaseService {
       preferencesToCache: preferences,
     );
   }
+
+  @visibleForTesting
+  static Future<ObservationRoleContext> resolveObservationRole({
+    required String uid,
+    required String? cachedRole,
+    required Future<Map<String, dynamic>?> Function(String uid) getUserData,
+  }) async {
+    if (cachedRole != null) {
+      return ObservationRoleContext(
+        userRole: UserRole.fromString(cachedRole),
+        roleToCache: cachedRole,
+      );
+    }
+
+    UserRole userRole = UserRole.wife;
+    String? roleToCache;
+    try {
+      final userData = await getUserData(uid);
+      final userRoleStr = userData?['role'] as String?;
+      roleToCache = userRoleStr;
+      userRole = UserRole.fromString(userRoleStr);
+    } catch (e) {
+      Services.logger.warning('Failed to fetch user role for observation: $e');
+    }
+
+    return ObservationRoleContext(userRole: userRole, roleToCache: roleToCache);
+  }
 }
 
 @visibleForTesting
@@ -1504,5 +1558,16 @@ class NotificationDispatchContext {
     required this.preferences,
     required this.roleToCache,
     required this.preferencesToCache,
+  });
+}
+
+@visibleForTesting
+class ObservationRoleContext {
+  final UserRole userRole;
+  final String? roleToCache;
+
+  const ObservationRoleContext({
+    required this.userRole,
+    required this.roleToCache,
   });
 }

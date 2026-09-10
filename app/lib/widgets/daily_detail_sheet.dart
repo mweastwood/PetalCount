@@ -45,19 +45,18 @@ class DailyDetailSheet extends StatelessWidget {
       return '';
     }
 
-    // Attribute to current user's known role if matching, or partner's opposite role.
-    final currentRole = UserRole.fromString(currentUserRole);
-    if (currentUserId != null &&
-        currentUserId.isNotEmpty &&
-        obs.userId.isNotEmpty) {
-      if (obs.userId == currentUserId) {
-        return currentRole.displayName;
-      } else {
-        return currentRole.partnerRole.displayName;
-      }
+    // If observation has no userId or currentUserId is unavailable, do not falsely attribute.
+    if (currentUserId == null || currentUserId.isEmpty || obs.userId.isEmpty) {
+      return '';
     }
 
-    return currentRole.displayName;
+    // Attribute to current user's known role if matching, or partner's opposite role.
+    final currentRole = UserRole.fromString(currentUserRole);
+    if (obs.userId == currentUserId) {
+      return currentRole.displayName;
+    } else {
+      return currentRole.partnerRole.displayName;
+    }
   }
 
   @override
@@ -212,6 +211,11 @@ class DailyDetailSheet extends StatelessWidget {
                     'Freq: ${obs.frequency.label}',
                   if (obs.intercourse) 'Intercourse (I)',
                 ];
+                final author = resolveAuthor(
+                  obs,
+                  currentUserRole: currentRoleStr,
+                  currentUserId: effectiveCurrentUserId,
+                );
                 return Card(
                   elevation: 0,
                   color: theme.colorScheme.surfaceContainerHighest.withValues(
@@ -227,12 +231,8 @@ class DailyDetailSheet extends StatelessWidget {
                         if (obs.comment.isNotEmpty)
                           Text('Notes: ${obs.comment}'),
                         Text(
-                          resolveAuthor(
-                                obs,
-                                currentUserRole: currentRoleStr,
-                                currentUserId: effectiveCurrentUserId,
-                              ).isNotEmpty
-                              ? 'Logged at ${AppDateFormats.timeOfDayPadded.format(obs.timestamp)} by ${resolveAuthor(obs, currentUserRole: currentRoleStr, currentUserId: effectiveCurrentUserId)}'
+                          author.isNotEmpty
+                              ? 'Logged at ${AppDateFormats.timeOfDayPadded.format(obs.timestamp)} by $author'
                               : 'Logged at ${AppDateFormats.timeOfDayPadded.format(obs.timestamp)}',
                           style: theme.textTheme.bodySmall?.copyWith(
                             fontSize: 9,

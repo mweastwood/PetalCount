@@ -174,4 +174,85 @@ void main() {
       },
     );
   });
+
+  group('FirebaseDatabaseService.resolveObservationRole', () {
+    const testUid = 'user_123';
+
+    test(
+      'returns immediately from memory when role is cached (0 network calls)',
+      () async {
+        int userCalls = 0;
+
+        final result = await FirebaseDatabaseService.resolveObservationRole(
+          uid: testUid,
+          cachedRole: 'husband',
+          getUserData: (uid) async {
+            userCalls++;
+            return {'role': 'wife'};
+          },
+        );
+
+        expect(userCalls, 0);
+        expect(result.userRole, UserRole.husband);
+        expect(result.roleToCache, 'husband');
+      },
+    );
+
+    test('fetches user doc and caches role when cachedRole is null', () async {
+      int userCalls = 0;
+
+      final result = await FirebaseDatabaseService.resolveObservationRole(
+        uid: testUid,
+        cachedRole: null,
+        getUserData: (uid) async {
+          userCalls++;
+          return {'role': 'husband'};
+        },
+      );
+
+      expect(userCalls, 1);
+      expect(result.userRole, UserRole.husband);
+      expect(result.roleToCache, 'husband');
+    });
+
+    test(
+      'handles null user doc and defaults safely to wife without crashing',
+      () async {
+        int userCalls = 0;
+
+        final result = await FirebaseDatabaseService.resolveObservationRole(
+          uid: testUid,
+          cachedRole: null,
+          getUserData: (uid) async {
+            userCalls++;
+            return null;
+          },
+        );
+
+        expect(userCalls, 1);
+        expect(result.userRole, UserRole.wife);
+        expect(result.roleToCache, isNull);
+      },
+    );
+
+    test(
+      'handles fetch errors gracefully and defaults to wife without caching error',
+      () async {
+        int userCalls = 0;
+
+        final result = await FirebaseDatabaseService.resolveObservationRole(
+          uid: testUid,
+          cachedRole: null,
+          getUserData: (uid) async {
+            userCalls++;
+            throw Exception('Firestore network timeout');
+          },
+        );
+
+        expect(userCalls, 1);
+        expect(result.userRole, UserRole.wife);
+        expect(result.roleToCache, isNull);
+      },
+    );
+  });
 }

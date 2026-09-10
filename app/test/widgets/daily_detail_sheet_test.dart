@@ -555,6 +555,42 @@ void main() {
         ),
         '',
       );
+
+      // Missing / empty UIDs: returns empty string rather than incorrectly attributing to active viewer
+      final obsEmptyUserId = Observation(
+        id: '7',
+        timestamp: DateTime(2026, 8, 3, 10, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: '',
+      );
+      expect(
+        DailyDetailSheet.resolveAuthor(
+          obsEmptyUserId,
+          currentUserRole: 'wife',
+          currentUserId: 'wife-prod-uid',
+        ),
+        '',
+      );
+      expect(
+        DailyDetailSheet.resolveAuthor(
+          obsLegacyHusband,
+          currentUserRole: 'husband',
+          currentUserId: null,
+        ),
+        '',
+      );
+      expect(
+        DailyDetailSheet.resolveAuthor(
+          obsLegacyHusband,
+          currentUserRole: 'husband',
+          currentUserId: '',
+        ),
+        '',
+      );
     });
 
     testWidgets(
