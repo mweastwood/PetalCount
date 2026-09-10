@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../models/cycle.dart';
 import '../../models/daily_entry.dart';
@@ -450,6 +451,28 @@ class InMemoryDatabaseService implements DatabaseService {
         .where((chart) => (chart['userIds'] as List).contains(user.uid))
         .toList();
     _chartsController.add(list);
+  }
+
+  @visibleForTesting
+  void setMockChartCollaborators(
+    String chartId,
+    List<String> userIds, {
+    List<String>? emails,
+  }) {
+    if (_charts.containsKey(chartId)) {
+      _charts[chartId]!['userIds'] = List<String>.from(userIds);
+      if (emails != null) {
+        _charts[chartId]!['emails'] = List<String>.from(emails);
+      }
+      _emitCharts();
+    }
+  }
+
+  @visibleForTesting
+  void isolateSoleCollaboratorChart([String chartId = 'mock_shared_chart']) {
+    final uid = _currentUser?.uid ?? 'husband_uid';
+    final email = _currentUser?.email ?? 'husband@example.com';
+    setMockChartCollaborators(chartId, [uid], emails: [email]);
   }
 
   @override
