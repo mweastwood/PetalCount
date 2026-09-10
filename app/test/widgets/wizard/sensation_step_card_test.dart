@@ -273,6 +273,8 @@ void main() {
         await tester.tap(find.text('Damp'));
         await tester.tap(find.text('Shiny / Smooth'));
         await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byType(OptionCard), findsWidgets);
 
         await tester.pumpWidget(
           const MaterialApp(
@@ -288,6 +290,8 @@ void main() {
         await tester.tap(find.text('Not Lubricative'));
         await tester.tap(find.text('Yes Lubrication'));
         await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byType(OptionCard), findsWidgets);
       });
     });
   });

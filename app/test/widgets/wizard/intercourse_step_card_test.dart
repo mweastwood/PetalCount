@@ -157,6 +157,8 @@ void main() {
         await tester.tap(find.text('Intercourse (I)'));
         await tester.tap(find.text('No Intercourse'));
         await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byType(OptionCard), findsWidgets);
       },
     );
   });

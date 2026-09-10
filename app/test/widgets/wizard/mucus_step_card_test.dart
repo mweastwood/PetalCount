@@ -567,6 +567,8 @@ void main() {
           await tester.tap(find.text('No Mucus'));
           await tester.tap(find.text('Yes Mucus'));
           await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          expect(find.byType(OptionCard), findsWidgets);
 
           // Stretch
           await tester.pumpWidget(
@@ -583,6 +585,8 @@ void main() {
           await tester.tap(find.text('Tacky'));
           await tester.tap(find.text('Stretchy (10)'));
           await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          expect(find.byType(OptionCard), findsWidgets);
 
           // Color
           await tester.pumpWidget(
@@ -599,6 +603,8 @@ void main() {
           await tester.ensureVisible(colorItem);
           await tester.tap(colorItem);
           await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          expect(find.byType(OptionCard), findsWidgets);
 
           // Consistency
           await tester.pumpWidget(
@@ -615,6 +621,8 @@ void main() {
           await tester.tap(find.text('Gummy (Gluey)'));
           await tester.tap(find.text('Pasty (Creamy)'));
           await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          expect(find.byType(OptionCard), findsWidgets);
         },
       );
     });

@@ -293,6 +293,8 @@ void main() {
         await tester.tap(find.text('No Pain'));
         await tester.tap(find.text('Yes (Log Pain)'));
         await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byType(OptionCard), findsWidgets);
 
         await tester.pumpWidget(
           const MaterialApp(
@@ -314,6 +316,8 @@ void main() {
         await tester.tap(find.widgetWithText(FilterChip, 'Right'));
         await tester.drag(find.byType(Slider), const Offset(50, 0));
         await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byType(FilterChip), findsWidgets);
       });
     });
   });
