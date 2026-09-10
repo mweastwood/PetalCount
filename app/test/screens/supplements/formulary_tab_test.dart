@@ -38,10 +38,10 @@ void main() {
       expect(find.text('Vitamin D'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Edit Supplement').first);
-      expect(editedItem, isNotNull);
+      expect(editedItem, equals(supps.first));
 
       await tester.tap(find.byTooltip('Delete Supplement').first);
-      expect(deletedItem, isNotNull);
+      expect(deletedItem, equals(supps.first));
     });
   });
 }
