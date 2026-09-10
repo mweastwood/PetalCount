@@ -109,6 +109,7 @@ class Observation {
   final List<String> painTypes; // e.g., ['Cramps', 'Ovulation Pain']
   final String comment;
   final String userId;
+  final String? userRole;
   final bool isVdrsExplicit;
 
   Observation({
@@ -126,6 +127,7 @@ class Observation {
     this.painTypes = const [],
     this.comment = '',
     required this.userId,
+    this.userRole,
     bool? isVdrsExplicit,
   }) : isVdrsExplicit =
            isVdrsExplicit ??
@@ -257,6 +259,7 @@ class Observation {
       'painTypes': painTypes,
       'comment': comment,
       'userId': userId,
+      if (userRole != null) 'userRole': userRole,
       'isVdrsExplicit': isVdrsExplicit,
     };
   }
@@ -331,6 +334,7 @@ class Observation {
       painTypes: List<String>.from(map['painTypes'] ?? []),
       comment: map['comment'] ?? '',
       userId: map['userId'] ?? '',
+      userRole: map['userRole'] as String?,
       isVdrsExplicit: isExplicit,
     );
   }

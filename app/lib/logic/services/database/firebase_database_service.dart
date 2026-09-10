@@ -59,6 +59,12 @@ class FirebaseDatabaseService implements DatabaseService {
   set cachedChartId(String? id) => _cachedChartId = id;
 
   @visibleForTesting
+  String? get cachedRole => _cachedRole;
+
+  @visibleForTesting
+  set cachedRole(String? role) => _cachedRole = role;
+
+  @visibleForTesting
   Future<void> reallocateAndRecalculate(String chartId) =>
       _reallocateAndRecalculate(chartId);
 
@@ -1130,6 +1136,19 @@ class FirebaseDatabaseService implements DatabaseService {
       final targetCycleId = targetCycle.id;
       final dateKey = dateStr;
 
+      final roleContext = await resolveObservationRole(
+        uid: user.uid,
+        cachedRole: _cachedRole,
+        getUserData: (uid) async {
+          final userDoc = await _db.collection('users').doc(uid).get();
+          return userDoc.data();
+        },
+      );
+      final userRole = roleContext.userRole;
+      if (roleContext.roleToCache != null) {
+        _cachedRole = roleContext.roleToCache;
+      }
+
       final newObs = Observation(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         timestamp: DateTime.now(),
@@ -1145,6 +1164,7 @@ class FirebaseDatabaseService implements DatabaseService {
         painTypes: painTypes,
         comment: comment,
         userId: user.uid,
+        userRole: userRole.code,
         isVdrsExplicit: isVdrsExplicit,
       );
 
@@ -1497,6 +1517,33 @@ class FirebaseDatabaseService implements DatabaseService {
       preferencesToCache: preferences,
     );
   }
+
+  @visibleForTesting
+  static Future<ObservationRoleContext> resolveObservationRole({
+    required String uid,
+    required String? cachedRole,
+    required Future<Map<String, dynamic>?> Function(String uid) getUserData,
+  }) async {
+    if (cachedRole != null) {
+      return ObservationRoleContext(
+        userRole: UserRole.fromString(cachedRole),
+        roleToCache: cachedRole,
+      );
+    }
+
+    UserRole userRole = UserRole.wife;
+    String? roleToCache;
+    try {
+      final userData = await getUserData(uid);
+      final userRoleStr = userData?['role'] as String?;
+      roleToCache = userRoleStr;
+      userRole = UserRole.fromString(userRoleStr);
+    } catch (e) {
+      Services.logger.warning('Failed to fetch user role for observation: $e');
+    }
+
+    return ObservationRoleContext(userRole: userRole, roleToCache: roleToCache);
+  }
 }
 
 @visibleForTesting
@@ -1511,5 +1558,16 @@ class NotificationDispatchContext {
     required this.preferences,
     required this.roleToCache,
     required this.preferencesToCache,
+  });
+}
+
+@visibleForTesting
+class ObservationRoleContext {
+  final UserRole userRole;
+  final String? roleToCache;
+
+  const ObservationRoleContext({
+    required this.userRole,
+    required this.roleToCache,
   });
 }

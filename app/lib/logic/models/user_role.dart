@@ -6,6 +6,9 @@ enum UserRole {
   final String code;
   const UserRole(this.displayName, this.code);
 
+  UserRole get partnerRole =>
+      this == UserRole.wife ? UserRole.husband : UserRole.wife;
+
   static UserRole fromString(String? value) {
     if (value == null) return UserRole.wife;
     final normalized = value.trim().toLowerCase();
