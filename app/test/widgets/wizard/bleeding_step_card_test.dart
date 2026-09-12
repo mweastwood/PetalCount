@@ -325,6 +325,8 @@ void main() {
         await tester.tap(find.text('Light (L)'));
         await tester.tap(find.text('Very Light (VL)'));
         await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byType(OptionCard), findsWidgets);
 
         await tester.pumpWidget(
           const MaterialApp(
@@ -338,6 +340,8 @@ void main() {
         await tester.tap(find.text('Brown (B)'));
         await tester.tap(find.text('Black (K)'));
         await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(find.byType(OptionCard), findsWidgets);
       });
     });
   });
