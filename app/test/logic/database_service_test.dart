@@ -679,5 +679,33 @@ void main() {
         );
       },
     );
+
+    test(
+      'setMockChartCollaborators updates chart userIds and emails and emits update',
+      () async {
+        db.setMockChartCollaborators(
+          'mock_shared_chart',
+          ['husband_uid'],
+          emails: ['husband@example.com'],
+        );
+
+        final charts = await db.streamAvailableCharts().first;
+        final chart = charts.firstWhere((c) => c['id'] == 'mock_shared_chart');
+        expect(chart['userIds'], equals(['husband_uid']));
+        expect(chart['emails'], equals(['husband@example.com']));
+      },
+    );
+
+    test(
+      'isolateSoleCollaboratorChart isolates mock_shared_chart to current user',
+      () async {
+        db.isolateSoleCollaboratorChart();
+
+        final charts = await db.streamAvailableCharts().first;
+        final chart = charts.firstWhere((c) => c['id'] == 'mock_shared_chart');
+        expect(chart['userIds'], equals(['husband_uid']));
+        expect(chart['emails'], equals(['husband@example.com']));
+      },
+    );
   });
 }

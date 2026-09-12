@@ -314,6 +314,9 @@ void main() {
   testGoldens(
     'SettingsScreen danger zone sole collaborator renders correctly',
     (tester) async {
+      await Services.init();
+      (Services.db as InMemoryDatabaseService).isolateSoleCollaboratorChart();
+
       await tester.pumpWidgetBuilder(
         PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
         surfaceSize: const Size(400, 800),
@@ -331,6 +334,10 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
+
+      expect(find.text('Delete Chart'), findsOneWidget);
+      expect(find.text('Leave Chart'), findsNothing);
+      expect(find.textContaining('Leave this chart'), findsNothing);
 
       await screenMatchesGolden(tester, 'settings_screen_danger_zone_sole');
     },
