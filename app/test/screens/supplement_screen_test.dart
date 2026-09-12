@@ -10,7 +10,12 @@ void main() {
     await Services.db.resetDefaultSupplements();
   });
 
-  Widget createTestWidget({DateTime? initialDate, Cycle? cycle}) {
+  const defaultCycleSentinel = Object();
+
+  Widget createTestWidget({
+    DateTime? initialDate,
+    Object? cycle = defaultCycleSentinel,
+  }) {
     return MaterialApp(
       theme: ThemeData(
         useMaterial3: true,
@@ -23,8 +28,9 @@ void main() {
       ),
       home: SupplementScreen(
         initialDate: initialDate ?? DateTime(2026, 8, 25),
-        activeCycle:
-            cycle ?? Cycle(id: 'cycle_test', startDate: DateTime(2026, 8, 20)),
+        activeCycle: identical(cycle, defaultCycleSentinel)
+            ? Cycle(id: 'cycle_test', startDate: DateTime(2026, 8, 20))
+            : cycle as Cycle?,
       ),
     );
   }
@@ -297,6 +303,163 @@ void main() {
           (s) => s.name == "Men's Multivitamin",
         );
         expect(updatedMens.quantity, equals('2 gummies'));
+      },
+    );
+
+    testWidgets(
+      'Reset Default Presets confirmation flow restores presets and shows snackbar',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        // Mutate initial state by removing a preset
+        await Services.db.deleteSupplement('preset_prenatal');
+        final suppsBefore = await Services.db.streamSupplements().first;
+        expect(suppsBefore.any((s) => s.id == 'preset_prenatal'), isFalse);
+
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        // Open overflow menu
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+
+        // Select Reset Default Presets
+        await tester.tap(find.text('Reset Default Presets'));
+        await tester.pumpAndSettle();
+
+        // Tap Reset button in the confirmation dialog
+        await tester.tap(find.widgetWithText(FilledButton, 'Reset'));
+        await tester.pumpAndSettle();
+
+        // Verify SnackBar is displayed and preset is restored in database
+        expect(
+          find.text('Supplements reset to standard presets.'),
+          findsOneWidget,
+        );
+        final restoredSupps = await Services.db.streamSupplements().first;
+        expect(restoredSupps.any((s) => s.id == 'preset_prenatal'), isTrue);
+      },
+    );
+
+    testWidgets(
+      'Delete Supplement confirmation flow deletes supplement from database and UI',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        // Navigate to Formulary tab
+        await tester.tap(find.text('Formulary'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Prenatal'), findsOneWidget);
+
+        // Tap delete on the first supplement
+        await tester.tap(find.byTooltip('Delete Supplement').first);
+        await tester.pumpAndSettle();
+
+        // Verify confirmation dialog appears
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(find.text('Delete Prenatal?'), findsOneWidget);
+
+        // Tap Delete in dialog
+        await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+        await tester.pumpAndSettle();
+
+        // Verify supplement is deleted from database and list
+        final suppsAfter = await Services.db.streamSupplements().first;
+        expect(suppsAfter.any((s) => s.name == 'Prenatal'), isFalse);
+        expect(find.text('Prenatal'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Cancel Delete Supplement dismisses dialog without deleting supplement',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        // Navigate to Formulary tab
+        await tester.tap(find.text('Formulary'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Prenatal'), findsOneWidget);
+
+        // Tap delete on the first supplement
+        await tester.tap(find.byTooltip('Delete Supplement').first);
+        await tester.pumpAndSettle();
+
+        // Verify confirmation dialog appears
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(find.text('Delete Prenatal?'), findsOneWidget);
+
+        // Tap Cancel
+        await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+        await tester.pumpAndSettle();
+
+        // Verify dialog is dismissed and supplement remains
+        expect(find.byType(AlertDialog), findsNothing);
+        final suppsAfter = await Services.db.streamSupplements().first;
+        expect(suppsAfter.any((s) => s.name == 'Prenatal'), isTrue);
+        expect(find.text('Prenatal'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Empty cycle state renders properly across all tabs and handles date navigation',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        // Remove all cycles from Services.db so streamCycles() is empty
+        final cycles = await Services.db.streamCycles().first;
+        for (final c in cycles) {
+          await Services.db.deleteCycle(c.id);
+        }
+
+        await tester.pumpWidget(
+          createTestWidget(initialDate: DateTime(2026, 8, 25), cycle: null),
+        );
+        await tester.pumpAndSettle();
+
+        // Verify screen renders without throwing exceptions
+        expect(find.text('Supplements & Protocols'), findsOneWidget);
+        expect(find.text('Cycle Day 1'), findsOneWidget);
+        expect(find.textContaining('Peak'), findsNothing);
+
+        // Date navigation behaves properly without an active cycle
+        expect(find.text('Aug 25, 2026'), findsOneWidget);
+        await tester.tap(find.byTooltip('Next Day'));
+        await tester.pumpAndSettle();
+        expect(find.text('Aug 26, 2026'), findsOneWidget);
+        expect(find.text('Cycle Day 1'), findsOneWidget);
+
+        await tester.tap(find.byTooltip('Previous Day'));
+        await tester.pumpAndSettle();
+        expect(find.text('Aug 25, 2026'), findsOneWidget);
+        expect(find.text('Cycle Day 1'), findsOneWidget);
+
+        // Switch to Cycle Plan tab and verify table mounts gracefully
+        await tester.tap(find.text('Cycle Plan'));
+        await tester.pumpAndSettle();
+        expect(find.text('Cycle Protocol Matrix'), findsOneWidget);
+        expect(find.byType(DataTable), findsWidgets);
+
+        // Switch to Formulary tab and verify items display cleanly
+        await tester.tap(find.text('Formulary'));
+        await tester.pumpAndSettle();
+        expect(find.text('Prenatal'), findsOneWidget);
+        expect(find.byTooltip('Edit Supplement'), findsWidgets);
       },
     );
   });
