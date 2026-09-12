@@ -47,8 +47,28 @@ void main() {
           'endDate': 20260328,
         };
         final cycleNonString = Cycle.fromMap(nonStringMap);
-        expect(cycleNonString.startDate, isNotNull);
-        expect(cycleNonString.endDate, isNotNull);
+        expect(cycleNonString.startDate, DateTime(2026, 3, 1));
+        expect(cycleNonString.endDate, DateTime(2026, 3, 28));
+
+        // Unparseable arbitrary integer (negative number)
+        final negativeIntMap = {
+          'id': 'cycle_negative_int',
+          'startDate': -1,
+          'endDate': -1,
+        };
+        final cycleNegativeInt = Cycle.fromMap(negativeIntMap);
+        expect(cycleNegativeInt.startDate, DateTime(1970, 1, 1));
+        expect(cycleNegativeInt.endDate, DateTime(1970, 1, 1));
+
+        // Unparseable arbitrary integer (very large number)
+        final largeIntMap = {
+          'id': 'cycle_large_int',
+          'startDate': 999999999999999,
+          'endDate': 999999999999999,
+        };
+        final cycleLargeInt = Cycle.fromMap(largeIntMap);
+        expect(cycleLargeInt.startDate, DateTime(1970, 1, 1));
+        expect(cycleLargeInt.endDate, DateTime(1970, 1, 1));
 
         // Malformed / invalid date strings
         final malformedMap = {
@@ -133,7 +153,17 @@ void main() {
         // Non-string / integer value
         final nonStringMap = {'date': 20260315, 'resolvedVdrsCode': ''};
         final entryNonString = DailyEntry.fromMap(nonStringMap);
-        expect(entryNonString.date, isNotNull);
+        expect(entryNonString.date, DateTime(2026, 3, 15));
+
+        // Unparseable arbitrary integer (negative number)
+        final negativeIntMap = {'date': -1, 'resolvedVdrsCode': ''};
+        final entryNegativeInt = DailyEntry.fromMap(negativeIntMap);
+        expect(entryNegativeInt.date, DateTime(1970, 1, 1));
+
+        // Unparseable arbitrary integer (very large number)
+        final largeIntMap = {'date': 999999999999999, 'resolvedVdrsCode': ''};
+        final entryLargeInt = DailyEntry.fromMap(largeIntMap);
+        expect(entryLargeInt.date, DateTime(1970, 1, 1));
 
         // Malformed / invalid date string
         final malformedMap = {
