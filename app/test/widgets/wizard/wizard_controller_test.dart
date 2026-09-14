@@ -611,9 +611,40 @@ void main() {
       expect(obs.painTypes, ['Cramps']);
       expect(obs.comment, 'Intercourse • User note');
       expect(obs.isVdrsExplicit, isTrue);
+      expect(obs.timestamp, defaultDate);
 
       controller.dispose();
     });
+
+    test(
+      'saveObservation persists exact combinedDateTime when selectedTime is modified',
+      () async {
+        await db.startNewCycle(DateTime(2026, 7, 1), []);
+        final cyclesBefore = await db.streamCycles().first;
+        final cycle = cyclesBefore.first;
+
+        final controller = WizardController(
+          category: ObservationCategory.full,
+          cycle: cycle,
+          defaultDate: DateTime(2026, 7, 15),
+          dbService: db,
+        );
+
+        const customTime = TimeOfDay(hour: 8, minute: 45);
+        controller.setSelectedTime(customTime);
+
+        final result = await controller.saveObservation();
+        expect(result, isTrue);
+
+        final cycles = await db.streamCycles().first;
+        final obsList = cycles.first.dailyEntries['2026-07-15']!.observations;
+        expect(obsList.length, 1);
+        final obs = obsList.first;
+        expect(obs.timestamp, equals(DateTime(2026, 7, 15, 8, 45)));
+
+        controller.dispose();
+      },
+    );
 
     test(
       'intercourse comment formatted properly when comment is empty',
