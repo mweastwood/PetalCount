@@ -59,6 +59,31 @@ class _DailyIntakeTabState extends State<DailyIntakeTab> {
     }
   }
 
+  Future<void> _handleToggleDose(
+    SupplementItem item,
+    SupplementTimeOfDay time,
+    bool taken,
+  ) async {
+    if (widget.onToggleDose != null) {
+      widget.onToggleDose!(item, time, taken);
+      return;
+    }
+    try {
+      await Services.db.logSupplementDose(
+        date: widget.selectedDate,
+        supplementId: item.id,
+        timeOfDay: time,
+        taken: taken,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update supplement dose: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -365,18 +390,7 @@ class _DailyIntakeTabState extends State<DailyIntakeTab> {
               ),
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
-                onTap: () {
-                  if (widget.onToggleDose != null) {
-                    widget.onToggleDose!(item, time, !isTaken);
-                  } else {
-                    Services.db.logSupplementDose(
-                      date: widget.selectedDate,
-                      supplementId: item.id,
-                      timeOfDay: time,
-                      taken: !isTaken,
-                    );
-                  }
-                },
+                onTap: () => _handleToggleDose(item, time, !isTaken),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
@@ -387,18 +401,8 @@ class _DailyIntakeTabState extends State<DailyIntakeTab> {
                       Checkbox(
                         value: isTaken,
                         activeColor: Colors.green,
-                        onChanged: (val) {
-                          if (widget.onToggleDose != null) {
-                            widget.onToggleDose!(item, time, val ?? false);
-                          } else {
-                            Services.db.logSupplementDose(
-                              date: widget.selectedDate,
-                              supplementId: item.id,
-                              timeOfDay: time,
-                              taken: val ?? false,
-                            );
-                          }
-                        },
+                        onChanged: (val) =>
+                            _handleToggleDose(item, time, val ?? false),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
