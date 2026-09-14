@@ -251,4 +251,227 @@ void main() {
       },
     );
   });
+
+  group('FirebaseDatabaseService.buildUserGatedStreamHelper', () {
+    test(
+      'emits emptyValue immediately when getCurrentUserId() returns null and remains open',
+      () async {
+        final authController = StreamController<dynamic>.broadcast();
+        addTearDown(authController.close);
+
+        final stream =
+            FirebaseDatabaseService.buildUserGatedStreamHelper<
+              List<Map<String, dynamic>>
+            >(
+              getCurrentUserId: () => null,
+              authStateChanges: authController.stream,
+              emptyValue: const [],
+              subscribe: (_) => const Stream.empty(),
+            );
+
+        final emitted = <List<Map<String, dynamic>>>[];
+        bool isDone = false;
+        final sub = stream.listen(emitted.add, onDone: () => isDone = true);
+        addTearDown(sub.cancel);
+
+        await pumpEventQueue();
+
+        expect(emitted, [isEmpty]);
+        expect(isDone, isFalse);
+      },
+    );
+
+    test(
+      'subscribes to subscribe(uid) and forwards items when getCurrentUserId() is non-null',
+      () async {
+        final authController = StreamController<dynamic>.broadcast();
+        final dataController = StreamController<String?>.broadcast();
+        addTearDown(authController.close);
+        addTearDown(dataController.close);
+
+        String? requestedUid;
+        final stream =
+            FirebaseDatabaseService.buildUserGatedStreamHelper<String?>(
+              getCurrentUserId: () => 'user_123',
+              authStateChanges: authController.stream,
+              emptyValue: null,
+              subscribe: (uid) {
+                requestedUid = uid;
+                return dataController.stream;
+              },
+            );
+
+        final emitted = <String?>[];
+        final sub = stream.listen(emitted.add);
+        addTearDown(sub.cancel);
+
+        expect(requestedUid, 'user_123');
+        expect(dataController.hasListener, isTrue);
+
+        dataController.add('husband');
+        await pumpEventQueue();
+
+        expect(emitted, ['husband']);
+      },
+    );
+
+    test(
+      'transitions from null user to authenticated user when authStateChanges emits, emitting new data without closing',
+      () async {
+        final authController = StreamController<dynamic>.broadcast();
+        final dataController =
+            StreamController<List<Map<String, dynamic>>>.broadcast();
+        addTearDown(authController.close);
+        addTearDown(dataController.close);
+
+        String? currentUserId;
+        final stream =
+            FirebaseDatabaseService.buildUserGatedStreamHelper<
+              List<Map<String, dynamic>>
+            >(
+              getCurrentUserId: () => currentUserId,
+              authStateChanges: authController.stream,
+              emptyValue: const [],
+              subscribe: (uid) {
+                if (uid == 'user_abc') return dataController.stream;
+                return const Stream.empty();
+              },
+            );
+
+        final emitted = <List<Map<String, dynamic>>>[];
+        bool isDone = false;
+        final sub = stream.listen(emitted.add, onDone: () => isDone = true);
+        addTearDown(sub.cancel);
+
+        await pumpEventQueue();
+        expect(emitted, [isEmpty]);
+        expect(isDone, isFalse);
+        expect(dataController.hasListener, isFalse);
+
+        // Auth initializes / user signs in
+        currentUserId = 'user_abc';
+        authController.add('user_abc');
+        await pumpEventQueue();
+
+        expect(dataController.hasListener, isTrue);
+
+        dataController.add([
+          {'id': 'chart_1', 'name': 'Cycle 1'},
+        ]);
+        await pumpEventQueue();
+
+        expect(emitted, [
+          isEmpty,
+          [
+            {'id': 'chart_1', 'name': 'Cycle 1'},
+          ],
+        ]);
+        expect(isDone, isFalse);
+
+        // User signs out
+        currentUserId = null;
+        authController.add(null);
+        await pumpEventQueue();
+
+        expect(dataController.hasListener, isFalse);
+        expect(emitted.length, 3);
+        expect(emitted.last, isEmpty);
+        expect(isDone, isFalse);
+      },
+    );
+
+    test(
+      'forwards fallback emptyValue when data stream errors and logs with debugLabel',
+      () async {
+        final authController = StreamController<dynamic>.broadcast();
+        final dataController = StreamController<String?>.broadcast();
+        addTearDown(authController.close);
+        addTearDown(dataController.close);
+
+        final loggedMessages = <String>[];
+        final originalDebugPrint = debugPrint;
+        debugPrint = (String? message, {int? wrapWidth}) {
+          if (message != null) loggedMessages.add(message);
+        };
+        addTearDown(() => debugPrint = originalDebugPrint);
+
+        final stream =
+            FirebaseDatabaseService.buildUserGatedStreamHelper<String?>(
+              getCurrentUserId: () => 'user_err',
+              authStateChanges: authController.stream,
+              emptyValue: null,
+              debugLabel: 'userRole',
+              subscribe: (_) => dataController.stream,
+            );
+
+        final emitted = <String?>[];
+        final sub = stream.listen(emitted.add);
+        addTearDown(sub.cancel);
+
+        dataController.addError(Exception('Firestore user fetch failed'));
+        await pumpEventQueue();
+
+        expect(emitted, [isNull]);
+        expect(
+          loggedMessages,
+          contains(
+            predicate<String>(
+              (msg) =>
+                  msg.contains('Error streaming userRole:') &&
+                  msg.contains('Firestore user fetch failed'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test('cancels and resubscribes listeners correctly', () async {
+      final authController = StreamController<dynamic>.broadcast();
+      final dataController =
+          StreamController<List<Map<String, dynamic>>>.broadcast();
+      addTearDown(authController.close);
+      addTearDown(dataController.close);
+
+      final stream =
+          FirebaseDatabaseService.buildUserGatedStreamHelper<
+            List<Map<String, dynamic>>
+          >(
+            getCurrentUserId: () => 'user_sub',
+            authStateChanges: authController.stream,
+            emptyValue: const [],
+            subscribe: (_) => dataController.stream,
+          );
+
+      final sub1 = stream.listen((_) {});
+      await pumpEventQueue();
+
+      expect(dataController.hasListener, isTrue);
+      expect(authController.hasListener, isTrue);
+
+      await sub1.cancel();
+      await pumpEventQueue();
+
+      expect(dataController.hasListener, isFalse);
+      expect(authController.hasListener, isFalse);
+
+      final emitted = <List<Map<String, dynamic>>>[];
+      final sub2 = stream.listen(emitted.add);
+      addTearDown(sub2.cancel);
+      await pumpEventQueue();
+
+      expect(dataController.hasListener, isTrue);
+      expect(authController.hasListener, isTrue);
+
+      dataController.add([
+        {'id': 'chart_2'},
+      ]);
+      await pumpEventQueue();
+
+      expect(emitted, [
+        [
+          {'id': 'chart_2'},
+        ],
+      ]);
+    });
+  });
 }
