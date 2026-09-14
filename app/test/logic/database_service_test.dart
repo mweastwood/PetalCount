@@ -708,4 +708,32 @@ void main() {
       },
     );
   });
+
+  group('Invitation Operations', () {
+    test(
+      'declineInvitation gracefully completes without error when invitation is not found',
+      () async {
+        await expectLater(
+          db.declineInvitation('non_existent_invite_id'),
+          completes,
+        );
+      },
+    );
+
+    test(
+      'declineInvitation successfully marks pending invitation as declined',
+      () async {
+        await db.invitePartner('husband@example.com');
+
+        final pendingBefore = await db.getPendingInvitations();
+        expect(pendingBefore.length, 1);
+        expect(pendingBefore.first['invitationId'], 'husband@example.com');
+
+        await db.declineInvitation('husband@example.com');
+
+        final pendingAfter = await db.getPendingInvitations();
+        expect(pendingAfter, isEmpty);
+      },
+    );
+  });
 }
