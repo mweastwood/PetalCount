@@ -63,6 +63,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     activeChart['userIds'] ?? [],
                   );
                   final hasOtherCollaborators = userIds.length > 1;
+                  final isEnabled =
+                      (activeChart['reminderEnabled'] as bool?) ?? true;
+                  final rawPrefs = activeChart['notificationPreferences'];
+                  final preferences = NotificationPreferences.fromMap(
+                    rawPrefs != null
+                        ? Map<String, dynamic>.from(rawPrefs)
+                        : {'reminderEnabled': isEnabled},
+                  );
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -72,8 +80,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 24),
                       NotificationPreferencesSection(
                         chartId: chartId,
+                        preferences: preferences,
                         activeCycle: widget.activeCycle,
-                        chartsStream: _chartsStream,
                       ),
                       const SizedBox(height: 40),
                       const Divider(),
