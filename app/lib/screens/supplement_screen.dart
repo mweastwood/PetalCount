@@ -24,6 +24,9 @@ class _SupplementScreenState extends State<SupplementScreen>
   late TabController _tabController;
   late DateTime _selectedDate;
   late UserRole _activeRole;
+  late final Stream<List<Cycle>> _cyclesStream;
+  late final Stream<List<SupplementItem>> _supplementsStream;
+  late final Stream<Map<String, DailySupplementLog>> _supplementLogsStream;
 
   @override
   void initState() {
@@ -37,6 +40,9 @@ class _SupplementScreenState extends State<SupplementScreen>
         setState(() {});
       }
     });
+    _cyclesStream = Services.db.streamCycles();
+    _supplementsStream = Services.db.streamSupplements();
+    _supplementLogsStream = Services.db.streamDailySupplementLogs();
   }
 
   @override
@@ -148,7 +154,7 @@ class _SupplementScreenState extends State<SupplementScreen>
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Cycle>>(
-      stream: Services.db.streamCycles(),
+      stream: _cyclesStream,
       builder: (context, cycleSnapshot) {
         final cycles = cycleSnapshot.data ?? [];
         final activeCycle =
@@ -158,12 +164,12 @@ class _SupplementScreenState extends State<SupplementScreen>
         final hasPeakOccurred = daysPastPeak != null;
 
         return StreamBuilder<List<SupplementItem>>(
-          stream: Services.db.streamSupplements(),
+          stream: _supplementsStream,
           builder: (context, suppSnapshot) {
             final supplements = suppSnapshot.data ?? [];
 
             return StreamBuilder<Map<String, DailySupplementLog>>(
-              stream: Services.db.streamDailySupplementLogs(),
+              stream: _supplementLogsStream,
               builder: (context, logSnapshot) {
                 final logs = logSnapshot.data ?? {};
                 final dateKey = _selectedDate.dateKey;

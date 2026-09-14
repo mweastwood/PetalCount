@@ -462,6 +462,75 @@ void main() {
         expect(find.byTooltip('Edit Supplement'), findsWidgets);
       },
     );
+
+    testWidgets(
+      'Stream instances are cached in State across UI interactions and rebuilds',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        final cycleStreamBefore = tester
+            .widget<StreamBuilder<List<Cycle>>>(
+              find.byWidgetPredicate((w) => w is StreamBuilder<List<Cycle>>),
+            )
+            .stream;
+        final suppStreamBefore = tester
+            .widget<StreamBuilder<List<SupplementItem>>>(
+              find.byWidgetPredicate(
+                (w) => w is StreamBuilder<List<SupplementItem>>,
+              ),
+            )
+            .stream;
+        final logStreamBefore = tester
+            .widget<StreamBuilder<Map<String, DailySupplementLog>>>(
+              find.byWidgetPredicate(
+                (w) => w is StreamBuilder<Map<String, DailySupplementLog>>,
+              ),
+            )
+            .stream;
+
+        // 1. Date navigation triggers setState()
+        await tester.tap(find.byTooltip('Next Day'));
+        await tester.pumpAndSettle();
+
+        // 2. Role toggle triggers setState()
+        await tester.tap(find.text('👨 Husband'));
+        await tester.pumpAndSettle();
+
+        // 3. Tab navigation triggers TabController listener setState()
+        await tester.tap(find.text('Cycle Plan'));
+        await tester.pumpAndSettle();
+
+        final cycleStreamAfter = tester
+            .widget<StreamBuilder<List<Cycle>>>(
+              find.byWidgetPredicate((w) => w is StreamBuilder<List<Cycle>>),
+            )
+            .stream;
+        final suppStreamAfter = tester
+            .widget<StreamBuilder<List<SupplementItem>>>(
+              find.byWidgetPredicate(
+                (w) => w is StreamBuilder<List<SupplementItem>>,
+              ),
+            )
+            .stream;
+        final logStreamAfter = tester
+            .widget<StreamBuilder<Map<String, DailySupplementLog>>>(
+              find.byWidgetPredicate(
+                (w) => w is StreamBuilder<Map<String, DailySupplementLog>>,
+              ),
+            )
+            .stream;
+
+        // Verify all 3 stream instances remained identical (cached) across interactions
+        expect(identical(cycleStreamAfter, cycleStreamBefore), isTrue);
+        expect(identical(suppStreamAfter, suppStreamBefore), isTrue);
+        expect(identical(logStreamAfter, logStreamBefore), isTrue);
+      },
+    );
   });
 
   group('SupplementScreen Golden Tests', () {
