@@ -1493,16 +1493,18 @@ class FirebaseDatabaseService implements DatabaseService {
         .collection('supplementLogs')
         .doc(dateKey);
 
-    final doc = await logRef.get();
-    DailySupplementLog log;
-    if (doc.exists && doc.data() != null) {
-      log = DailySupplementLog.fromMap(doc.data()!);
-    } else {
-      log = DailySupplementLog(date: date, takenDoses: {});
-    }
+    await _db.runTransaction((transaction) async {
+      final doc = await transaction.get(logRef);
+      DailySupplementLog log;
+      if (doc.exists && doc.data() != null) {
+        log = DailySupplementLog.fromMap(doc.data()!);
+      } else {
+        log = DailySupplementLog(date: date, takenDoses: {});
+      }
 
-    final updatedLog = log.withToggled(supplementId, timeOfDay, taken);
-    await logRef.set(updatedLog.toMap());
+      final updatedLog = log.withToggled(supplementId, timeOfDay, taken);
+      transaction.set(logRef, updatedLog.toMap());
+    });
   }
 
   @visibleForTesting
