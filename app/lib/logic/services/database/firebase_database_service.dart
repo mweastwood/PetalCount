@@ -355,13 +355,15 @@ class FirebaseDatabaseService implements DatabaseService {
 
   @override
   Stream<List<Map<String, dynamic>>> streamAvailableCharts() {
-    final user = currentUser;
-    if (user == null) return Stream.value([]);
-    return _db
-        .collection('charts')
-        .where('userIds', arrayContains: user.uid)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+    return _buildUserGatedStream<List<Map<String, dynamic>>>(
+      emptyValue: const [],
+      debugLabel: 'availableCharts',
+      subscribe: (uid) => _db
+          .collection('charts')
+          .where('userIds', arrayContains: uid)
+          .snapshots()
+          .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList()),
+    );
   }
 
   @override
@@ -636,13 +638,16 @@ class FirebaseDatabaseService implements DatabaseService {
 
   @override
   Stream<String?> streamUserRole() {
-    final user = currentUser;
-    if (user == null) return Stream.value(null);
-    return _db.collection('users').doc(user.uid).snapshots().map((doc) {
-      final role = doc.data()?['role'] as String? ?? 'wife';
-      _cachedRole = role;
-      return role;
-    });
+    return _buildUserGatedStream<String?>(
+      emptyValue: null,
+      debugLabel: 'userRole',
+      subscribe: (uid) =>
+          _db.collection('users').doc(uid).snapshots().map((doc) {
+            final role = doc.data()?['role'] as String? ?? 'wife';
+            _cachedRole = role;
+            return role;
+          }),
+    );
   }
 
   @override
@@ -691,6 +696,23 @@ class FirebaseDatabaseService implements DatabaseService {
     }
   }
 
+  /// Creates a broadcast stream gated by the authenticated user ID and auth state changes.
+  ///
+  /// Emits [emptyValue] when no user is signed in or when an error occurs.
+  Stream<T> _buildUserGatedStream<T>({
+    required T emptyValue,
+    required Stream<T> Function(String uid) subscribe,
+    String? debugLabel,
+  }) {
+    return buildUserGatedStreamHelper<T>(
+      getCurrentUserId: () => currentUser?.uid,
+      authStateChanges: authStateChanges,
+      emptyValue: emptyValue,
+      subscribe: subscribe,
+      debugLabel: debugLabel,
+    );
+  }
+
   /// Creates a broadcast stream gated by the active chart ID and auth state changes.
   ///
   /// Emits [emptyValue] when no chart ID is active or when an error occurs.
@@ -709,11 +731,11 @@ class FirebaseDatabaseService implements DatabaseService {
   }
 
   @visibleForTesting
-  static Stream<T> buildAuthGatedStreamHelper<T>({
-    required String? Function() getCurrentChartId,
+  static Stream<T> buildGatedStreamHelper<T>({
+    required String? Function() getKey,
     required Stream<dynamic> authStateChanges,
     required T emptyValue,
-    required Stream<T> Function(String chartId) subscribe,
+    required Stream<T> Function(String key) subscribe,
     String? debugLabel,
   }) {
     late StreamController<T> controller;
@@ -721,14 +743,14 @@ class FirebaseDatabaseService implements DatabaseService {
     StreamSubscription<T>? dataSub;
 
     void updateListener() {
-      final chartId = getCurrentChartId();
+      final key = getKey();
       dataSub?.cancel();
-      if (chartId == null) {
+      if (key == null) {
         dataSub = null;
         controller.add(emptyValue);
         return;
       }
-      dataSub = subscribe(chartId).listen(
+      dataSub = subscribe(key).listen(
         (data) => controller.add(data),
         onError: (e) {
           if (debugLabel != null) {
@@ -753,6 +775,40 @@ class FirebaseDatabaseService implements DatabaseService {
     );
 
     return controller.stream;
+  }
+
+  @visibleForTesting
+  static Stream<T> buildUserGatedStreamHelper<T>({
+    required String? Function() getCurrentUserId,
+    required Stream<dynamic> authStateChanges,
+    required T emptyValue,
+    required Stream<T> Function(String uid) subscribe,
+    String? debugLabel,
+  }) {
+    return buildGatedStreamHelper<T>(
+      getKey: getCurrentUserId,
+      authStateChanges: authStateChanges,
+      emptyValue: emptyValue,
+      subscribe: subscribe,
+      debugLabel: debugLabel,
+    );
+  }
+
+  @visibleForTesting
+  static Stream<T> buildAuthGatedStreamHelper<T>({
+    required String? Function() getCurrentChartId,
+    required Stream<dynamic> authStateChanges,
+    required T emptyValue,
+    required Stream<T> Function(String chartId) subscribe,
+    String? debugLabel,
+  }) {
+    return buildGatedStreamHelper<T>(
+      getKey: getCurrentChartId,
+      authStateChanges: authStateChanges,
+      emptyValue: emptyValue,
+      subscribe: subscribe,
+      debugLabel: debugLabel,
+    );
   }
 
   @override
