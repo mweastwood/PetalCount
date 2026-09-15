@@ -1207,7 +1207,7 @@ class FirebaseDatabaseService implements DatabaseService {
 
       final newObs = Observation(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        timestamp: DateTime.now(),
+        timestamp: date,
         sensation: sensation,
         stretch: stretch,
         colors: colors,
@@ -1231,6 +1231,7 @@ class FirebaseDatabaseService implements DatabaseService {
       List<Observation> observations = existingEntry != null
           ? (List<Observation>.from(existingEntry.observations)..add(newObs))
           : [newObs];
+      observations.sort((a, b) => a.timestamp.compareTo(b.timestamp));
 
       final resolved = CreightonLogic.resolveDailyEntry(
         date: date,

@@ -382,6 +382,80 @@ void main() {
     });
   });
 
+  group('Observation Persistence & Sorting', () {
+    test(
+      'saveObservation preserves user-selected date and time in Observation.timestamp',
+      () async {
+        await db.createChart();
+
+        final explicitDate = DateTime(2026, 7, 1, 8, 30);
+        await db.saveObservation(
+          date: explicitDate,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Morning observation',
+        );
+
+        final cycles = await db.streamCycles().first;
+        final entry = cycles.first.dailyEntries['2026-07-01'];
+        expect(entry, isNotNull);
+        expect(entry!.observations.length, 1);
+        expect(entry.observations.first.timestamp, equals(explicitDate));
+      },
+    );
+
+    test(
+      'saveObservation sorts multiple observations on the same day chronologically',
+      () async {
+        await db.createChart();
+
+        final morningObs = DateTime(2026, 7, 1, 8, 30);
+        final afternoonObs = DateTime(2026, 7, 1, 14, 0);
+
+        // Save afternoon observation first
+        await db.saveObservation(
+          date: afternoonObs,
+          sensation: Sensation.damp,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Afternoon observation',
+        );
+
+        // Then backfill morning observation
+        await db.saveObservation(
+          date: morningObs,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Morning observation',
+        );
+
+        final cycles = await db.streamCycles().first;
+        final entry = cycles.first.dailyEntries['2026-07-01'];
+        expect(entry, isNotNull);
+        expect(entry!.observations.length, 2);
+        expect(entry.observations[0].timestamp, equals(morningObs));
+        expect(entry.observations[1].timestamp, equals(afternoonObs));
+      },
+    );
+  });
+
   group('Supplement Database Operations', () {
     test('streamSupplements yields preset list for initial chart', () async {
       final supps = await db.streamSupplements().first;
