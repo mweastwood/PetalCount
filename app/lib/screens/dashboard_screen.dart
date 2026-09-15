@@ -26,6 +26,20 @@ class _DashboardScreenState extends State<DashboardScreen>
   late final AppRouteManager _routeManager;
   ViewMode _viewMode = ViewMode.observations;
   bool _isSpeedDialOpen = false;
+  String? _notificationPreferencesChartId;
+  Stream<NotificationPreferences>? _notificationPreferencesStream;
+
+  Stream<NotificationPreferences> _getNotificationPreferencesStream(
+    String chartId,
+  ) {
+    if (_notificationPreferencesStream == null ||
+        _notificationPreferencesChartId != chartId) {
+      _notificationPreferencesChartId = chartId;
+      _notificationPreferencesStream = Services.db
+          .streamNotificationPreferences(chartId);
+    }
+    return _notificationPreferencesStream!;
+  }
 
   @override
   void initState() {
@@ -304,7 +318,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           children: [
             if (isDay7 && chartId != null && _viewMode != ViewMode.supplements)
               StreamBuilder<NotificationPreferences>(
-                stream: Services.db.streamNotificationPreferences(chartId),
+                stream: _getNotificationPreferencesStream(chartId),
                 initialData: Services.db.getLatestNotificationPreferences(
                   chartId,
                 ),

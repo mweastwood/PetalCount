@@ -656,6 +656,76 @@ void main() {
   );
 
   testWidgets(
+    'DashboardScreen caches streamNotificationPreferences instance across rebuilds on Day 7',
+    (WidgetTester tester) async {
+      await Services.init();
+
+      // Cycle starts on Aug 1, 2026. Day 7 is Aug 7, 2026.
+      await Services.db.saveObservation(
+        date: DateTime(2026, 8, 1, 8, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.heavy,
+        bleedingColor: 'R',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Cycle start',
+        isVdrsExplicit: true,
+      );
+
+      await tester.pumpWidgetBuilder(
+        PetalCountApp(todayOverride: DateTime(2026, 8, 7)),
+        surfaceSize: const Size(400, 800),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('banner_day_7_bse')), findsOneWidget);
+
+      final streamBuilderFinder = find.byWidgetPredicate(
+        (w) => w is StreamBuilder<NotificationPreferences>,
+      );
+      expect(streamBuilderFinder, findsOneWidget);
+
+      final streamBefore = tester
+          .widget<StreamBuilder<NotificationPreferences>>(streamBuilderFinder)
+          .stream;
+
+      // 1. Toggle speed dial FAB (triggers setState in _DashboardScreenState)
+      await tester.tap(find.byKey(const Key('fab_log_observation_toggle')));
+      await tester.pumpAndSettle();
+
+      final streamAfterFab = tester
+          .widget<StreamBuilder<NotificationPreferences>>(streamBuilderFinder)
+          .stream;
+      expect(identical(streamAfterFab, streamBefore), isTrue);
+
+      // Close speed dial FAB
+      await tester.tap(find.byKey(const Key('fab_log_observation_toggle')));
+      await tester.pumpAndSettle();
+
+      // 2. Switch tab to Chart (triggers setState in _DashboardScreenState)
+      await tester.tap(find.text('Chart'));
+      await tester.pumpAndSettle();
+
+      final streamAfterChartSwitch = tester
+          .widget<StreamBuilder<NotificationPreferences>>(streamBuilderFinder)
+          .stream;
+      expect(identical(streamAfterChartSwitch, streamBefore), isTrue);
+
+      // Switch back to Observations tab
+      await tester.tap(find.text('Observations'));
+      await tester.pumpAndSettle();
+
+      final streamAfterObsSwitch = tester
+          .widget<StreamBuilder<NotificationPreferences>>(streamBuilderFinder)
+          .stream;
+      expect(identical(streamAfterObsSwitch, streamBefore), isTrue);
+    },
+  );
+
+  testWidgets(
     'SupplementScreen and SettingsScreen receive the correct latest cycle',
     (WidgetTester tester) async {
       await Services.init();
