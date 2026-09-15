@@ -335,8 +335,13 @@ class FirebaseDatabaseService implements DatabaseService {
           .where('status', isEqualTo: 'pending')
           .get();
       if (snap.docs.isNotEmpty) {
-        docRef = snap.docs.first.reference;
+        doc = snap.docs.first;
+        docRef = doc.reference;
       }
+    }
+
+    if (doc == null || !doc.exists) {
+      return;
     }
 
     await docRef.update({'status': 'declined'});
