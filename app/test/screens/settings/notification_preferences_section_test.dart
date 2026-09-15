@@ -14,44 +14,101 @@ void main() {
     Services.notifications = notifications;
   });
 
-  group('NotificationPreferencesSection Tests', () {
-    testWidgets('renders all four preference switches', (
-      WidgetTester tester,
-    ) async {
-      final chartId = db.currentChartId!;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: NotificationPreferencesSection(chartId: chartId),
+  Widget buildTestSection({required String chartId, Cycle? activeCycle}) {
+    return MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: StreamBuilder<NotificationPreferences>(
+            stream: db.streamNotificationPreferences(chartId),
+            initialData:
+                db.getLatestNotificationPreferences(chartId) ??
+                const NotificationPreferences(),
+            builder: (context, snapshot) => NotificationPreferencesSection(
+              chartId: chartId,
+              preferences: snapshot.data ?? const NotificationPreferences(),
+              activeCycle: activeCycle,
             ),
           ),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+  }
 
-      expect(find.text('Notifications & Reminders'), findsOneWidget);
-      expect(find.byKey(const Key('switch_daily_reminder')), findsOneWidget);
-      expect(find.byKey(const Key('switch_fertile_pattern')), findsOneWidget);
-      expect(find.byKey(const Key('switch_partner_support')), findsOneWidget);
-      expect(find.byKey(const Key('switch_breast_self_exam')), findsOneWidget);
-    });
+  group('NotificationPreferencesSection Tests', () {
+    testWidgets(
+      'renders all four preference switches matching provided preferences',
+      (WidgetTester tester) async {
+        const customPrefs = NotificationPreferences(
+          dailyLoggingReminder: true,
+          fertilePatternAlerts: false,
+          partnerSupportReminders: true,
+          breastSelfExamReminder: false,
+        );
+
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: NotificationPreferencesSection(
+                  chartId: 'test_chart',
+                  preferences: customPrefs,
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Notifications & Reminders'), findsOneWidget);
+        expect(find.byKey(const Key('switch_daily_reminder')), findsOneWidget);
+        expect(find.byKey(const Key('switch_fertile_pattern')), findsOneWidget);
+        expect(find.byKey(const Key('switch_partner_support')), findsOneWidget);
+        expect(
+          find.byKey(const Key('switch_breast_self_exam')),
+          findsOneWidget,
+        );
+
+        expect(
+          tester
+              .widget<SwitchListTile>(
+                find.byKey(const Key('switch_daily_reminder')),
+              )
+              .value,
+          isTrue,
+        );
+        expect(
+          tester
+              .widget<SwitchListTile>(
+                find.byKey(const Key('switch_fertile_pattern')),
+              )
+              .value,
+          isFalse,
+        );
+        expect(
+          tester
+              .widget<SwitchListTile>(
+                find.byKey(const Key('switch_partner_support')),
+              )
+              .value,
+          isTrue,
+        );
+        expect(
+          tester
+              .widget<SwitchListTile>(
+                find.byKey(const Key('switch_breast_self_exam')),
+              )
+              .value,
+          isFalse,
+        );
+      },
+    );
 
     testWidgets(
       'toggling daily reminder updates preferences and syncs notifications',
       (WidgetTester tester) async {
         final chartId = db.currentChartId!;
 
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: SingleChildScrollView(
-                child: NotificationPreferencesSection(chartId: chartId),
-              ),
-            ),
-          ),
-        );
+        await tester.pumpWidget(buildTestSection(chartId: chartId));
         await tester.pumpAndSettle();
 
         final dailyFinder = find.byKey(const Key('switch_daily_reminder'));
@@ -72,15 +129,7 @@ void main() {
     ) async {
       final chartId = db.currentChartId!;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SingleChildScrollView(
-              child: NotificationPreferencesSection(chartId: chartId),
-            ),
-          ),
-        ),
-      );
+      await tester.pumpWidget(buildTestSection(chartId: chartId));
       await tester.pumpAndSettle();
 
       final fertileFinder = find.byKey(const Key('switch_fertile_pattern'));
