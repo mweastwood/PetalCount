@@ -6,7 +6,7 @@ import 'package:petal_count/logic/logic.dart';
 import 'package:petal_count/screens/screens.dart';
 
 void main() {
-  setUpAll(() async {
+  setUp(() async {
     // Initialize our Services layer with mock/in-memory services for golden screenshot testing
     await Services.init();
   });
@@ -314,7 +314,6 @@ void main() {
   testGoldens(
     'SettingsScreen danger zone sole collaborator renders correctly',
     (tester) async {
-      await Services.init();
       (Services.db as InMemoryDatabaseService).isolateSoleCollaboratorChart();
 
       await tester.pumpWidgetBuilder(
@@ -346,8 +345,6 @@ void main() {
   testGoldens(
     'Creighton Chart Screen renders multiple cycles in Portrait correctly',
     (tester) async {
-      await Services.init();
-
       // Create Cycle 1 starting May 1, 2026
       await Services.db.saveObservation(
         date: DateTime(2026, 5, 1, 9, 0),
@@ -436,8 +433,6 @@ void main() {
   testGoldens(
     'Creighton Chart Screen renders multiple cycles in Landscape correctly',
     (tester) async {
-      await Services.init();
-
       // Create Cycle 1 starting May 1, 2026
       await Services.db.saveObservation(
         date: DateTime(2026, 5, 1, 9, 0),
@@ -529,7 +524,6 @@ void main() {
   testGoldens(
     'Dashboard displays Day 7 BSE banner when current cycle is on Day 7',
     (tester) async {
-      await Services.init();
       // Cycle starts on Aug 1, 2026. Day 7 is Aug 7, 2026.
       await Services.db.saveObservation(
         date: DateTime(2026, 8, 1, 8, 0),
@@ -572,7 +566,6 @@ void main() {
   testWidgets(
     'Dashboard hides Day 7 BSE banner when breastSelfExamReminder is disabled',
     (WidgetTester tester) async {
-      await Services.init();
       final chartId = Services.db.currentChartId!;
 
       // Disable breast self exam reminder in preferences
@@ -609,8 +602,6 @@ void main() {
   testWidgets(
     'Dashboard displays Day 7 BSE banner when latest cycle is on day 7 with multiple cycles in arbitrary order',
     (WidgetTester tester) async {
-      await Services.init();
-
       // Cycle 1: Earlier cycle (June 1, 2026)
       await Services.db.saveObservation(
         date: DateTime(2026, 6, 1, 8, 0),
@@ -658,8 +649,6 @@ void main() {
   testWidgets(
     'DashboardScreen caches streamNotificationPreferences instance across rebuilds on Day 7',
     (WidgetTester tester) async {
-      await Services.init();
-
       // Cycle starts on Aug 1, 2026. Day 7 is Aug 7, 2026.
       await Services.db.saveObservation(
         date: DateTime(2026, 8, 1, 8, 0),
@@ -728,8 +717,6 @@ void main() {
   testWidgets(
     'SupplementScreen and SettingsScreen receive the correct latest cycle',
     (WidgetTester tester) async {
-      await Services.init();
-
       // Cycle 1: Earlier cycle (June 1, 2026)
       await Services.db.saveObservation(
         date: DateTime(2026, 6, 1, 8, 0),
