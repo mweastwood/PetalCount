@@ -219,27 +219,30 @@ class CreightonLogic {
 
     // --- STEP A: IDENTIFY THE PEAK DAY ---
     // The Peak Day is the last day of Peak-type mucus (10, K, or L)
-    // followed by a shift of at least 3 consecutive days of non-Peak/dry
-    // patterns.
+    // followed by an abrupt shift of non-Peak/dry observations.
+    // In the Creighton Model, candidate Peak is inferred immediately on the first day
+    // of drying up or non-Peak mucus (Peak+1), labeling 'P' on the Peak Day and starting
+    // the post-Peak count ('1', '2', '3'). If Peak-type mucus returns, the prior count
+    // is disrupted and resets until another shift is observed.
     int peakIndex = -1;
 
     for (int i = sorted.length - 1; i >= 0; i--) {
       if (sorted[i].isPeakType) {
-        // Check if followed by at least 3 days of non-Peak observations
-        bool has3DaysShift = true;
+        // Check if followed by at least 1 day of non-Peak observations
+        bool hasNonPeakShift = true;
         int count = 0;
 
         for (int j = i + 1; j < sorted.length; j++) {
           if (sorted[j].isPeakType) {
-            has3DaysShift = false;
+            hasNonPeakShift = false;
             break;
           }
           count++;
-          if (count >= 3) break;
         }
 
-        // Standard rules allow identifying Peak Day if we have seen the shift
-        if (has3DaysShift && count >= 3) {
+        // Standard Creighton rules infer Peak Day on the abrupt shift
+        // to non-Peak/dry observations (>= 1 post-Peak observation).
+        if (hasNonPeakShift && count >= 1) {
           peakIndex = i;
           break; // Found the last true Peak Day in the cycle
         }
