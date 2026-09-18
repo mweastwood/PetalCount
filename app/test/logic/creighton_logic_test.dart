@@ -1566,4 +1566,537 @@ void main() {
       },
     );
   });
+
+  group('Provisional Peak Detection and Post-Peak Count (Count >= 1)', () {
+    test(
+      'infers candidate Peak day on first day of dry shift (Peak + 1) with greenBaby stamp',
+      () {
+        final day10 = DateTime(2026, 9, 10);
+        final day11 = DateTime(2026, 9, 11);
+
+        final peakObs = Observation(
+          id: 'peak_10',
+          timestamp: day10,
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: const [MucusColor.clear],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final dryObs = Observation(
+          id: 'dry_11',
+          timestamp: day11,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final entries = [
+          CreightonLogic.resolveDailyEntry(
+            date: day10,
+            observations: [peakObs],
+          ),
+          CreightonLogic.resolveDailyEntry(date: day11, observations: [dryObs]),
+        ];
+
+        final recalculated = CreightonLogic.recalculateCycle(
+          entries: entries,
+          bipCodes: const [],
+        );
+
+        // Day 10 is inferred as Peak (P)
+        expect(recalculated[day10.dateKey]?.peakDayLabel, 'P');
+        expect(recalculated[day10.dateKey]?.isPeakDay, isTrue);
+        expect(recalculated[day10.dateKey]?.stampType, StampType.whiteBaby);
+
+        // Day 11 is labeled '1' with greenBaby stamp (fertile dry day in post-peak window)
+        expect(recalculated[day11.dateKey]?.peakDayLabel, '1');
+        expect(recalculated[day11.dateKey]?.stampType, StampType.greenBaby);
+      },
+    );
+
+    test('infers candidate Peak day on day 2 of dry shift (Peak + 2)', () {
+      final day10 = DateTime(2026, 9, 10);
+      final day11 = DateTime(2026, 9, 11);
+      final day12 = DateTime(2026, 9, 12);
+
+      final peakObs = Observation(
+        id: 'peak_10',
+        timestamp: day10,
+        sensation: Sensation.damp,
+        stretch: Stretch.stretchy,
+        colors: const [MucusColor.clear],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'test',
+      );
+
+      final dryObs1 = Observation(
+        id: 'dry_11',
+        timestamp: day11,
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'test',
+      );
+
+      final dryObs2 = Observation(
+        id: 'dry_12',
+        timestamp: day12,
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'test',
+      );
+
+      final entries = [
+        CreightonLogic.resolveDailyEntry(date: day10, observations: [peakObs]),
+        CreightonLogic.resolveDailyEntry(date: day11, observations: [dryObs1]),
+        CreightonLogic.resolveDailyEntry(date: day12, observations: [dryObs2]),
+      ];
+
+      final recalculated = CreightonLogic.recalculateCycle(
+        entries: entries,
+        bipCodes: const [],
+      );
+
+      expect(recalculated[day10.dateKey]?.peakDayLabel, 'P');
+      expect(recalculated[day11.dateKey]?.peakDayLabel, '1');
+      expect(recalculated[day11.dateKey]?.stampType, StampType.greenBaby);
+      expect(recalculated[day12.dateKey]?.peakDayLabel, '2');
+      expect(recalculated[day12.dateKey]?.stampType, StampType.greenBaby);
+    });
+
+    test(
+      'infers candidate Peak day when shift is non-peak mucus (e.g. 6C) on Day 1 with whiteBaby stamp',
+      () {
+        final day10 = DateTime(2026, 9, 10);
+        final day11 = DateTime(2026, 9, 11);
+
+        final peakObs = Observation(
+          id: 'peak_10',
+          timestamp: day10,
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: const [MucusColor.clear],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final nonPeakMucusObs = Observation(
+          id: 'sticky_11',
+          timestamp: day11,
+          sensation: Sensation.damp,
+          stretch: Stretch.sticky,
+          colors: const [MucusColor.cloudy],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final entries = [
+          CreightonLogic.resolveDailyEntry(
+            date: day10,
+            observations: [peakObs],
+          ),
+          CreightonLogic.resolveDailyEntry(
+            date: day11,
+            observations: [nonPeakMucusObs],
+          ),
+        ];
+
+        final recalculated = CreightonLogic.recalculateCycle(
+          entries: entries,
+          bipCodes: const ['6C'],
+        );
+
+        expect(recalculated[day10.dateKey]?.peakDayLabel, 'P');
+        expect(recalculated[day11.dateKey]?.peakDayLabel, '1');
+        // In post-peak fertile window, even BIP mucus receives whiteBaby stamp
+        expect(recalculated[day11.dateKey]?.stampType, StampType.whiteBaby);
+      },
+    );
+
+    test(
+      'does not infer Peak day prematurely on the day of peak mucus itself (count == 0)',
+      () {
+        final day10 = DateTime(2026, 9, 10);
+
+        final peakObs = Observation(
+          id: 'peak_10',
+          timestamp: day10,
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: const [MucusColor.clear],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final entries = [
+          CreightonLogic.resolveDailyEntry(
+            date: day10,
+            observations: [peakObs],
+          ),
+        ];
+
+        final recalculated = CreightonLogic.recalculateCycle(
+          entries: entries,
+          bipCodes: const [],
+        );
+
+        // Peak cannot be inferred on the peak mucus day itself without an abrupt shift
+        expect(recalculated[day10.dateKey]?.peakDayLabel, isNull);
+        expect(recalculated[day10.dateKey]?.isPeakDay, isFalse);
+        expect(recalculated[day10.dateKey]?.stampType, StampType.whiteBaby);
+      },
+    );
+
+    test(
+      'disrupts and resets provisional peak count if peak-type mucus returns during count',
+      () {
+        final day10 = DateTime(2026, 9, 10);
+        final day11 = DateTime(2026, 9, 11);
+        final day12 = DateTime(2026, 9, 12);
+
+        final peakObs1 = Observation(
+          id: 'peak_10',
+          timestamp: day10,
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: const [MucusColor.clear],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final dryObs = Observation(
+          id: 'dry_11',
+          timestamp: day11,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        // Mucus returns on day 12 (disrupted count)
+        final peakObs2 = Observation(
+          id: 'peak_12',
+          timestamp: day12,
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: const [MucusColor.clear],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final entries = [
+          CreightonLogic.resolveDailyEntry(
+            date: day10,
+            observations: [peakObs1],
+          ),
+          CreightonLogic.resolveDailyEntry(date: day11, observations: [dryObs]),
+          CreightonLogic.resolveDailyEntry(
+            date: day12,
+            observations: [peakObs2],
+          ),
+        ];
+
+        final recalculated = CreightonLogic.recalculateCycle(
+          entries: entries,
+          bipCodes: const [],
+        );
+
+        // Day 10 is no longer Peak because day 12 is peak-type mucus
+        expect(recalculated[day10.dateKey]?.peakDayLabel, isNull);
+        expect(recalculated[day10.dateKey]?.isPeakDay, isFalse);
+
+        // Day 11 is no longer '1'
+        expect(recalculated[day11.dateKey]?.peakDayLabel, isNull);
+        expect(recalculated[day11.dateKey]?.stampType, StampType.green);
+
+        // Day 12 has not yet had a shift, so it is not yet labeled Peak
+        expect(recalculated[day12.dateKey]?.peakDayLabel, isNull);
+        expect(recalculated[day12.dateKey]?.stampType, StampType.whiteBaby);
+      },
+    );
+
+    test(
+      'establishes new candidate Peak day after disrupted peak when subsequent dry shift occurs',
+      () {
+        final day10 = DateTime(2026, 9, 10);
+        final day11 = DateTime(2026, 9, 11);
+        final day12 = DateTime(2026, 9, 12);
+        final day13 = DateTime(2026, 9, 13);
+
+        final peakObs1 = Observation(
+          id: 'peak_10',
+          timestamp: day10,
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: const [MucusColor.clear],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final dryObs1 = Observation(
+          id: 'dry_11',
+          timestamp: day11,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final peakObs2 = Observation(
+          id: 'peak_12',
+          timestamp: day12,
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: const [MucusColor.clear],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final dryObs2 = Observation(
+          id: 'dry_13',
+          timestamp: day13,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final entries = [
+          CreightonLogic.resolveDailyEntry(
+            date: day10,
+            observations: [peakObs1],
+          ),
+          CreightonLogic.resolveDailyEntry(
+            date: day11,
+            observations: [dryObs1],
+          ),
+          CreightonLogic.resolveDailyEntry(
+            date: day12,
+            observations: [peakObs2],
+          ),
+          CreightonLogic.resolveDailyEntry(
+            date: day13,
+            observations: [dryObs2],
+          ),
+        ];
+
+        final recalculated = CreightonLogic.recalculateCycle(
+          entries: entries,
+          bipCodes: const [],
+        );
+
+        // Day 10 is not Peak
+        expect(recalculated[day10.dateKey]?.peakDayLabel, isNull);
+        // Day 12 is the new candidate Peak
+        expect(recalculated[day12.dateKey]?.peakDayLabel, 'P');
+        expect(recalculated[day12.dateKey]?.isPeakDay, isTrue);
+        // Day 13 is Peak + 1
+        expect(recalculated[day13.dateKey]?.peakDayLabel, '1');
+        expect(recalculated[day13.dateKey]?.stampType, StampType.greenBaby);
+      },
+    );
+
+    test(
+      'identifies the latest peak day when multiple peak mucus patches occur in a cycle',
+      () {
+        final start = DateTime(2026, 6, 1);
+        final entries = <DailyEntry>[];
+
+        // Patch 1: Day 5 peak, Days 6-8 dry
+        final d5 = start.add(const Duration(days: 4));
+        entries.add(
+          CreightonLogic.resolveDailyEntry(
+            date: d5,
+            observations: [
+              Observation(
+                id: 'p_5',
+                timestamp: d5,
+                sensation: Sensation.damp,
+                stretch: Stretch.stretchy,
+                colors: const [MucusColor.clear],
+                consistencies: const [],
+                bleeding: Bleeding.none,
+                userId: 'test',
+              ),
+            ],
+          ),
+        );
+        for (int i = 5; i < 8; i++) {
+          final d = start.add(Duration(days: i));
+          entries.add(
+            CreightonLogic.resolveDailyEntry(
+              date: d,
+              observations: [
+                Observation(
+                  id: 'd_$i',
+                  timestamp: d,
+                  sensation: Sensation.dry,
+                  stretch: Stretch.none,
+                  colors: const [],
+                  consistencies: const [],
+                  bleeding: Bleeding.none,
+                  userId: 'test',
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Patch 2: Day 15 peak (10WL), Day 16 dry
+        final d15 = start.add(const Duration(days: 14));
+        entries.add(
+          CreightonLogic.resolveDailyEntry(
+            date: d15,
+            observations: [
+              Observation(
+                id: 'p_15',
+                timestamp: d15,
+                sensation: Sensation.wet,
+                stretch: Stretch.none,
+                colors: const [],
+                consistencies: const [Consistency.lubricative],
+                bleeding: Bleeding.none,
+                userId: 'test',
+              ),
+            ],
+          ),
+        );
+        final d16 = start.add(const Duration(days: 15));
+        entries.add(
+          CreightonLogic.resolveDailyEntry(
+            date: d16,
+            observations: [
+              Observation(
+                id: 'd_16',
+                timestamp: d16,
+                sensation: Sensation.dry,
+                stretch: Stretch.none,
+                colors: const [],
+                consistencies: const [],
+                bleeding: Bleeding.none,
+                userId: 'test',
+              ),
+            ],
+          ),
+        );
+
+        final recalculated = CreightonLogic.recalculateCycle(
+          entries: entries,
+          bipCodes: const [],
+        );
+
+        // Day 15 is identified as Peak (P), not Day 5
+        expect(recalculated[d5.dateKey]?.peakDayLabel, isNull);
+        expect(recalculated[d15.dateKey]?.peakDayLabel, 'P');
+        expect(recalculated[d16.dateKey]?.peakDayLabel, '1');
+      },
+    );
+
+    test(
+      'accurately identifies Peak Day and labels for debug app state cycle (Sept 15 10SL followed by Sept 16 and Sept 17)',
+      () {
+        final d14 = DateTime(2026, 9, 14);
+        final d15 = DateTime(2026, 9, 15);
+        final d16 = DateTime(2026, 9, 16);
+        final d17 = DateTime(2026, 9, 17);
+
+        // Sept 14: 10SLK (stretchy, clear, lubricative)
+        final obs14 = Observation(
+          id: 'obs_14',
+          timestamp: d14,
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: const [MucusColor.clear],
+          consistencies: const [Consistency.lubricative],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        // Sept 15: 10SL (lubricative, cloudy) - Candidate Peak Day
+        final obs15 = Observation(
+          id: 'obs_15',
+          timestamp: d15,
+          sensation: Sensation.damp,
+          stretch: Stretch.none,
+          colors: const [MucusColor.cloudy],
+          consistencies: const [Consistency.lubricative],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        // Sept 16: 2 (damp, no mucus) - Day 1 of shift
+        final obs16 = Observation(
+          id: 'obs_16',
+          timestamp: d16,
+          sensation: Sensation.damp,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        // Sept 17: 0 (dry, no mucus) - Day 2 of shift
+        final obs17 = Observation(
+          id: 'obs_17',
+          timestamp: d17,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test',
+        );
+
+        final entries = [
+          CreightonLogic.resolveDailyEntry(date: d14, observations: [obs14]),
+          CreightonLogic.resolveDailyEntry(date: d15, observations: [obs15]),
+          CreightonLogic.resolveDailyEntry(date: d16, observations: [obs16]),
+          CreightonLogic.resolveDailyEntry(date: d17, observations: [obs17]),
+        ];
+
+        final recalculated = CreightonLogic.recalculateCycle(
+          entries: entries,
+          bipCodes: const [],
+        );
+
+        // Sept 15 should be identified as Peak (P)
+        expect(recalculated[d15.dateKey]?.peakDayLabel, 'P');
+        expect(recalculated[d15.dateKey]?.isPeakDay, isTrue);
+
+        // Sept 16 should be labeled '1' with greenBaby stamp
+        expect(recalculated[d16.dateKey]?.peakDayLabel, '1');
+        expect(recalculated[d16.dateKey]?.stampType, StampType.greenBaby);
+
+        // Sept 17 should be labeled '2' with greenBaby stamp
+        expect(recalculated[d17.dateKey]?.peakDayLabel, '2');
+        expect(recalculated[d17.dateKey]?.stampType, StampType.greenBaby);
+      },
+    );
+  });
 }
