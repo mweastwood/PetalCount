@@ -297,9 +297,7 @@ void main() {
       );
     });
 
-    testWidgets('renders custom schedule rule descriptions', (
-      tester,
-    ) async {
+    testWidgets('renders custom schedule rule descriptions', (tester) async {
       const cycleDaysSupp = SupplementItem(
         id: 'cd_1',
         name: 'Clomid',
