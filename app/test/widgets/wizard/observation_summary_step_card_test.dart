@@ -164,7 +164,9 @@ void main() {
         },
       );
 
-      testWidgets('formats sensation with lubrication annotation when hasLubrication is true', (
+      testWidgets(
+          'formats sensation with lubrication annotation when hasLubrication is true',
+          (
         WidgetTester tester,
       ) async {
         await tester.pumpWidget(
