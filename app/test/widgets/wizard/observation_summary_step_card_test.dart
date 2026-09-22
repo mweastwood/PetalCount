@@ -112,6 +112,20 @@ void main() {
         );
         expect(find.text('Bleeding: Light, Brown'), findsOneWidget);
       });
+
+      testWidgets(
+        'renders bleeding color Black when bleedingColor matches Bleeding.black.code',
+        (WidgetTester tester) async {
+          await tester.pumpWidget(
+            buildTestWidget(
+              hasBleeding: true,
+              bleedingFlow: Bleeding.moderate,
+              bleedingColor: Bleeding.black.code,
+            ),
+          );
+          expect(find.text('Bleeding: Moderate, Black'), findsOneWidget);
+        },
+      );
     });
 
     group('Mucus & Sensation Section', () {
@@ -179,6 +193,13 @@ void main() {
         await tester.pumpWidget(buildTestWidget(frequency: Frequency.twice));
         expect(find.text('Frequency: Twice (x2)'), findsOneWidget);
       });
+
+      testWidgets('renders frequency label for Frequency.allDay', (
+        WidgetTester tester,
+      ) async {
+        await tester.pumpWidget(buildTestWidget(frequency: Frequency.allDay));
+        expect(find.text('Frequency: All Day (AD)'), findsOneWidget);
+      });
     });
 
     group('Pain Section', () {
@@ -217,6 +238,20 @@ void main() {
         );
         expect(find.text('Pain: Logged (4/10)'), findsOneWidget);
       });
+
+      testWidgets(
+        'truncates floating-point pain level double to integer representation',
+        (WidgetTester tester) async {
+          await tester.pumpWidget(
+            buildTestWidget(
+              hasPain: true,
+              formattedPainTypes: ['Cramps'],
+              painLevel: 7.8,
+            ),
+          );
+          expect(find.text('Pain: Cramps (7/10)'), findsOneWidget);
+        },
+      );
     });
 
     group('Intercourse Section', () {
