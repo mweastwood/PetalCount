@@ -86,6 +86,13 @@ void main() {
 
       expect(find.text('Wife Vitamin'), findsNothing);
       expect(find.text('Husband Zinc'), findsOneWidget);
+
+      // Tap 'All' segment filter to reset
+      await tester.tap(find.text('All (2)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Wife Vitamin'), findsOneWidget);
+      expect(find.text('Husband Zinc'), findsOneWidget);
     });
 
     testWidgets(
@@ -253,5 +260,59 @@ void main() {
         expect(find.text('Take daily with full meal'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'omits dosage badges and instructions when not configured',
+      (tester) async {
+        const minimalSupp = SupplementItem(
+          id: 'min_1',
+          name: 'Basic Folate',
+          quantity: '1 pill',
+          morningDose: 1,
+          afternoonDose: 0,
+          eveningDose: 0,
+          takeWithFood: false,
+          instructions: '',
+          targetRole: UserRole.wife,
+        );
+
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(body: FormularyTab(supplements: [minimalSupp])),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Basic Folate'), findsOneWidget);
+        expect(find.text('🌅 Morning (1)'), findsOneWidget);
+        expect(find.text('☀️ Afternoon (0)'), findsNothing);
+        expect(find.text('🌙 Evening (0)'), findsNothing);
+        expect(find.text('🍽️ Take with food'), findsNothing);
+      },
+    );
+
+    testWidgets('renders custom schedule rule descriptions', (
+      tester,
+    ) async {
+      const cycleDaysSupp = SupplementItem(
+        id: 'cd_1',
+        name: 'Clomid',
+        quantity: '50 mg',
+        ruleType: SupplementScheduleRuleType.cycleDays,
+        startCycleDay: 4,
+        endCycleDay: 8,
+        targetRole: UserRole.wife,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(body: FormularyTab(supplements: [cycleDaysSupp])),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Clomid'), findsOneWidget);
+      expect(find.text('Cycle Day 4 – Day 8'), findsOneWidget);
+    });
   });
 }
