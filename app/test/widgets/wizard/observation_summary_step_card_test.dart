@@ -165,15 +165,14 @@ void main() {
       );
 
       testWidgets(
-          'formats sensation with lubrication annotation when hasLubrication is true',
-          (
-        WidgetTester tester,
-      ) async {
-        await tester.pumpWidget(
-          buildTestWidget(sensation: Sensation.wet, hasLubrication: true),
-        );
-        expect(find.text('Sensation: Wet (Lubricative)'), findsOneWidget);
-      });
+        'formats sensation with lubrication annotation when hasLubrication is true',
+        (WidgetTester tester) async {
+          await tester.pumpWidget(
+            buildTestWidget(sensation: Sensation.wet, hasLubrication: true),
+          );
+          expect(find.text('Sensation: Wet (Lubricative)'), findsOneWidget);
+        },
+      );
 
       testWidgets(
         'renders non-lubricated sensation without annotation when hasLubrication is false',
