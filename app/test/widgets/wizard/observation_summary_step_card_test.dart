@@ -126,6 +126,20 @@ void main() {
           expect(find.text('Bleeding: Moderate, Black'), findsOneWidget);
         },
       );
+
+      testWidgets(
+        'renders bleeding flow label without color when bleedingColor is null',
+        (WidgetTester tester) async {
+          await tester.pumpWidget(
+            buildTestWidget(
+              hasBleeding: true,
+              bleedingFlow: Bleeding.moderate,
+              bleedingColor: null,
+            ),
+          );
+          expect(find.text('Bleeding: Moderate'), findsOneWidget);
+        },
+      );
     });
 
     group('Mucus & Sensation Section', () {
@@ -177,6 +191,26 @@ void main() {
           findsOneWidget,
         );
       });
+
+      testWidgets(
+        'renders sensation label without lubrication annotation when hasLubrication is false',
+        (WidgetTester tester) async {
+          await tester.pumpWidget(
+            buildTestWidget(sensation: Sensation.damp, hasLubrication: false),
+          );
+          expect(find.text('Sensation: Damp'), findsOneWidget);
+        },
+      );
+
+      testWidgets(
+        'defaults stretch label to Sticky when stretch is null and hasMucus is true',
+        (WidgetTester tester) async {
+          await tester.pumpWidget(
+            buildTestWidget(hasMucus: true, stretch: null),
+          );
+          expect(find.text('Mucus: Sticky, Cloudy'), findsOneWidget);
+        },
+      );
     });
 
     group('Frequency Section', () {
