@@ -40,8 +40,8 @@ void main() {
       await tester.tap(find.byTooltip('Edit Supplement').first);
       expect(editedItem, equals(supps.first));
 
-      await tester.tap(find.byTooltip('Delete Supplement').first);
-      expect(deletedItem, equals(supps.first));
+      await tester.tap(find.byTooltip('Delete Supplement').at(1));
+      expect(deletedItem, equals(supps[1]));
     });
 
     testWidgets('filters supplements by selected user role segment', (
@@ -307,16 +307,45 @@ void main() {
         endCycleDay: 8,
         targetRole: UserRole.wife,
       );
+      const peakOffsetSupp = SupplementItem(
+        id: 'po_1',
+        name: 'Progesterone',
+        quantity: '200 mg',
+        ruleType: SupplementScheduleRuleType.peakOffset,
+        startPeakOffset: 3,
+        durationDays: 10,
+        targetRole: UserRole.wife,
+      );
+      const cycleDaysOrPeakSupp = SupplementItem(
+        id: 'cdop_1',
+        name: 'Estrogen',
+        quantity: '2 mg',
+        ruleType: SupplementScheduleRuleType.cycleDaysOrPeak,
+        startCycleDay: 8,
+        endPeakOffset: 1,
+        endCycleDay: 19,
+        targetRole: UserRole.wife,
+      );
 
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(body: FormularyTab(supplements: [cycleDaysSupp])),
+          home: Scaffold(
+            body: FormularyTab(
+              supplements: [cycleDaysSupp, peakOffsetSupp, cycleDaysOrPeakSupp],
+            ),
+          ),
         ),
       );
       await tester.pumpAndSettle();
 
       expect(find.text('Clomid'), findsOneWidget);
       expect(find.text('Cycle Day 4 – Day 8'), findsOneWidget);
+
+      expect(find.text('Progesterone'), findsOneWidget);
+      expect(find.text('P+3 for 10 days'), findsOneWidget);
+
+      expect(find.text('Estrogen'), findsOneWidget);
+      expect(find.text('Day 8 to P+1 (or Day 19)'), findsOneWidget);
     });
   });
 }
