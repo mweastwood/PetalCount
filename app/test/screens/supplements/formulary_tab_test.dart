@@ -13,87 +13,89 @@ void main() {
   });
 
   group('FormularyTab Tests', () {
-    testWidgets('renders all supplement items with edit and delete callbacks', (
-      tester,
-    ) async {
-      final supps = await Services.db.streamSupplements().first;
-      SupplementItem? editedItem;
-      SupplementItem? deletedItem;
+    testWidgets(
+      'renders all supplement items with edit and delete callbacks',
+      (tester) async {
+        final supps = await Services.db.streamSupplements().first;
+        SupplementItem? editedItem;
+        SupplementItem? deletedItem;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: FormularyTab(
-              supplements: supps,
-              onEdit: (item) => editedItem = item,
-              onDelete: (item) => deletedItem = item,
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: FormularyTab(
+                supplements: supps,
+                onEdit: (item) => editedItem = item,
+                onDelete: (item) => deletedItem = item,
+              ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Prenatal'), findsOneWidget);
-      expect(find.text('CoQ10'), findsOneWidget);
-      expect(find.text('Vitamin D'), findsOneWidget);
+        expect(find.text('Prenatal'), findsOneWidget);
+        expect(find.text('CoQ10'), findsOneWidget);
+        expect(find.text('Vitamin D'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Edit Supplement').first);
-      expect(editedItem, equals(supps.first));
+        await tester.tap(find.byTooltip('Edit Supplement').first);
+        expect(editedItem, equals(supps.first));
 
-      await tester.tap(find.byTooltip('Delete Supplement').first);
-      expect(deletedItem, equals(supps.first));
-    });
+        await tester.tap(find.byTooltip('Delete Supplement').first);
+        expect(deletedItem, equals(supps.first));
+      },
+    );
 
-    testWidgets('filters supplements by selected user role segment', (
-      tester,
-    ) async {
-      const wifeSupp = SupplementItem(
-        id: 'w1',
-        name: 'Wife Vitamin',
-        quantity: '1 pill',
-        targetRole: UserRole.wife,
-      );
-      const husbandSupp = SupplementItem(
-        id: 'h1',
-        name: 'Husband Zinc',
-        quantity: '1 tablet',
-        targetRole: UserRole.husband,
-      );
+    testWidgets(
+      'filters supplements by selected user role segment',
+      (tester) async {
+        const wifeSupp = SupplementItem(
+          id: 'w1',
+          name: 'Wife Vitamin',
+          quantity: '1 pill',
+          targetRole: UserRole.wife,
+        );
+        const husbandSupp = SupplementItem(
+          id: 'h1',
+          name: 'Husband Zinc',
+          quantity: '1 tablet',
+          targetRole: UserRole.husband,
+        );
 
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: FormularyTab(supplements: [wifeSupp, husbandSupp]),
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: FormularyTab(supplements: [wifeSupp, husbandSupp]),
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // Initially 'All' is selected - both supplements are displayed
-      expect(find.text('Wife Vitamin'), findsOneWidget);
-      expect(find.text('Husband Zinc'), findsOneWidget);
+        // Initially 'All' is selected - both supplements are displayed
+        expect(find.text('Wife Vitamin'), findsOneWidget);
+        expect(find.text('Husband Zinc'), findsOneWidget);
 
-      // Tap 'Wife' segment filter
-      await tester.tap(find.text('👩 Wife (1)'));
-      await tester.pumpAndSettle();
+        // Tap 'Wife' segment filter
+        await tester.tap(find.text('👩 Wife (1)'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Wife Vitamin'), findsOneWidget);
-      expect(find.text('Husband Zinc'), findsNothing);
+        expect(find.text('Wife Vitamin'), findsOneWidget);
+        expect(find.text('Husband Zinc'), findsNothing);
 
-      // Tap 'Husband' segment filter
-      await tester.tap(find.text('👨 Husband (1)'));
-      await tester.pumpAndSettle();
+        // Tap 'Husband' segment filter
+        await tester.tap(find.text('👨 Husband (1)'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Wife Vitamin'), findsNothing);
-      expect(find.text('Husband Zinc'), findsOneWidget);
+        expect(find.text('Wife Vitamin'), findsNothing);
+        expect(find.text('Husband Zinc'), findsOneWidget);
 
-      // Tap 'All' segment filter to reset
-      await tester.tap(find.text('All (2)'));
-      await tester.pumpAndSettle();
+        // Tap 'All' segment filter to reset
+        await tester.tap(find.text('All (2)'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Wife Vitamin'), findsOneWidget);
-      expect(find.text('Husband Zinc'), findsOneWidget);
-    });
+        expect(find.text('Wife Vitamin'), findsOneWidget);
+        expect(find.text('Husband Zinc'), findsOneWidget);
+      },
+    );
 
     testWidgets(
       'renders initial role filter when initialRoleFilter is provided',
@@ -179,43 +181,44 @@ void main() {
       },
     );
 
-    testWidgets('displays accurate item counts in segment button labels', (
-      tester,
-    ) async {
-      const wifeSupp1 = SupplementItem(
-        id: 'w1',
-        name: 'Wife Supp 1',
-        quantity: '1',
-        targetRole: UserRole.wife,
-      );
-      const wifeSupp2 = SupplementItem(
-        id: 'w2',
-        name: 'Wife Supp 2',
-        quantity: '1',
-        targetRole: UserRole.wife,
-      );
-      const husbandSupp = SupplementItem(
-        id: 'h1',
-        name: 'Husband Supp 1',
-        quantity: '1',
-        targetRole: UserRole.husband,
-      );
+    testWidgets(
+      'displays accurate item counts in segment button labels',
+      (tester) async {
+        const wifeSupp1 = SupplementItem(
+          id: 'w1',
+          name: 'Wife Supp 1',
+          quantity: '1',
+          targetRole: UserRole.wife,
+        );
+        const wifeSupp2 = SupplementItem(
+          id: 'w2',
+          name: 'Wife Supp 2',
+          quantity: '1',
+          targetRole: UserRole.wife,
+        );
+        const husbandSupp = SupplementItem(
+          id: 'h1',
+          name: 'Husband Supp 1',
+          quantity: '1',
+          targetRole: UserRole.husband,
+        );
 
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: FormularyTab(
-              supplements: [wifeSupp1, wifeSupp2, husbandSupp],
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: FormularyTab(
+                supplements: [wifeSupp1, wifeSupp2, husbandSupp],
+              ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('All (3)'), findsOneWidget);
-      expect(find.text('👩 Wife (2)'), findsOneWidget);
-      expect(find.text('👨 Husband (1)'), findsOneWidget);
-    });
+        expect(find.text('All (3)'), findsOneWidget);
+        expect(find.text('👩 Wife (2)'), findsOneWidget);
+        expect(find.text('👨 Husband (1)'), findsOneWidget);
+      },
+    );
 
     testWidgets(
       'renders supplement details including dosage badges, role chips, and instructions',
@@ -291,26 +294,29 @@ void main() {
       },
     );
 
-    testWidgets('renders custom schedule rule descriptions', (tester) async {
-      const cycleDaysSupp = SupplementItem(
-        id: 'cd_1',
-        name: 'Clomid',
-        quantity: '50 mg',
-        ruleType: SupplementScheduleRuleType.cycleDays,
-        startCycleDay: 4,
-        endCycleDay: 8,
-        targetRole: UserRole.wife,
-      );
+    testWidgets(
+      'renders custom schedule rule descriptions',
+      (tester) async {
+        const cycleDaysSupp = SupplementItem(
+          id: 'cd_1',
+          name: 'Clomid',
+          quantity: '50 mg',
+          ruleType: SupplementScheduleRuleType.cycleDays,
+          startCycleDay: 4,
+          endCycleDay: 8,
+          targetRole: UserRole.wife,
+        );
 
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(body: FormularyTab(supplements: [cycleDaysSupp])),
-        ),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(body: FormularyTab(supplements: [cycleDaysSupp])),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Clomid'), findsOneWidget);
-      expect(find.text('Cycle Day 4 – Day 8'), findsOneWidget);
-    });
+        expect(find.text('Clomid'), findsOneWidget);
+        expect(find.text('Cycle Day 4 – Day 8'), findsOneWidget);
+      },
+    );
   });
 }
