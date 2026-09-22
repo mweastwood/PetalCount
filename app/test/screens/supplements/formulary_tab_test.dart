@@ -43,5 +43,215 @@ void main() {
       await tester.tap(find.byTooltip('Delete Supplement').first);
       expect(deletedItem, equals(supps.first));
     });
+
+    testWidgets('filters supplements by selected user role segment', (
+      tester,
+    ) async {
+      const wifeSupp = SupplementItem(
+        id: 'w1',
+        name: 'Wife Vitamin',
+        quantity: '1 pill',
+        targetRole: UserRole.wife,
+      );
+      const husbandSupp = SupplementItem(
+        id: 'h1',
+        name: 'Husband Zinc',
+        quantity: '1 tablet',
+        targetRole: UserRole.husband,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: FormularyTab(supplements: [wifeSupp, husbandSupp]),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Initially 'All' is selected - both supplements are displayed
+      expect(find.text('Wife Vitamin'), findsOneWidget);
+      expect(find.text('Husband Zinc'), findsOneWidget);
+
+      // Tap 'Wife' segment filter
+      await tester.tap(find.text('👩 Wife (1)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Wife Vitamin'), findsOneWidget);
+      expect(find.text('Husband Zinc'), findsNothing);
+
+      // Tap 'Husband' segment filter
+      await tester.tap(find.text('👨 Husband (1)'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Wife Vitamin'), findsNothing);
+      expect(find.text('Husband Zinc'), findsOneWidget);
+    });
+
+    testWidgets(
+      'renders initial role filter when initialRoleFilter is provided',
+      (tester) async {
+        const wifeSupp = SupplementItem(
+          id: 'w1',
+          name: 'Wife Folate',
+          quantity: '1 pill',
+          targetRole: UserRole.wife,
+        );
+        const husbandSupp = SupplementItem(
+          id: 'h1',
+          name: 'Husband Omega 3',
+          quantity: '1 capsule',
+          targetRole: UserRole.husband,
+        );
+
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: FormularyTab(
+                supplements: [wifeSupp, husbandSupp],
+                initialRoleFilter: UserRole.wife,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Wife Folate'), findsOneWidget);
+        expect(find.text('Husband Omega 3'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'renders empty state card when no supplements match the filter',
+      (tester) async {
+        const wifeSupp = SupplementItem(
+          id: 'w1',
+          name: 'Wife Prenatal',
+          quantity: '1 tablet',
+          targetRole: UserRole.wife,
+        );
+
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(body: FormularyTab(supplements: [wifeSupp])),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Filter by Husband role which has 0 supplements
+        await tester.tap(find.text('👨 Husband (0)'));
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.medication_outlined), findsOneWidget);
+        expect(
+          find.text('No supplements found for this filter.'),
+          findsOneWidget,
+        );
+        expect(find.text('Wife Prenatal'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'renders empty state card when input supplement list is empty',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(body: FormularyTab(supplements: [])),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byIcon(Icons.medication_outlined), findsOneWidget);
+        expect(
+          find.text('No supplements found for this filter.'),
+          findsOneWidget,
+        );
+        expect(find.text('All (0)'), findsOneWidget);
+        expect(find.text('👩 Wife (0)'), findsOneWidget);
+        expect(find.text('👨 Husband (0)'), findsOneWidget);
+      },
+    );
+
+    testWidgets('displays accurate item counts in segment button labels', (
+      tester,
+    ) async {
+      const wifeSupp1 = SupplementItem(
+        id: 'w1',
+        name: 'Wife Supp 1',
+        quantity: '1',
+        targetRole: UserRole.wife,
+      );
+      const wifeSupp2 = SupplementItem(
+        id: 'w2',
+        name: 'Wife Supp 2',
+        quantity: '1',
+        targetRole: UserRole.wife,
+      );
+      const husbandSupp = SupplementItem(
+        id: 'h1',
+        name: 'Husband Supp 1',
+        quantity: '1',
+        targetRole: UserRole.husband,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: FormularyTab(
+              supplements: [wifeSupp1, wifeSupp2, husbandSupp],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('All (3)'), findsOneWidget);
+      expect(find.text('👩 Wife (2)'), findsOneWidget);
+      expect(find.text('👨 Husband (1)'), findsOneWidget);
+    });
+
+    testWidgets(
+      'renders supplement details including dosage badges, role chips, and instructions',
+      (tester) async {
+        const detailedSupp = SupplementItem(
+          id: 'detailed_1',
+          name: 'Comprehensive Multivitamin',
+          quantity: '2 capsules',
+          takeWithFood: true,
+          morningDose: 1,
+          afternoonDose: 1,
+          eveningDose: 1,
+          instructions: 'Take daily with full meal',
+          targetRole: UserRole.husband,
+        );
+
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(body: FormularyTab(supplements: [detailedSupp])),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Item header info
+        expect(find.text('Comprehensive Multivitamin'), findsOneWidget);
+        expect(find.text('Quantity: 2 capsules'), findsOneWidget);
+        expect(
+          find.text('👨 Husband (1)'),
+          findsOneWidget,
+        ); // Segment button label
+        expect(find.text('👨 Husband'), findsOneWidget); // Card role chip
+
+        // Dose badges
+        expect(find.text('🌅 Morning (1)'), findsOneWidget);
+        expect(find.text('☀️ Afternoon (1)'), findsOneWidget);
+        expect(find.text('🌙 Evening (1)'), findsOneWidget);
+        expect(find.text('🍽️ Take with food'), findsOneWidget);
+
+        // Schedule and instructions
+        expect(find.text('Schedule: '), findsOneWidget);
+        expect(find.text('Daily (All Days)'), findsOneWidget);
+        expect(find.text('Take daily with full meal'), findsOneWidget);
+      },
+    );
   });
 }
