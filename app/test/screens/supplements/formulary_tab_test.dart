@@ -288,6 +288,13 @@ void main() {
       expect(find.text('☀️ Afternoon (0)'), findsNothing);
       expect(find.text('🌙 Evening (0)'), findsNothing);
       expect(find.text('🍽️ Take with food'), findsNothing);
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Text && widget.style?.fontStyle == FontStyle.italic,
+        ),
+        findsNothing,
+      );
     });
 
     testWidgets('renders custom schedule rule descriptions', (
