@@ -128,7 +128,7 @@ void main() {
       );
 
       testWidgets(
-        'renders bleeding flow label without color when bleedingColor is null',
+        'renders bleeding flow label without color suffix when bleedingColor is null',
         (WidgetTester tester) async {
           await tester.pumpWidget(
             buildTestWidget(
@@ -138,6 +138,16 @@ void main() {
             ),
           );
           expect(find.text('Bleeding: Moderate'), findsOneWidget);
+
+          // Verify default Light flow when bleedingFlow is also null
+          await tester.pumpWidget(
+            buildTestWidget(
+              hasBleeding: true,
+              bleedingFlow: null,
+              bleedingColor: null,
+            ),
+          );
+          expect(find.text('Bleeding: Light'), findsOneWidget);
         },
       );
     });
@@ -154,7 +164,7 @@ void main() {
         },
       );
 
-      testWidgets('formats sensation with lubrication annotation', (
+      testWidgets('formats sensation with lubrication annotation when hasLubrication is true', (
         WidgetTester tester,
       ) async {
         await tester.pumpWidget(
@@ -162,6 +172,21 @@ void main() {
         );
         expect(find.text('Sensation: Wet (Lubricative)'), findsOneWidget);
       });
+
+      testWidgets(
+        'renders non-lubricated sensation without annotation when hasLubrication is false',
+        (WidgetTester tester) async {
+          await tester.pumpWidget(
+            buildTestWidget(sensation: Sensation.damp, hasLubrication: false),
+          );
+          expect(find.text('Sensation: Damp'), findsOneWidget);
+
+          await tester.pumpWidget(
+            buildTestWidget(sensation: Sensation.wet, hasLubrication: false),
+          );
+          expect(find.text('Sensation: Wet'), findsOneWidget);
+        },
+      );
 
       testWidgets('formats mucus color logic (_formatMucusColor)', (
         WidgetTester tester,
@@ -193,22 +218,21 @@ void main() {
       });
 
       testWidgets(
-        'renders sensation label without lubrication annotation when hasLubrication is false',
-        (WidgetTester tester) async {
-          await tester.pumpWidget(
-            buildTestWidget(sensation: Sensation.damp, hasLubrication: false),
-          );
-          expect(find.text('Sensation: Damp'), findsOneWidget);
-        },
-      );
-
-      testWidgets(
-        'defaults stretch label to Sticky when stretch is null and hasMucus is true',
+        'defaults stretch label to Sticky fallback when stretch is null and hasMucus is true',
         (WidgetTester tester) async {
           await tester.pumpWidget(
             buildTestWidget(hasMucus: true, stretch: null),
           );
           expect(find.text('Mucus: Sticky, Cloudy'), findsOneWidget);
+
+          await tester.pumpWidget(
+            buildTestWidget(
+              hasMucus: true,
+              stretch: null,
+              selectedColors: [MucusColor.clear],
+            ),
+          );
+          expect(find.text('Mucus: Sticky, Clear'), findsOneWidget);
         },
       );
     });
