@@ -1055,7 +1055,7 @@ class InMemoryDatabaseService implements DatabaseService {
   @override
   Stream<List<SupplementItem>> streamSupplements() {
     late StreamController<List<SupplementItem>> c;
-    StreamSubscription? sub;
+    StreamSubscription<List<SupplementItem>>? sub;
     c = StreamController<List<SupplementItem>>.broadcast(
       onListen: () {
         final chartId = _chartId;
@@ -1064,13 +1064,26 @@ class InMemoryDatabaseService implements DatabaseService {
         } else {
           c.add(const []);
         }
-        sub = _supplementsController.stream.listen((data) => c.add(data));
+        sub = _supplementsController.stream.listen(
+          (data) {
+            if (!c.isClosed) c.add(data);
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            if (!c.isClosed) c.addError(error, stackTrace);
+          },
+        );
       },
       onCancel: () {
         sub?.cancel();
+        sub = null;
       },
     );
     return c.stream;
+  }
+
+  @visibleForTesting
+  void emitSupplementsError(Object error, [StackTrace? stackTrace]) {
+    _supplementsController.addError(error, stackTrace);
   }
 
   @override
@@ -1103,7 +1116,7 @@ class InMemoryDatabaseService implements DatabaseService {
   @override
   Stream<Map<String, DailySupplementLog>> streamDailySupplementLogs() {
     late StreamController<Map<String, DailySupplementLog>> c;
-    StreamSubscription? sub;
+    StreamSubscription<Map<String, DailySupplementLog>>? sub;
     c = StreamController<Map<String, DailySupplementLog>>.broadcast(
       onListen: () {
         final chartId = _chartId;
@@ -1112,13 +1125,26 @@ class InMemoryDatabaseService implements DatabaseService {
         } else {
           c.add(const {});
         }
-        sub = _supplementLogsController.stream.listen((data) => c.add(data));
+        sub = _supplementLogsController.stream.listen(
+          (data) {
+            if (!c.isClosed) c.add(data);
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            if (!c.isClosed) c.addError(error, stackTrace);
+          },
+        );
       },
       onCancel: () {
         sub?.cancel();
+        sub = null;
       },
     );
     return c.stream;
+  }
+
+  @visibleForTesting
+  void emitDailySupplementLogsError(Object error, [StackTrace? stackTrace]) {
+    _supplementLogsController.addError(error, stackTrace);
   }
 
   @override
