@@ -1053,14 +1053,24 @@ class InMemoryDatabaseService implements DatabaseService {
   }
 
   @override
-  Stream<List<SupplementItem>> streamSupplements() async* {
-    final chartId = _chartId;
-    if (chartId != null) {
-      yield (_supplements[chartId] ?? {}).values.toList();
-    } else {
-      yield [];
-    }
-    yield* _supplementsController.stream;
+  Stream<List<SupplementItem>> streamSupplements() {
+    late StreamController<List<SupplementItem>> c;
+    StreamSubscription? sub;
+    c = StreamController<List<SupplementItem>>.broadcast(
+      onListen: () {
+        final chartId = _chartId;
+        if (chartId != null) {
+          c.add((_supplements[chartId] ?? {}).values.toList());
+        } else {
+          c.add(const []);
+        }
+        sub = _supplementsController.stream.listen((data) => c.add(data));
+      },
+      onCancel: () {
+        sub?.cancel();
+      },
+    );
+    return c.stream;
   }
 
   @override
@@ -1091,14 +1101,24 @@ class InMemoryDatabaseService implements DatabaseService {
   }
 
   @override
-  Stream<Map<String, DailySupplementLog>> streamDailySupplementLogs() async* {
-    final chartId = _chartId;
-    if (chartId != null) {
-      yield _supplementLogs[chartId] ?? {};
-    } else {
-      yield {};
-    }
-    yield* _supplementLogsController.stream;
+  Stream<Map<String, DailySupplementLog>> streamDailySupplementLogs() {
+    late StreamController<Map<String, DailySupplementLog>> c;
+    StreamSubscription? sub;
+    c = StreamController<Map<String, DailySupplementLog>>.broadcast(
+      onListen: () {
+        final chartId = _chartId;
+        if (chartId != null) {
+          c.add(Map.unmodifiable(_supplementLogs[chartId] ?? {}));
+        } else {
+          c.add(const {});
+        }
+        sub = _supplementLogsController.stream.listen((data) => c.add(data));
+      },
+      onCancel: () {
+        sub?.cancel();
+      },
+    );
+    return c.stream;
   }
 
   @override
