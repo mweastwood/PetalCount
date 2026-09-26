@@ -252,11 +252,56 @@ export async function processDailyReminders(
     return { chartsChecked: 0, remindersSent: 0, tokensNotified: 0 };
   }
 
+  // Collect distinct primary user IDs needing timezone lookup
+  const usersNeedingTimezone = new Set<string>();
+  for (const chartDoc of chartsSnap.docs) {
+    const chart = chartDoc.data() as ChartData;
+    if (chart.reminderEnabled !== false && !chart.timezone) {
+      const primaryUserId =
+        chart.userIds && chart.userIds.length > 0
+          ? chart.userIds[0]
+          : undefined;
+      if (primaryUserId) {
+        usersNeedingTimezone.add(primaryUserId);
+      }
+    }
+  }
+
+  // Batch fetch users in chunks of 500
+  const timezoneCache = new Map<string, string>();
+  if (usersNeedingTimezone.size > 0) {
+    const uids = Array.from(usersNeedingTimezone);
+    const CHUNK_SIZE = 500;
+    for (let i = 0; i < uids.length; i += CHUNK_SIZE) {
+      const chunkUids = uids.slice(i, i + CHUNK_SIZE);
+      const userRefs = chunkUids.map((uid) => db.collection("users").doc(uid));
+      try {
+        const userDocs = await db.getAll(...userRefs);
+        for (const userDoc of userDocs) {
+          if (userDoc.exists) {
+            const userData = userDoc.data() as UserData;
+            if (
+              userData &&
+              typeof userData.timezone === "string" &&
+              userData.timezone.trim().length > 0
+            ) {
+              timezoneCache.set(userDoc.id, userData.timezone.trim());
+            }
+          }
+        }
+      } catch {
+        // Graceful fallback if batch fetch fails
+      }
+    }
+  }
+
   const eligibleCharts: Array<{
     chart: ChartData;
     chartId: string;
     dateKey: string;
   }> = [];
+
+  const backfillPromises: Promise<unknown>[] = [];
 
   for (const chartDoc of chartsSnap.docs) {
     const chart = chartDoc.data() as ChartData;
@@ -273,24 +318,14 @@ export async function processDailyReminders(
         chart.userIds && chart.userIds.length > 0
           ? chart.userIds[0]
           : undefined;
-      if (primaryUserId) {
-        try {
-          const userDoc = await db.collection("users").doc(primaryUserId).get();
-          if (userDoc.exists) {
-            const userData = userDoc.data() as UserData;
-            if (
-              userData &&
-              typeof userData.timezone === "string" &&
-              userData.timezone.trim().length > 0
-            ) {
-              timezone = userData.timezone.trim();
-              if (chartDoc.ref && typeof chartDoc.ref.set === "function") {
-                await chartDoc.ref.set({ timezone }, { merge: true });
-              }
-            }
-          }
-        } catch {
-          // Graceful fallback if user read or backfill write fails
+      if (primaryUserId && timezoneCache.has(primaryUserId)) {
+        timezone = timezoneCache.get(primaryUserId);
+        if (chartDoc.ref && typeof chartDoc.ref.set === "function") {
+          backfillPromises.push(
+            chartDoc.ref.set({ timezone }, { merge: true }).catch(() => {
+              // Graceful fallback if individual backfill write fails
+            })
+          );
         }
       }
     }
@@ -307,6 +342,10 @@ export async function processDailyReminders(
     }
 
     eligibleCharts.push({ chart, chartId, dateKey });
+  }
+
+  if (backfillPromises.length > 0) {
+    await Promise.allSettled(backfillPromises);
   }
 
   if (eligibleCharts.length === 0) {
