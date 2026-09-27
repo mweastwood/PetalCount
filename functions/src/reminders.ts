@@ -240,16 +240,22 @@ export async function processDailyReminders(
   const now = options.now ?? new Date();
   const targetHour = options.targetHour ?? 21; // 9:00 PM (21:00)
 
-  let chartsQuery: admin.firestore.Query = db.collection("charts");
+  let chartDocs: admin.firestore.DocumentSnapshot[];
   if (options.forceChartId) {
-    chartsQuery = db
+    const chartDoc = await db
       .collection("charts")
-      .where("id", "==", options.forceChartId);
-  }
-
-  const chartsSnap = await chartsQuery.get();
-  if (chartsSnap.empty) {
-    return { chartsChecked: 0, remindersSent: 0, tokensNotified: 0 };
+      .doc(options.forceChartId)
+      .get();
+    if (!chartDoc.exists) {
+      return { chartsChecked: 0, remindersSent: 0, tokensNotified: 0 };
+    }
+    chartDocs = [chartDoc];
+  } else {
+    const chartsSnap = await db.collection("charts").get();
+    if (chartsSnap.empty) {
+      return { chartsChecked: 0, remindersSent: 0, tokensNotified: 0 };
+    }
+    chartDocs = chartsSnap.docs;
   }
 
   const eligibleCharts: Array<{
@@ -258,9 +264,9 @@ export async function processDailyReminders(
     dateKey: string;
   }> = [];
 
-  for (const chartDoc of chartsSnap.docs) {
-    const chart = chartDoc.data() as ChartData;
-    const chartId = chart.id || chartDoc.id;
+  for (const chartDoc of chartDocs) {
+    const chart = (chartDoc.data() || {}) as ChartData;
+    const chartId = chartDoc.id || chart.id;
 
     // Skip charts that disabled reminders
     if (chart.reminderEnabled === false) {
