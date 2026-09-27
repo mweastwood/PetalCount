@@ -380,6 +380,165 @@ void main() {
       expect(cycles.first.dailyEntries.containsKey('2026-01-01'), isTrue);
       expect(cycles.first.dailyEntries.containsKey('2026-02-01'), isTrue);
     });
+
+    test(
+      'saveObservation before all existing cycles creates a new cycle starting on observation date (fixes #245)',
+      () async {
+        await db.createChart();
+
+        // Create an existing cycle starting on Sep 1
+        final sep1 = DateTime(2026, 9, 1);
+        await db.startNewCycle(sep1, ['6C']);
+
+        // Save an observation for Aug 25 (before the cycle start)
+        final aug25 = DateTime(2026, 8, 25);
+        await db.saveObservation(
+          date: aug25,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Backfilled observation before first cycle',
+        );
+
+        final cycles = await db.streamCycles().first;
+        expect(cycles.length, 2);
+        // Newest first — the new pre-cycle should start on Aug 25
+        final preCycle = cycles.firstWhere(
+          (c) => c.startDate == aug25,
+          orElse: () => throw TestFailure(
+            'Expected a cycle with startDate 2026-08-25',
+          ),
+        );
+        expect(preCycle.dailyEntries.containsKey('2026-08-25'), isTrue);
+        // Verify positive day index
+        expect(preCycle.dayNumberFor(aug25), equals(1));
+      },
+    );
+
+    test(
+      'pre-cycle observation inherits BIP codes from earliest existing cycle',
+      () async {
+        await db.createChart();
+
+        final sep1 = DateTime(2026, 9, 1);
+        await db.startNewCycle(sep1, ['6C', '8Y']);
+
+        final aug20 = DateTime(2026, 8, 20);
+        await db.saveObservation(
+          date: aug20,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Pre-cycle observation',
+        );
+
+        final cycles = await db.streamCycles().first;
+        final preCycle = cycles.firstWhere(
+          (c) => c.startDate == aug20,
+        );
+        expect(preCycle.bipCodes, equals(['6C', '8Y']));
+      },
+    );
+
+    test(
+      'pre-cycle heavy bleeding observation creates cycle with positive day index',
+      () async {
+        await db.createChart();
+
+        final sep1 = DateTime(2026, 9, 1);
+        await db.startNewCycle(sep1, ['6C']);
+
+        // Save heavy bleeding before first cycle (e.g., backfilling period)
+        final aug28 = DateTime(2026, 8, 28);
+        await db.saveObservation(
+          date: aug28,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.heavy,
+          bleedingColor: 'R',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Backfilled period bleeding',
+        );
+
+        final cycles = await db.streamCycles().first;
+        // A new cycle should be created starting on aug28
+        final preCycle = cycles.firstWhere(
+          (c) => c.startDate == aug28,
+          orElse: () => throw TestFailure(
+            'Expected a cycle with startDate 2026-08-28',
+          ),
+        );
+        expect(preCycle.dailyEntries.containsKey('2026-08-28'), isTrue);
+        expect(preCycle.dayNumberFor(aug28), equals(1));
+      },
+    );
+
+    test(
+      'multiple pre-cycle observations end up in the same newly created cycle',
+      () async {
+        await db.createChart();
+
+        final oct1 = DateTime(2026, 10, 1);
+        await db.startNewCycle(oct1, ['6C']);
+
+        // Save two observations before the Oct 1 cycle
+        final sep27 = DateTime(2026, 9, 27);
+        final sep28 = DateTime(2026, 9, 28);
+
+        await db.saveObservation(
+          date: sep27,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'First pre-cycle obs',
+        );
+
+        await db.saveObservation(
+          date: sep28,
+          sensation: Sensation.damp,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Second pre-cycle obs',
+        );
+
+        final cycles = await db.streamCycles().first;
+        // The first pre-cycle observation created a cycle starting Sep 27.
+        // The second observation (Sep 28) should land in that same cycle
+        // since Sep 27 <= Sep 28.
+        final preCycle = cycles.firstWhere(
+          (c) => c.startDate == sep27,
+          orElse: () => throw TestFailure(
+            'Expected a cycle with startDate 2026-09-27',
+          ),
+        );
+        expect(preCycle.dailyEntries.containsKey('2026-09-27'), isTrue);
+        expect(preCycle.dailyEntries.containsKey('2026-09-28'), isTrue);
+        expect(preCycle.dayNumberFor(sep28), equals(2));
+      },
+    );
   });
 
   group('Observation Persistence & Sorting', () {
