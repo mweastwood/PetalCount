@@ -119,5 +119,140 @@ void main() {
       expect(savedItem!.name, equals('Omega-3 Fish Oil'));
       expect(savedItem!.quantity, equals('1000 mg'));
     });
+
+    testWidgets('dialog stays open and shows error SnackBar on save failure', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () =>
+                    AddEditSupplementDialog.show(context, null, (item) async {
+                      throw Exception('Firestore write denied');
+                    }),
+                child: const Text('Open Dialog'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open Dialog'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Supplement Name *'),
+        'Vitamin D3',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Dosage / Quantity *'),
+        '5000 IU',
+      );
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      // Dialog should remain open (not popped)
+      expect(find.text('Add Supplement'), findsWidgets);
+      expect(find.text('Vitamin D3'), findsOneWidget);
+      expect(find.text('5000 IU'), findsOneWidget);
+
+      // Error SnackBar should be visible
+      expect(
+        find.text('Failed to save supplement: Exception: Firestore write denied'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('dialog closes only after successful save', (tester) async {
+      SupplementItem? savedItem;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () =>
+                    AddEditSupplementDialog.show(context, null, (item) async {
+                      savedItem = item;
+                    }),
+                child: const Text('Open Dialog'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open Dialog'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Supplement Name *'),
+        'Zinc',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Dosage / Quantity *'),
+        '30 mg',
+      );
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+
+      // Dialog should be dismissed after successful save
+      expect(find.text('Add Supplement'), findsNothing);
+      expect(savedItem, isNotNull);
+      expect(savedItem!.name, equals('Zinc'));
+    });
+
+    testWidgets('save button is disabled while saving is in progress', (
+      tester,
+    ) async {
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => ElevatedButton(
+                onPressed: () =>
+                    AddEditSupplementDialog.show(context, null, (item) async {
+                      // Hold the save in progress with a long delay
+                      await Future.delayed(const Duration(seconds: 5));
+                    }),
+                child: const Text('Open Dialog'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open Dialog'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Supplement Name *'),
+        'Folate',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Dosage / Quantity *'),
+        '800 mcg',
+      );
+
+      await tester.tap(find.text('Save'));
+      // Pump a single frame to process the setState for _isSaving = true
+      await tester.pump();
+
+      // Save button should show a CircularProgressIndicator instead of text
+      expect(find.text('Save'), findsNothing);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      // The FilledButton should be disabled (onPressed == null)
+      final filledButton = tester.widget<FilledButton>(
+        find.byType(FilledButton),
+      );
+      expect(filledButton.onPressed, isNull);
+    });
   });
 }
