@@ -256,6 +256,13 @@ void main() {
         ),
         findsNothing,
       );
+      expect(
+        find.descendant(
+          of: find.byType(Row).first,
+          matching: find.byType(Text),
+        ),
+        findsOneWidget,
+      );
       expect(find.byType(TimelineSummaryChip), findsNothing);
     });
 
@@ -355,5 +362,103 @@ void main() {
 
       expect(find.byIcon(Icons.notes), findsNothing);
     });
+
+    testWidgets(
+      'renders mucus chip without sensation prefix when sensation is dry but mucus is present',
+      (WidgetTester tester) async {
+        final obs = Observation(
+          id: 'obs-dry-mucus',
+          userId: 'user-1',
+          timestamp: DateTime(2026, 8, 3, 16, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [MucusColor.cloudy],
+          consistencies: [Consistency.pasty],
+          bleeding: Bleeding.none,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationDetailsCard(
+                observation: obs,
+                index: 0,
+                totalCount: 1,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.byType(TimelineSummaryChip), findsOneWidget);
+        expect(find.byIcon(Icons.invert_colors), findsOneWidget);
+        expect(find.text('Cloudy • Pasty'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'renders mucus chip with sensation label alone when sensation is damp and no mucus characteristics present',
+      (WidgetTester tester) async {
+        final obs = Observation(
+          id: 'obs-damp-only',
+          userId: 'user-1',
+          timestamp: DateTime(2026, 8, 3, 17, 0),
+          sensation: Sensation.damp,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationDetailsCard(
+                observation: obs,
+                index: 0,
+                totalCount: 1,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.byType(TimelineSummaryChip), findsOneWidget);
+        expect(find.byIcon(Icons.invert_colors), findsOneWidget);
+        expect(find.text('Damp'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'renders pain chip formatting multiple pain types joined by comma',
+      (WidgetTester tester) async {
+        final obs = Observation(
+          id: 'obs-pain-multiple',
+          userId: 'user-1',
+          timestamp: DateTime(2026, 8, 3, 19, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          painLevel: 6,
+          painTypes: ['Cramping', 'Backache'],
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationDetailsCard(
+                observation: obs,
+                index: 0,
+                totalCount: 1,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.byType(TimelineSummaryChip), findsOneWidget);
+        expect(find.byIcon(Icons.bolt), findsOneWidget);
+        expect(find.text('Pain: 6/10 (Cramping, Backache)'), findsOneWidget);
+      },
+    );
   });
 }
