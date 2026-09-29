@@ -258,5 +258,102 @@ void main() {
       );
       expect(find.byType(TimelineSummaryChip), findsNothing);
     });
+
+    testWidgets(
+      'renders pain chip without parenthesis when painLevel > 0 and painTypes is empty',
+      (WidgetTester tester) async {
+        final obs = Observation(
+          id: 'obs-pain-notypes',
+          userId: 'user-1',
+          timestamp: DateTime(2026, 8, 3, 11, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          painLevel: 5,
+          painTypes: [],
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationDetailsCard(
+                observation: obs,
+                index: 0,
+                totalCount: 1,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.byType(TimelineSummaryChip), findsOneWidget);
+        expect(find.byIcon(Icons.bolt), findsOneWidget);
+        expect(find.text('Pain: 5/10'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'renders bleeding chip without color suffix when bleedingColor is empty',
+      (WidgetTester tester) async {
+        final obs = Observation(
+          id: 'obs-bleeding-nocolor',
+          userId: 'user-1',
+          timestamp: DateTime(2026, 8, 3, 8, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.light,
+          bleedingColor: '',
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationDetailsCard(
+                observation: obs,
+                index: 0,
+                totalCount: 1,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.byType(TimelineSummaryChip), findsOneWidget);
+        expect(find.byIcon(Icons.water_drop), findsOneWidget);
+        expect(find.text('Light'), findsOneWidget);
+      },
+    );
+
+    testWidgets('omits comment note container when comment is empty', (
+      WidgetTester tester,
+    ) async {
+      final obs = Observation(
+        id: 'obs-no-comment',
+        userId: 'user-1',
+        timestamp: DateTime(2026, 8, 3, 15, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        comment: '',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ObservationDetailsCard(
+              observation: obs,
+              index: 0,
+              totalCount: 1,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.notes), findsNothing);
+    });
   });
 }
