@@ -54,6 +54,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
 
   String? _nameError;
   String? _quantityError;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -142,11 +143,27 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
       targetRole: _targetRole,
     );
 
-    Navigator.pop(context, item);
-    if (widget.onSave != null) {
-      await widget.onSave!(item);
-    } else {
-      await Services.db.saveSupplement(item);
+    setState(() => _isSaving = true);
+
+    try {
+      if (widget.onSave != null) {
+        await widget.onSave!(item);
+      } else {
+        await Services.db.saveSupplement(item);
+      }
+      if (mounted) {
+        Navigator.pop(context, item);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save supplement: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
   }
 
@@ -385,10 +402,22 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: _isSaving ? null : () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        FilledButton(onPressed: _handleSave, child: const Text('Save')),
+        FilledButton(
+          onPressed: _isSaving ? null : _handleSave,
+          child: _isSaving
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Save'),
+        ),
       ],
     );
   }
