@@ -111,13 +111,13 @@ void main() {
         ],
       );
 
-      // Day 3: Dry (Green stamp)
+      // Day 3: Dry (Green stamp) with Intercourse
       final day3Date = cycleStart.addCalendarDays(2);
       entries[day3Date.dateKey] = DailyEntry(
         date: day3Date,
         stampType: StampType.green,
         peakDayLabel: null,
-        resolvedVdrsCode: '2',
+        resolvedVdrsCode: '2 x1 I',
         painLevel: 0,
         painTypes: [],
         comments: '',
@@ -125,7 +125,7 @@ void main() {
           Observation(
             id: '3',
             timestamp: day3Date,
-            sensation: Sensation.dry,
+            sensation: Sensation.damp,
             stretch: Stretch.none,
             colors: [],
             consistencies: [],
@@ -136,13 +136,13 @@ void main() {
         ],
       );
 
-      // Day 4: Mucus / Fertile (White Baby stamp)
+      // Day 4: Mucus / Fertile (White Baby stamp) - Twice (x2)
       final day4Date = cycleStart.addCalendarDays(3);
       entries[day4Date.dateKey] = DailyEntry(
         date: day4Date,
         stampType: StampType.whiteBaby,
         peakDayLabel: null,
-        resolvedVdrsCode: '10WLK',
+        resolvedVdrsCode: '10WLK x2',
         painLevel: 0,
         painTypes: [],
         comments: 'Clear stretchy',
@@ -158,16 +158,26 @@ void main() {
             comment: 'Clear stretchy',
             userId: 'test',
           ),
+          Observation(
+            id: '4b',
+            timestamp: day4Date.add(const Duration(hours: 4)),
+            sensation: Sensation.wet,
+            stretch: Stretch.stretchy,
+            colors: [MucusColor.clear],
+            consistencies: [Consistency.lubricative],
+            bleeding: Bleeding.none,
+            userId: 'test',
+          ),
         ],
       );
 
-      // Day 5: Peak Day (P)
+      // Day 5: Peak Day (P) - Once (x1)
       final day5Date = cycleStart.addCalendarDays(4);
       entries[day5Date.dateKey] = DailyEntry(
         date: day5Date,
         stampType: StampType.whiteBaby,
         peakDayLabel: 'P',
-        resolvedVdrsCode: '10KL',
+        resolvedVdrsCode: '10KL x1',
         painLevel: 1,
         painTypes: ['Ovulation'],
         comments: 'Peak day',
@@ -188,13 +198,13 @@ void main() {
         ],
       );
 
-      // Day 6: Post-Peak Day 1 (Green baby stamp)
+      // Day 6: Post-Peak Day 1 (Green baby stamp) - Once (x1)
       final day6Date = cycleStart.addCalendarDays(5);
       entries[day6Date.dateKey] = DailyEntry(
         date: day6Date,
         stampType: StampType.greenBaby,
         peakDayLabel: '1',
-        resolvedVdrsCode: '2',
+        resolvedVdrsCode: '2 x1',
         painLevel: 0,
         painTypes: [],
         comments: '',
@@ -202,7 +212,7 @@ void main() {
           Observation(
             id: '6',
             timestamp: day6Date,
-            sensation: Sensation.dry,
+            sensation: Sensation.damp,
             stretch: Stretch.none,
             colors: [],
             consistencies: [],
@@ -249,7 +259,7 @@ void main() {
               ? StampType.red
               : (i % 2 == 0 ? StampType.green : StampType.whiteBaby),
           peakDayLabel: i == 14 ? 'P' : (i == 15 ? '1' : null),
-          resolvedVdrsCode: i < 5 ? 'H' : (i % 2 == 0 ? '0' : '8C'),
+          resolvedVdrsCode: i < 5 ? 'H' : (i % 2 == 0 ? '0 x1' : '8C x1'),
           painLevel: 0,
           painTypes: [],
           comments: i == 41 ? 'Cycle conclusion note' : '',
@@ -308,31 +318,31 @@ void main() {
           }
         } else if (dayNum <= 9) {
           stamp = StampType.green;
-          vdrs = '2';
+          vdrs = '2 x1';
         } else if (dayNum <= 13) {
           stamp = StampType.whiteBaby;
-          vdrs = '10WLK';
+          vdrs = '10WLK x1';
         } else if (dayNum == 14) {
           stamp = StampType.whiteBaby;
           peak = 'P';
-          vdrs = '10KL';
+          vdrs = '10KL x1';
           pain = 1;
           painTypes = ['Ovulation'];
         } else if (dayNum == 15) {
           stamp = StampType.greenBaby;
           peak = '1';
-          vdrs = '2';
+          vdrs = '2 x1';
         } else if (dayNum == 16) {
           stamp = StampType.greenBaby;
           peak = '2';
-          vdrs = '2';
+          vdrs = '2 x1';
         } else if (dayNum == 17) {
           stamp = StampType.greenBaby;
           peak = '3';
-          vdrs = '2';
+          vdrs = '2 x1';
         } else {
           stamp = StampType.green;
-          vdrs = '2';
+          vdrs = '2 x1';
         }
 
         entries1[date.dateKey] = DailyEntry(
@@ -373,29 +383,29 @@ void main() {
           }
         } else if (dayNum <= 7) {
           stamp = StampType.green;
-          vdrs = '2';
+          vdrs = '2 x1';
         } else if (dayNum <= 10) {
           stamp = StampType.whiteBaby;
-          vdrs = '10WLK';
+          vdrs = '10WLK x1';
         } else if (dayNum == 11) {
           stamp = StampType.whiteBaby;
           peak = 'P';
-          vdrs = '10KL';
+          vdrs = '10KL x1';
         } else if (dayNum == 12) {
           stamp = StampType.greenBaby;
           peak = '1';
-          vdrs = '2';
+          vdrs = '2 x1';
         } else if (dayNum == 13) {
           stamp = StampType.greenBaby;
           peak = '2';
-          vdrs = '2';
+          vdrs = '2 x1';
         } else if (dayNum == 14) {
           stamp = StampType.greenBaby;
           peak = '3';
-          vdrs = '2';
+          vdrs = '2 x1';
         } else {
           stamp = StampType.green;
-          vdrs = '2';
+          vdrs = '2 x1';
         }
 
         entries2[date.dateKey] = DailyEntry(

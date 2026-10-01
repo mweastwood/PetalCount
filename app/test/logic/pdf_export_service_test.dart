@@ -333,6 +333,169 @@ void main() {
         expect(pdfText, contains('Creighton'));
       },
     );
+
+    test('formatObservationCode handles various counts and codes properly', () {
+      final date = DateTime(2026, 6, 1);
+
+      // null entry
+      expect(PdfExportService.formatObservationCode(null), '?');
+
+      // Empty code
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: '',
+            stampType: StampType.green,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        '',
+      );
+
+      // Menstrual flow without frequency
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: 'H',
+            stampType: StampType.red,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        'H',
+      );
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: 'L',
+            stampType: StampType.red,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        'L',
+      );
+
+      // Already has frequency
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: '10K x2 I',
+            stampType: StampType.whiteBaby,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        '10K x2 I',
+      );
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: '0 AD',
+            stampType: StampType.green,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        '0 AD',
+      );
+
+      // Single observation without frequency gets x1
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: '10WLK',
+            stampType: StampType.whiteBaby,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        '10WLK x1',
+      );
+
+      // Single observation with intercourse
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: '2 I',
+            stampType: StampType.green,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        '2 x1 I',
+      );
+
+      // Count matching observations from entry.observations
+      final obsA = Observation(
+        id: '1',
+        timestamp: date,
+        sensation: Sensation.damp,
+        stretch: Stretch.stretchy,
+        colors: const [MucusColor.clear],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'u',
+      );
+      final obsB = Observation(
+        id: '2',
+        timestamp: date,
+        sensation: Sensation.damp,
+        stretch: Stretch.stretchy,
+        colors: const [MucusColor.clear],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'u',
+      );
+      final obsDry = Observation(
+        id: '3',
+        timestamp: date,
+        sensation: Sensation.damp,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'u',
+      );
+
+      // 2 matching mucus observations -> 10K x2
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: '10K',
+            stampType: StampType.whiteBaby,
+            observations: [obsDry, obsA, obsB],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        '10K x2',
+      );
+    });
   });
 }
 

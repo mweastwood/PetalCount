@@ -309,9 +309,9 @@ class PdfExportService {
 
           pw.SizedBox(height: 3),
 
-          // 4. Resolved VDRS Code in serif font (size 12)
+          // 4. Resolved VDRS Code in serif font (size 12) with frequency count
           pw.Text(
-            entry != null ? entry.resolvedVdrsCode : '?',
+            entry != null ? formatObservationCode(entry) : '?',
             style: pw.TextStyle(
               font: pw.Font.timesBold(),
               fontSize: 12,
@@ -346,6 +346,53 @@ class PdfExportService {
         ],
       ),
     );
+  }
+
+  // Formats the observation code ensuring that frequency count (e.g., x1, x2, x3, AD) is effectively included
+  static String formatObservationCode(DailyEntry? entry) {
+    if (entry == null) return '?';
+    final code = entry.resolvedVdrsCode.trim();
+    if (code.isEmpty || code == '?') return code;
+
+    // If code already contains a frequency code (x1, x2, x3, AD, etc.), return as is
+    final hasFrequency = RegExp(r'\b(x\d+|AD)\b').hasMatch(code);
+    if (hasFrequency) return code;
+
+    // Check if it's pure menstrual flow (H, M, L without mucus or sensation)
+    if (RegExp(r'^[HML](-[A-Z]+)?(\s+I)?$').hasMatch(code)) {
+      return code;
+    }
+
+    // Determine count from matching observations if available
+    int count = 1;
+    if (entry.observations.isNotEmpty) {
+      final codeParts = code.split(' ').where((p) => p != 'I').toList();
+      final baseCode = codeParts.isNotEmpty ? codeParts.last : code;
+
+      final matching = entry.observations.where((obs) {
+        if (obs.hasMucus) {
+          return obs.mucusPart() == baseCode;
+        }
+        return obs.sensation.code == baseCode || obs.mucusPart() == baseCode;
+      }).length;
+
+      if (matching > 0) {
+        count = matching;
+      }
+    }
+
+    final freqStr = count == 1
+        ? 'x1'
+        : (count == 2 ? 'x2' : (count == 3 ? 'x3' : 'AD'));
+
+    if (code.endsWith(' I')) {
+      final withoutI = code.substring(0, code.length - 2);
+      return '$withoutI $freqStr I';
+    } else if (code == 'I') {
+      return '$freqStr I';
+    } else {
+      return '$code $freqStr';
+    }
   }
 
   // Draw a simple vector stick baby outline to represent the baby symbol
