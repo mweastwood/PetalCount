@@ -9,9 +9,22 @@ import '../helpers/pdf_rasterizer.dart';
 
 void main() {
   final testDate = DateTime(2026, 6, 1);
+  // Note: package:golden_toolkit's testGoldens strongly types `skip` as `bool?`
+  // (unlike flutter_test's testWidgets which accepts dynamic/String?).
+  // Rasterization requires external CLI tools (Ghostscript `gs` or Poppler `pdftoppm`).
   final bool canRasterize = PdfRasterizer.isSupported;
 
   Future<void> pumpPageImage(WidgetTester tester, Uint8List pageBytes) async {
+    if (tester.view.physicalSize != const Size(1100, 850) ||
+        tester.view.devicePixelRatio != 1.0) {
+      tester.view.physicalSize = const Size(1100, 850);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+    }
+
     final imageWidget = Image.memory(pageBytes, gaplessPlayback: true);
 
     await tester.pumpWidget(
@@ -25,7 +38,7 @@ void main() {
     );
 
     await tester.runAsync(() async {
-      final imageElement = find.byType(Image).evaluate().first;
+      final imageElement = tester.element(find.byType(Image));
       await precacheImage(MemoryImage(pageBytes), imageElement);
     });
     await tester.pumpAndSettle();
@@ -33,20 +46,13 @@ void main() {
 
   group('PDF Export Golden Tests', () {
     testGoldens('Empty cycles PDF matches golden', (tester) async {
-      tester.view.physicalSize = const Size(1100, 850);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-
       final pdfBytes = await PdfExportService.generatePdfBytes(
         [],
         generatedAt: testDate,
       );
 
       final pages = PdfRasterizer.rasterizeSync(pdfBytes, dpi: 100);
-      expect(pages, isNotEmpty);
+      expect(pages.length, equals(1));
 
       await pumpPageImage(tester, pages.first);
       await screenMatchesGolden(tester, 'pdf_empty_cycles');
@@ -55,13 +61,6 @@ void main() {
     testGoldens('Single cycle with stamps and notes PDF matches golden', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(1100, 850);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-
       final cycleStart = DateTime(2026, 6, 1);
       final entries = <String, DailyEntry>{};
 
@@ -234,20 +233,13 @@ void main() {
       ], generatedAt: testDate);
 
       final pages = PdfRasterizer.rasterizeSync(pdfBytes, dpi: 100);
-      expect(pages, isNotEmpty);
+      expect(pages.length, equals(1));
 
       await pumpPageImage(tester, pages.first);
       await screenMatchesGolden(tester, 'pdf_single_cycle');
     }, skip: !canRasterize);
 
     testGoldens('Extended multi-row cycle PDF matches golden', (tester) async {
-      tester.view.physicalSize = const Size(1100, 850);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-
       final cycleStart = DateTime(2026, 6, 1);
       final entries = <String, DailyEntry>{};
 
@@ -279,7 +271,7 @@ void main() {
       ], generatedAt: testDate);
 
       final pages = PdfRasterizer.rasterizeSync(pdfBytes, dpi: 100);
-      expect(pages, isNotEmpty);
+      expect(pages.length, equals(1));
 
       await pumpPageImage(tester, pages.first);
       await screenMatchesGolden(tester, 'pdf_extended_cycle');
@@ -288,13 +280,6 @@ void main() {
     testGoldens('Multiple cycles PDF matches golden (one cycle per page)', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(1100, 850);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
-
       // Cycle 1: June 1, 2026 (28-day cycle)
       final cycle1Start = DateTime(2026, 6, 1);
       final entries1 = <String, DailyEntry>{};
