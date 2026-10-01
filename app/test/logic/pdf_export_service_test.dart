@@ -30,19 +30,16 @@ void main() {
       },
     );
 
-    test(
-      'generatePdfBytes formats custom generatedAt in PDF header',
-      () async {
-        final customDate = DateTime(2025, 12, 25);
-        final bytes = await PdfExportService.generatePdfBytes(
-          [],
-          generatedAt: customDate,
-        );
-        final pdfText = _extractPdfText(bytes);
-        expect(pdfText, contains('Generated'));
-        expect(pdfText, contains('2025-12-25'));
-      },
-    );
+    test('generatePdfBytes formats custom generatedAt in PDF header', () async {
+      final customDate = DateTime(2025, 12, 25);
+      final bytes = await PdfExportService.generatePdfBytes(
+        [],
+        generatedAt: customDate,
+      );
+      final pdfText = _extractPdfText(bytes);
+      expect(pdfText, contains('Generated'));
+      expect(pdfText, contains('2025-12-25'));
+    });
 
     test(
       'generatePdfBytes produces valid PDF bytes for single cycle',
