@@ -9,10 +9,14 @@ import '../helpers/pdf_rasterizer.dart';
 
 void main() {
   final testDate = DateTime(2026, 6, 1);
+  // Note: package:golden_toolkit's testGoldens strongly types `skip` as `bool?`
+  // (unlike flutter_test's testWidgets which accepts dynamic/String?).
+  // Rasterization requires external CLI tools (Ghostscript `gs` or Poppler `pdftoppm`).
   final bool canRasterize = PdfRasterizer.isSupported;
 
   Future<void> pumpPageImage(WidgetTester tester, Uint8List pageBytes) async {
-    if (tester.view.physicalSize != const Size(1100, 850)) {
+    if (tester.view.physicalSize != const Size(1100, 850) ||
+        tester.view.devicePixelRatio != 1.0) {
       tester.view.physicalSize = const Size(1100, 850);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {

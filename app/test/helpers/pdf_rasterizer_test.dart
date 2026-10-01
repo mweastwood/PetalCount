@@ -50,16 +50,19 @@ void main() {
         expect(PdfRasterizer.extractPageNumber('page_042.png'), equals(42));
       });
 
-      test('extracts trailing page number when directory or prefix contains digits', () {
-        expect(
-          PdfRasterizer.extractPageNumber('cycle_2026_page_003.png'),
-          equals(3),
-        );
-        expect(
-          PdfRasterizer.extractPageNumber('/tmp/run123/doc_5_page_17.png'),
-          equals(17),
-        );
-      });
+      test(
+        'extracts trailing page number when directory or prefix contains digits',
+        () {
+          expect(
+            PdfRasterizer.extractPageNumber('cycle_2026_page_003.png'),
+            equals(3),
+          );
+          expect(
+            PdfRasterizer.extractPageNumber('/tmp/run123/doc_5_page_17.png'),
+            equals(17),
+          );
+        },
+      );
 
       test('returns null when filename has no trailing digits', () {
         expect(PdfRasterizer.extractPageNumber('page.png'), isNull);
