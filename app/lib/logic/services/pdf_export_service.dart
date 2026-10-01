@@ -12,8 +12,12 @@ import '../utils/date_utils.dart';
 import 'web_download_helper.dart';
 
 class PdfExportService {
-  static Future<Uint8List> generatePdfBytes(List<Cycle> cycles) async {
+  static Future<Uint8List> generatePdfBytes(
+    List<Cycle> cycles, {
+    DateTime? generatedAt,
+  }) async {
     final pdf = pw.Document();
+    final effectiveGeneratedAt = generatedAt ?? DateTime.now();
 
     pdf.addPage(
       pw.MultiPage(
@@ -34,7 +38,7 @@ class PdfExportService {
                   ),
                 ),
                 pw.Text(
-                  'Generated on: ${DateTime.now().dateKey}',
+                  'Generated on: ${effectiveGeneratedAt.dateKey}',
                   style: const pw.TextStyle(
                     fontSize: 10,
                     color: PdfColors.grey700,
@@ -61,8 +65,11 @@ class PdfExportService {
     return pdf.save();
   }
 
-  static Future<void> exportCyclesToPdf(List<Cycle> cycles) async {
-    final bytes = await generatePdfBytes(cycles);
+  static Future<void> exportCyclesToPdf(
+    List<Cycle> cycles, {
+    DateTime? generatedAt,
+  }) async {
+    final bytes = await generatePdfBytes(cycles, generatedAt: generatedAt);
 
     // Save and Share the file
     try {
