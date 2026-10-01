@@ -3,6 +3,13 @@ import 'dart:typed_data';
 
 /// Utility to rasterize PDF documents to PNG images for golden/visual testing.
 class PdfRasterizer {
+  static const List<String> _gsCommands = ['gs', 'gswin64c', 'gswin32c'];
+
+  /// Indicates whether a supported PDF rasterization utility is installed.
+  static bool get isSupported =>
+      _findExecutable(_gsCommands) != null ||
+      _findExecutable(['pdftoppm']) != null;
+
   /// Converts a PDF [Uint8List] synchronously into a list of PNG image byte arrays (one per page).
   ///
   /// Uses system utilities `gs` (Ghostscript) or `pdftoppm` (Poppler).
@@ -13,18 +20,18 @@ class PdfRasterizer {
       final pdfFile = File('${tempDir.path}/input.pdf');
       pdfFile.writeAsBytesSync(pdfBytes);
 
-      final hasGs = _hasExecutable('gs');
-      final hasPdftoppm = !hasGs && _hasExecutable('pdftoppm');
+      final gsCmd = _findExecutable(_gsCommands);
+      final pdftoppmCmd = gsCmd == null ? _findExecutable(['pdftoppm']) : null;
 
-      if (!hasGs && !hasPdftoppm) {
+      if (gsCmd == null && pdftoppmCmd == null) {
         throw UnsupportedError(
-          'PDF rasterization requires Ghostscript (gs) or Poppler (pdftoppm) installed on the system.',
+          'PDF rasterization requires Ghostscript (gs/gswin64c) or Poppler (pdftoppm) installed on the system.',
         );
       }
 
       ProcessResult result;
-      if (hasGs) {
-        result = Process.runSync('gs', [
+      if (gsCmd != null) {
+        result = Process.runSync(gsCmd, [
           '-sDEVICE=png16m',
           '-r$dpi',
           '-dNOPAUSE',
@@ -34,7 +41,7 @@ class PdfRasterizer {
           pdfFile.path,
         ]);
       } else {
-        result = Process.runSync('pdftoppm', [
+        result = Process.runSync(pdftoppmCmd!, [
           '-png',
           '-r',
           '$dpi',
@@ -55,7 +62,20 @@ class PdfRasterizer {
               .whereType<File>()
               .where((f) => f.path.endsWith('.png'))
               .toList()
-            ..sort((a, b) => a.path.compareTo(b.path));
+            ..sort((a, b) {
+              final aName = a.uri.pathSegments.last;
+              final bName = b.uri.pathSegments.last;
+              final aNum = int.tryParse(
+                RegExp(r'\d+').firstMatch(aName)?.group(0) ?? '',
+              );
+              final bNum = int.tryParse(
+                RegExp(r'\d+').firstMatch(bName)?.group(0) ?? '',
+              );
+              if (aNum != null && bNum != null) {
+                return aNum.compareTo(bNum);
+              }
+              return aName.compareTo(bName);
+            });
 
       if (pageFiles.isEmpty) {
         throw StateError('No output image files generated from PDF.');
@@ -81,9 +101,17 @@ class PdfRasterizer {
     return rasterizeSync(pdfBytes, dpi: dpi);
   }
 
+  static String? _findExecutable(List<String> executables) {
+    for (final exe in executables) {
+      if (_hasExecutable(exe)) return exe;
+    }
+    return null;
+  }
+
   static bool _hasExecutable(String executable) {
     try {
-      final res = Process.runSync('which', [executable]);
+      final checkCmd = Platform.isWindows ? 'where' : 'which';
+      final res = Process.runSync(checkCmd, [executable]);
       return res.exitCode == 0;
     } catch (_) {
       return false;

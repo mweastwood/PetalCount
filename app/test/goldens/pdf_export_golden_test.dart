@@ -7,9 +7,12 @@ import '../helpers/pdf_rasterizer.dart';
 
 void main() {
   final testDate = DateTime(2026, 6, 1);
+  final bool canRasterize = PdfRasterizer.isSupported;
 
   group('PDF Export Golden Tests', () {
-    testGoldens('Empty cycles PDF matches golden', (tester) async {
+    testGoldens(
+      'Empty cycles PDF matches golden',
+      (tester) async {
       tester.view.physicalSize = const Size(1100, 850);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -44,11 +47,11 @@ void main() {
       await tester.pumpAndSettle();
 
       await screenMatchesGolden(tester, 'pdf_empty_cycles');
-    });
+    }, skip: !canRasterize);
 
-    testGoldens('Single cycle with stamps and notes PDF matches golden', (
-      tester,
-    ) async {
+    testGoldens(
+      'Single cycle with stamps and notes PDF matches golden',
+      (tester) async {
       tester.view.physicalSize = const Size(1100, 850);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -239,9 +242,11 @@ void main() {
       await tester.pumpAndSettle();
 
       await screenMatchesGolden(tester, 'pdf_single_cycle');
-    });
+    }, skip: !canRasterize);
 
-    testGoldens('Extended multi-row cycle PDF matches golden', (tester) async {
+    testGoldens(
+      'Extended multi-row cycle PDF matches golden',
+      (tester) async {
       tester.view.physicalSize = const Size(1100, 850);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
@@ -301,6 +306,6 @@ void main() {
       await tester.pumpAndSettle();
 
       await screenMatchesGolden(tester, 'pdf_extended_cycle');
-    });
+    }, skip: !canRasterize);
   });
 }
