@@ -10,17 +10,16 @@ import '../helpers/pdf_rasterizer.dart';
 void main() {
   final testDate = DateTime(2026, 6, 1);
   final bool canRasterize = PdfRasterizer.isSupported;
-  final String? skipRasterizeReason = !canRasterize
-      ? 'Ghostscript (gs) or Poppler (pdftoppm) required for PDF golden tests'
-      : null;
 
   Future<void> pumpPageImage(WidgetTester tester, Uint8List pageBytes) async {
-    tester.view.physicalSize = const Size(1100, 850);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(() {
-      tester.view.resetPhysicalSize();
-      tester.view.resetDevicePixelRatio();
-    });
+    if (tester.view.physicalSize != const Size(1100, 850)) {
+      tester.view.physicalSize = const Size(1100, 850);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+    }
 
     final imageWidget = Image.memory(pageBytes, gaplessPlayback: true);
 
@@ -53,7 +52,7 @@ void main() {
 
       await pumpPageImage(tester, pages.first);
       await screenMatchesGolden(tester, 'pdf_empty_cycles');
-    }, skip: skipRasterizeReason);
+    }, skip: !canRasterize);
 
     testGoldens('Single cycle with stamps and notes PDF matches golden', (
       tester,
@@ -234,7 +233,7 @@ void main() {
 
       await pumpPageImage(tester, pages.first);
       await screenMatchesGolden(tester, 'pdf_single_cycle');
-    }, skip: skipRasterizeReason);
+    }, skip: !canRasterize);
 
     testGoldens('Extended multi-row cycle PDF matches golden', (tester) async {
       final cycleStart = DateTime(2026, 6, 1);
@@ -272,7 +271,7 @@ void main() {
 
       await pumpPageImage(tester, pages.first);
       await screenMatchesGolden(tester, 'pdf_extended_cycle');
-    }, skip: skipRasterizeReason);
+    }, skip: !canRasterize);
 
     testGoldens('Multiple cycles PDF matches golden (one cycle per page)', (
       tester,
@@ -424,6 +423,6 @@ void main() {
       // Page 2: Cycle 2
       await pumpPageImage(tester, pages[1]);
       await screenMatchesGolden(tester, 'pdf_multi_cycle_page_2');
-    }, skip: skipRasterizeReason);
+    }, skip: !canRasterize);
   });
 }
