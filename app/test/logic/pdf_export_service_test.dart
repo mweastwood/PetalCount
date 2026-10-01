@@ -39,6 +39,66 @@ void main() {
       expect(pdfText, contains('2025-12-25'));
     });
 
+    test('generatePdfBytes formats Peak and +1, +2, +3 labels', () async {
+      final start = DateTime(2026, 6, 1);
+      final entries = <String, DailyEntry>{
+        '2026-06-01': DailyEntry(
+          date: start,
+          stampType: StampType.whiteBaby,
+          resolvedVdrsCode: '10KL',
+          peakDayLabel: 'P',
+          painLevel: 0,
+          painTypes: [],
+          comments: '',
+          observations: [],
+        ),
+        '2026-06-02': DailyEntry(
+          date: start.addCalendarDays(1),
+          stampType: StampType.greenBaby,
+          resolvedVdrsCode: '2',
+          peakDayLabel: '1',
+          painLevel: 0,
+          painTypes: [],
+          comments: '',
+          observations: [],
+        ),
+        '2026-06-03': DailyEntry(
+          date: start.addCalendarDays(2),
+          stampType: StampType.greenBaby,
+          resolvedVdrsCode: '2',
+          peakDayLabel: '2',
+          painLevel: 0,
+          painTypes: [],
+          comments: '',
+          observations: [],
+        ),
+        '2026-06-04': DailyEntry(
+          date: start.addCalendarDays(3),
+          stampType: StampType.greenBaby,
+          resolvedVdrsCode: '2',
+          peakDayLabel: '3',
+          painLevel: 0,
+          painTypes: [],
+          comments: '',
+          observations: [],
+        ),
+      };
+
+      final cycle = Cycle(
+        id: 'cycle_peak',
+        startDate: start,
+        bipCodes: const [],
+        dailyEntries: entries,
+      );
+
+      final bytes = await PdfExportService.generatePdfBytes([cycle]);
+      final pdfText = _extractPdfText(bytes);
+      expect(pdfText, contains('Peak'));
+      expect(pdfText, contains('+1'));
+      expect(pdfText, contains('+2'));
+      expect(pdfText, contains('+3'));
+    });
+
     test(
       'generatePdfBytes produces valid PDF bytes for single cycle',
       () async {

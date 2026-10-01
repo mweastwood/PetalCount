@@ -198,6 +198,31 @@ class PdfExportService {
         ? PdfColors.white
         : PdfColors.black;
 
+    // Peak label formatting: "Peak" for 'P', "+1", "+2", "+3" for following days
+    String peakLabel = '';
+    if (entry?.peakDayLabel != null) {
+      switch (entry!.peakDayLabel) {
+        case 'P':
+        case 'Peak':
+          peakLabel = 'Peak';
+          break;
+        case '1':
+        case '+1':
+          peakLabel = '+1';
+          break;
+        case '2':
+        case '+2':
+          peakLabel = '+2';
+          break;
+        case '3':
+        case '+3':
+          peakLabel = '+3';
+          break;
+        default:
+          peakLabel = entry.peakDayLabel!;
+      }
+    }
+
     const double cellWidth = 51;
 
     return pw.Container(
@@ -209,13 +234,11 @@ class PdfExportService {
           pw.Container(
             height: 14,
             child: pw.Text(
-              entry?.peakDayLabel ?? '',
+              peakLabel,
               style: pw.TextStyle(
                 fontSize: 10,
                 fontWeight: pw.FontWeight.bold,
-                color: entry?.peakDayLabel == 'P'
-                    ? PdfColors.red900
-                    : PdfColors.black,
+                color: peakLabel == 'Peak' ? PdfColors.red900 : PdfColors.black,
               ),
             ),
           ),
@@ -288,13 +311,13 @@ class PdfExportService {
             textAlign: pw.TextAlign.center,
           ),
 
-          // 5. Pain in English (size 12)
+          // 5. Pain in English (size 10)
           if (painDescription.isNotEmpty) ...[
             pw.SizedBox(height: 3),
             pw.Text(
               painDescription,
               style: pw.TextStyle(
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: pw.FontWeight.bold,
                 color: PdfColors.red700,
               ),
