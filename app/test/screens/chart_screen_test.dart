@@ -91,9 +91,9 @@ void main() {
       expect(find.text('Jun 02'), findsOneWidget);
       expect(find.text('Jun 03'), findsOneWidget);
 
-      // Verify VDRS codes for Day 1 ('2') and Day 3 ('10WLK')
-      expect(find.text('2'), findsOneWidget);
-      expect(find.text('10WLK'), findsOneWidget);
+      // Verify VDRS codes for Day 1 ('2 x1') and Day 3 ('10WLK x1')
+      expect(find.text('2 x1'), findsOneWidget);
+      expect(find.text('10WLK x1'), findsOneWidget);
 
       // Verify question marks exist for missing days (including Jun 02)
       expect(find.text('?'), findsWidgets);
