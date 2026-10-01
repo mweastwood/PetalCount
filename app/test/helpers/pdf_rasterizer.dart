@@ -29,6 +29,9 @@ class PdfRasterizer {
         'PDF byte buffer cannot be empty.',
       );
     }
+    if (dpi <= 0) {
+      throw ArgumentError.value(dpi, 'dpi', 'DPI must be greater than zero.');
+    }
 
     final tempDir = Directory.systemTemp.createTempSync('pdf_raster_');
     try {
@@ -83,7 +86,12 @@ class PdfRasterizer {
               final aNum = extractPageNumber(aName);
               final bNum = extractPageNumber(bName);
               if (aNum != null && bNum != null) {
-                return aNum.compareTo(bNum);
+                final cmp = aNum.compareTo(bNum);
+                if (cmp != 0) return cmp;
+              } else if (aNum != null) {
+                return -1;
+              } else if (bNum != null) {
+                return 1;
               }
               return aName.compareTo(bName);
             });

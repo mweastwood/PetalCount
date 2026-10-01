@@ -40,9 +40,50 @@ void main() {
       );
     });
 
+    final validBytes = Uint8List.fromList([1, 2, 3]);
+
+    test('rasterizeSync throws ArgumentError when dpi is non-positive', () {
+      for (final dpi in [0, -1]) {
+        expect(
+          () => PdfRasterizer.rasterizeSync(validBytes, dpi: dpi),
+          throwsA(
+            isA<ArgumentError>()
+                .having((e) => e.name, 'name', 'dpi')
+                .having(
+                  (e) => e.message,
+                  'message',
+                  'DPI must be greater than zero.',
+                ),
+          ),
+        );
+      }
+    });
+
+    test('rasterize throws ArgumentError when dpi is non-positive', () async {
+      for (final dpi in [0, -1]) {
+        expect(
+          () => PdfRasterizer.rasterize(validBytes, dpi: dpi),
+          throwsA(
+            isA<ArgumentError>()
+                .having((e) => e.name, 'name', 'dpi')
+                .having(
+                  (e) => e.message,
+                  'message',
+                  'DPI must be greater than zero.',
+                ),
+          ),
+        );
+      }
+    });
+
     group('extractPageNumber', () {
       test('extracts single digit page number', () {
         expect(PdfRasterizer.extractPageNumber('page_1.png'), equals(1));
+      });
+
+      test('extracts hyphen-delimited page number used by pdftoppm', () {
+        expect(PdfRasterizer.extractPageNumber('page-1.png'), equals(1));
+        expect(PdfRasterizer.extractPageNumber('doc-cycle-12.png'), equals(12));
       });
 
       test('extracts zero-padded page number', () {

@@ -38,7 +38,7 @@ void main() {
     );
 
     await tester.runAsync(() async {
-      final imageElement = find.byType(Image).evaluate().first;
+      final imageElement = tester.element(find.byType(Image));
       await precacheImage(MemoryImage(pageBytes), imageElement);
     });
     await tester.pumpAndSettle();
