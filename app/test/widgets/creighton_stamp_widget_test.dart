@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/models/daily_entry.dart';
 import 'package:petal_count/theme/creighton_theme.dart';
+import 'package:petal_count/widgets/baby_icon.dart';
 import 'package:petal_count/widgets/creighton_stamp_widget.dart';
 
 void main() {
@@ -34,9 +35,9 @@ void main() {
         expect(find.text('P'), findsOneWidget);
 
         if (CreightonTheme.hasBabyIcon(type)) {
-          expect(find.byIcon(Icons.child_care), findsOneWidget);
+          expect(find.byType(BabyIcon), findsOneWidget);
         } else {
-          expect(find.byIcon(Icons.child_care), findsNothing);
+          expect(find.byType(BabyIcon), findsNothing);
         }
       }
     });
@@ -56,7 +57,7 @@ void main() {
       );
 
       expect(find.text('?'), findsOneWidget);
-      expect(find.byIcon(Icons.child_care), findsNothing);
+      expect(find.byType(BabyIcon), findsNothing);
     });
 
     testWidgets('Renders gridSticker mode with peak badge and baby icon', (
@@ -74,7 +75,7 @@ void main() {
       );
 
       expect(find.text('P'), findsOneWidget);
-      expect(find.byIcon(Icons.child_care), findsOneWidget);
+      expect(find.byType(BabyIcon), findsOneWidget);
     });
 
     testWidgets('Renders gridSticker mode with greenBaby stamp', (
@@ -92,7 +93,7 @@ void main() {
       );
 
       expect(find.text('1'), findsOneWidget);
-      expect(find.byIcon(Icons.child_care), findsOneWidget);
+      expect(find.byType(BabyIcon), findsOneWidget);
     });
 
     testWidgets('Renders timelineNode mode with dayNumber and peak labels', (
@@ -111,7 +112,7 @@ void main() {
       );
 
       expect(find.text('3'), findsOneWidget);
-      expect(find.byIcon(Icons.child_care), findsNothing);
+      expect(find.byType(BabyIcon), findsNothing);
     });
 
     testWidgets(
@@ -130,7 +131,7 @@ void main() {
         );
 
         expect(find.text('2'), findsOneWidget);
-        expect(find.byIcon(Icons.child_care), findsOneWidget);
+        expect(find.byType(BabyIcon), findsOneWidget);
         expect(find.text('15'), findsNothing);
       },
     );
@@ -150,7 +151,7 @@ void main() {
       );
 
       expect(find.text('3'), findsOneWidget);
-      expect(find.byIcon(Icons.child_care), findsNothing);
+      expect(find.byType(BabyIcon), findsNothing);
     });
   });
 }

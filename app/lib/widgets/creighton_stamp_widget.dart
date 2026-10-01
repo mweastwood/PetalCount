@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../logic/models/daily_entry.dart';
 import '../theme/creighton_theme.dart';
+import 'baby_icon.dart';
 
 enum _StampWidgetMode { badge, gridSticker, timelineNode }
 
@@ -129,7 +130,7 @@ class CreightonStampWidget extends StatelessWidget {
           if (hasBaby)
             Positioned(
               bottom: 4,
-              child: Icon(Icons.child_care, size: 20, color: babyColor),
+              child: BabyIcon(size: 20, color: babyColor),
             ),
         ],
       ),
@@ -182,7 +183,7 @@ class CreightonStampWidget extends StatelessWidget {
             ),
           // Baby Icon in center for fertile stamps, or '?' for unlogged days
           if (hasBaby)
-            Center(child: Icon(Icons.child_care, size: 26, color: babyColor))
+            Center(child: BabyIcon(size: 26, color: babyColor))
           else if (stampType == null)
             Center(
               child: Text(
@@ -246,7 +247,7 @@ class CreightonStampWidget extends StatelessWidget {
               ),
             ),
           if (hasBaby)
-            Icon(Icons.child_care, size: 24, color: babyColor)
+            BabyIcon(size: 24, color: babyColor)
           else if (dayNumber != null)
             Text(
               '$dayNumber',
