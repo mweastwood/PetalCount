@@ -19,46 +19,55 @@ class PdfExportService {
     final pdf = pw.Document();
     final effectiveGeneratedAt = generatedAt ?? DateTime.now();
 
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.letter.landscape,
-        margin: const pw.EdgeInsets.all(32),
-        build: (pw.Context context) {
-          return [
-            // Title Header
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  'Creighton Model Chart',
-                  style: pw.TextStyle(
-                    fontSize: 20,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.pink900,
-                  ),
-                ),
-                pw.Text(
-                  'Generated on: ${effectiveGeneratedAt.dateKey}',
-                  style: const pw.TextStyle(
-                    fontSize: 10,
-                    color: PdfColors.grey700,
-                  ),
-                ),
-              ],
-            ),
-            pw.SizedBox(height: 16),
-
-            // Loop through each cycle and draw a row
-            for (var cycle in cycles) ...[
-              _buildCycleRow(cycle),
-              pw.SizedBox(height: 20),
-            ],
-          ];
-        },
-      ),
-    );
+    if (cycles.isEmpty) {
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.letter.landscape,
+          margin: const pw.EdgeInsets.all(32),
+          build: (pw.Context context) {
+            return [_buildTitleHeader(effectiveGeneratedAt)];
+          },
+        ),
+      );
+    } else {
+      for (final cycle in cycles) {
+        pdf.addPage(
+          pw.MultiPage(
+            pageFormat: PdfPageFormat.letter.landscape,
+            margin: const pw.EdgeInsets.all(32),
+            build: (pw.Context context) {
+              return [
+                _buildTitleHeader(effectiveGeneratedAt),
+                pw.SizedBox(height: 16),
+                _buildCycleRow(cycle),
+              ];
+            },
+          ),
+        );
+      }
+    }
 
     return pdf.save();
+  }
+
+  static pw.Widget _buildTitleHeader(DateTime generatedAt) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(
+          'Creighton Model Chart',
+          style: pw.TextStyle(
+            fontSize: 20,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColors.pink900,
+          ),
+        ),
+        pw.Text(
+          'Generated on: ${generatedAt.dateKey}',
+          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+        ),
+      ],
+    );
   }
 
   static Future<void> exportCyclesToPdf(
