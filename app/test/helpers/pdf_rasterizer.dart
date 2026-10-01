@@ -10,11 +10,26 @@ class PdfRasterizer {
       _findExecutable(_gsCommands) != null ||
       _findExecutable(['pdftoppm']) != null;
 
+  /// Extracts the trailing page number before the file extension from a filename.
+  static int? extractPageNumber(String filename) {
+    final match = RegExp(r'(\d+)\.[^.]+$').firstMatch(filename);
+    if (match == null) return null;
+    return int.tryParse(match.group(1) ?? '');
+  }
+
   /// Converts a PDF [Uint8List] synchronously into a list of PNG image byte arrays (one per page).
   ///
   /// Uses system utilities `gs` (Ghostscript) or `pdftoppm` (Poppler).
   /// Being synchronous prevents `FakeAsync` deadlocks in Flutter widget tests.
   static List<Uint8List> rasterizeSync(Uint8List pdfBytes, {int dpi = 150}) {
+    if (pdfBytes.isEmpty) {
+      throw ArgumentError.value(
+        pdfBytes,
+        'pdfBytes',
+        'PDF byte buffer cannot be empty.',
+      );
+    }
+
     final tempDir = Directory.systemTemp.createTempSync('pdf_raster_');
     try {
       final pdfFile = File('${tempDir.path}/input.pdf');
@@ -65,12 +80,8 @@ class PdfRasterizer {
             ..sort((a, b) {
               final aName = a.uri.pathSegments.last;
               final bName = b.uri.pathSegments.last;
-              final aNum = int.tryParse(
-                RegExp(r'\d+').firstMatch(aName)?.group(0) ?? '',
-              );
-              final bNum = int.tryParse(
-                RegExp(r'\d+').firstMatch(bName)?.group(0) ?? '',
-              );
+              final aNum = extractPageNumber(aName);
+              final bNum = extractPageNumber(bName);
               if (aNum != null && bNum != null) {
                 return aNum.compareTo(bNum);
               }
