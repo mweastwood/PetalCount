@@ -17,14 +17,12 @@ void main() {
 
         final pdfText = _extractPdfText(bytes);
         expect(pdfText, contains('Creighton'));
-        expect(pdfText, contains('FertilityCare'));
+        expect(pdfText, contains('Model'));
         expect(pdfText, contains('Chart'));
         expect(pdfText, contains('Generated'));
         expect(pdfText, contains('on:'));
-        expect(pdfText, contains('Legend'));
-        expect(pdfText, contains('Bleeding'));
-        expect(pdfText, contains('Infertile'));
-        expect(pdfText, contains('Fertile'));
+        expect(pdfText, isNot(contains('FertilityCare')));
+        expect(pdfText, isNot(contains('Legend')));
         expect(pdfText, isNot(contains('Cycle Starting:')));
         expect(pdfText, isNot(contains('Daily Notes:')));
       },
@@ -53,6 +51,8 @@ void main() {
           colors: [],
           consistencies: [],
           bleeding: Bleeding.heavy,
+          painLevel: 2,
+          painTypes: ['Cramps'],
           comment: 'Period start',
           userId: 'test',
         );
@@ -77,14 +77,15 @@ void main() {
 
         final pdfText = _extractPdfText(bytes);
         expect(pdfText, contains('Creighton'));
-        expect(pdfText, contains('FertilityCare'));
+        expect(pdfText, contains('Model'));
         expect(pdfText, contains('Chart'));
+        expect(pdfText, contains('Cycle'));
+        expect(pdfText, contains('Starting:'));
         expect(pdfText, contains('2026-06-01'));
-        expect(pdfText, contains('6C'));
+        expect(pdfText, isNot(contains('BIP:')));
         expect(pdfText, contains('Period'));
         expect(pdfText, contains('start'));
-        expect(pdfText, contains('Daily'));
-        expect(pdfText, contains('Notes:'));
+        expect(pdfText, contains('Cramps'));
         expect(pdfText, contains('H'));
         expect(pdfText, contains('Jun'));
         expect(pdfText, contains('01'));
@@ -117,9 +118,8 @@ void main() {
 
         final pdfText = _extractPdfText(bytes);
         expect(pdfText, contains('2026-06-01'));
-        expect(pdfText, contains('6C'));
         expect(pdfText, contains('2026-07-01'));
-        expect(pdfText, contains('8C'));
+        expect(pdfText, isNot(contains('BIP:')));
       },
     );
 
@@ -172,7 +172,7 @@ void main() {
 
         final pdfText = _extractPdfText(bytes);
         expect(pdfText, contains('2026-06-01'));
-        expect(pdfText, contains('6C'));
+        expect(pdfText, isNot(contains('BIP:')));
         expect(pdfText, contains('Period'));
         expect(pdfText, contains('start'));
         expect(pdfText, contains('?'));
@@ -185,7 +185,7 @@ void main() {
     );
 
     test(
-      'generatePdfBytes produces valid PDF bytes for extended cycle exceeding 35 days (45 days)',
+      'generatePdfBytes produces valid PDF bytes for extended cycle exceeding 14 days (45 days)',
       () async {
         final start = DateTime(2026, 1, 1);
         final entries = <String, DailyEntry>{};
@@ -223,7 +223,6 @@ void main() {
 
         final pdfText = _extractPdfText(bytes);
         expect(pdfText, contains('2026-01-01'));
-        expect(pdfText, contains('2'));
         expect(pdfText, contains('Extended'));
         expect(pdfText, contains('comment'));
         expect(pdfText, contains('day'));
@@ -233,7 +232,7 @@ void main() {
     );
 
     test(
-      'generatePdfBytes produces valid PDF bytes for multi-row cycle (75 days spanning 3 rows)',
+      'generatePdfBytes produces valid PDF bytes for multi-row cycle (75 days spanning multiple 14-day rows)',
       () async {
         final start = DateTime(2026, 1, 1);
         final entries = <String, DailyEntry>{};
@@ -270,7 +269,6 @@ void main() {
 
         final pdfText = _extractPdfText(bytes);
         expect(pdfText, contains('2026-01-01'));
-        expect(pdfText, contains('None'));
         expect(pdfText, contains('75'));
         expect(pdfText, contains('Creighton'));
       },
