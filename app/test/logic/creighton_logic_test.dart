@@ -94,7 +94,7 @@ void main() {
         observations: [dryObs, stickyCloudyObs],
       );
 
-      expect(daily.resolvedVdrsCode, '6CG');
+      expect(daily.resolvedVdrsCode, '6CG x1');
     });
 
     test('Combines bleeding with the most fertile mucus', () {
@@ -126,7 +126,7 @@ void main() {
         observations: [periodObs, stretchyMucusObs],
       );
 
-      expect(daily.resolvedVdrsCode, 'H 10K');
+      expect(daily.resolvedVdrsCode, 'H 10K x1');
     });
 
     test('Appends bleeding color suffix when bleeding is non-red', () {
@@ -170,7 +170,7 @@ void main() {
           observations: [spottingObs],
         );
 
-        expect(daily.resolvedVdrsCode, 'VL 0');
+        expect(daily.resolvedVdrsCode, 'VL 0 x1');
       },
     );
 
@@ -194,7 +194,7 @@ void main() {
           observations: [spottingBrownObs],
         );
 
-        expect(daily.resolvedVdrsCode, 'VL-B 0');
+        expect(daily.resolvedVdrsCode, 'VL-B 0 x1');
       },
     );
 
@@ -229,7 +229,7 @@ void main() {
           observations: [spottingObs, dryObs],
         );
 
-        expect(daily.resolvedVdrsCode, 'VL 0');
+        expect(daily.resolvedVdrsCode, 'VL 0 x2');
       },
     );
 
@@ -264,7 +264,7 @@ void main() {
           observations: [spottingObs, mucusObs],
         );
 
-        expect(daily.resolvedVdrsCode, 'VL 10K');
+        expect(daily.resolvedVdrsCode, 'VL 10K x1');
       },
     );
 
@@ -377,6 +377,119 @@ void main() {
     );
 
     test(
+      'Automatically calculates observation frequency counts from matching observation occurrences',
+      () {
+        final date = DateTime(2026, 6, 28);
+
+        // 1 occurrence -> x1
+        final obs1 = Observation(
+          id: '1',
+          timestamp: DateTime(2026, 6, 28, 8, 0),
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: const [MucusColor.clear],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test_user',
+        );
+        final entry1 = CreightonLogic.resolveDailyEntry(
+          date: date,
+          observations: [obs1],
+        );
+        expect(entry1.resolvedVdrsCode, '10K x1');
+
+        // 2 occurrences -> x2
+        final obs2 = Observation(
+          id: '2',
+          timestamp: DateTime(2026, 6, 28, 14, 0),
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: const [MucusColor.clear],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test_user',
+        );
+        final entry2 = CreightonLogic.resolveDailyEntry(
+          date: date,
+          observations: [obs1, obs2],
+        );
+        expect(entry2.resolvedVdrsCode, '10K x2');
+
+        // 3 occurrences -> x3
+        final obs3 = Observation(
+          id: '3',
+          timestamp: DateTime(2026, 6, 28, 18, 0),
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: const [MucusColor.clear],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test_user',
+        );
+        final entry3 = CreightonLogic.resolveDailyEntry(
+          date: date,
+          observations: [obs1, obs2, obs3],
+        );
+        expect(entry3.resolvedVdrsCode, '10K x3');
+
+        // 4 occurrences -> AD
+        final obs4 = Observation(
+          id: '4',
+          timestamp: DateTime(2026, 6, 28, 22, 0),
+          sensation: Sensation.damp,
+          stretch: Stretch.stretchy,
+          colors: const [MucusColor.clear],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test_user',
+        );
+        final entry4 = CreightonLogic.resolveDailyEntry(
+          date: date,
+          observations: [obs1, obs2, obs3, obs4],
+        );
+        expect(entry4.resolvedVdrsCode, '10K AD');
+
+        // Multiple observations with DIFFERENT codes: 1 dry (2) and 2 mucus (10K) -> 10K x2
+        final dryObs = Observation(
+          id: 'dry',
+          timestamp: DateTime(2026, 6, 28, 7, 0),
+          sensation: Sensation.damp,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'test_user',
+        );
+        final entryMixed = CreightonLogic.resolveDailyEntry(
+          date: date,
+          observations: [dryObs, obs1, obs2],
+        );
+        expect(entryMixed.resolvedVdrsCode, '10K x2');
+
+        // Intercourse marker appended after frequency
+        final entryWithIntercourse = CreightonLogic.resolveDailyEntry(
+          date: date,
+          observations: [
+            obs1,
+            obs2,
+            Observation(
+              id: 'i',
+              timestamp: DateTime(2026, 6, 28, 23, 0),
+              sensation: Sensation.dry,
+              stretch: Stretch.none,
+              colors: const [],
+              consistencies: const [],
+              bleeding: Bleeding.none,
+              intercourse: true,
+              userId: 'test_user',
+            ),
+          ],
+        );
+        expect(entryWithIntercourse.resolvedVdrsCode, '10K x2 I');
+      },
+    );
+
+    test(
       'Resolves lubricative sensation without stretch to 10WL and WhiteBaby stamp',
       () {
         final dryObs = Observation(
@@ -406,7 +519,7 @@ void main() {
           observations: [dryObs, lubricativeObs],
         );
 
-        expect(daily.resolvedVdrsCode, '10WL');
+        expect(daily.resolvedVdrsCode, '10WL x1');
         expect(daily.stampType, StampType.whiteBaby);
         expect(daily.isPeakType, isTrue);
         expect(daily.hasMucus, isTrue);
@@ -628,7 +741,7 @@ void main() {
         // Verify Day 10 is Peak (P) with WhiteBaby stamp
         expect(recalculated[day10Key]?.peakDayLabel, 'P');
         expect(recalculated[day10Key]?.stampType, StampType.whiteBaby);
-        expect(recalculated[day10Key]?.resolvedVdrsCode, '10WL');
+        expect(recalculated[day10Key]?.resolvedVdrsCode, '10WL x1');
 
         // Verify Day 11 is Peak + 1
         expect(recalculated[day11Key]?.peakDayLabel, '1');
@@ -1370,7 +1483,7 @@ void main() {
         );
 
         // Takes Moderate bleeding (heavier than Light) + Wet sensation (more fertile than dry)
-        expect(daily.resolvedVdrsCode, 'M 2W');
+        expect(daily.resolvedVdrsCode, 'M 2W x1');
         expect(daily.stampType, StampType.red);
       },
     );
