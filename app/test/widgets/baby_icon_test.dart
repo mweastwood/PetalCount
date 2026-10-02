@@ -145,9 +145,7 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: Center(
-              child: BabyIcon(excludeFromSemantics: true),
-            ),
+            body: Center(child: BabyIcon(excludeFromSemantics: true)),
           ),
         ),
       );

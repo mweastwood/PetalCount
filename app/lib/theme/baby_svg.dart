@@ -20,7 +20,8 @@ class BabySvg {
   /// preserve alpha transparency. In PDF export (`PdfExportService`), the [strokeColor]
   /// parameter is supplied directly to interpolate the hex color.
   static String getSvg({String strokeColor = '#2E7D32'}) {
-    final normalizedColor = strokeColor.startsWith('#') ||
+    final normalizedColor =
+        strokeColor.startsWith('#') ||
             strokeColor.startsWith('rgb') ||
             strokeColor == 'currentColor'
         ? strokeColor
