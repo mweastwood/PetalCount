@@ -1,9 +1,24 @@
 /// Defines the SVG asset path and raw template for the swaddled sleeping baby icon.
+///
+/// ## Synchronization Strategy
+/// The canonical vector artwork is tracked at [assetPath] (`assets/images/baby_swaddled.svg`).
+/// For high-performance rendering without bundle loading latency or asset resolution
+/// dependencies in headless environments (such as `PdfExportService` via `pw.SvgImage` and
+/// fast widget testing without mock asset bundles), [BabySvg.getSvg] provides an inline XML
+/// representation.
+///
+/// When updating the swaddled baby design, ensure modifications to `assets/images/baby_swaddled.svg`
+/// are kept in sync with [BabySvg.getSvg]. This synchronization is verified by unit tests.
 class BabySvg {
-  /// Relative asset path for the SVG file.
+  /// Relative repository path for the source SVG vector file.
   static const String assetPath = 'assets/images/baby_swaddled.svg';
 
   /// Raw SVG template with a configurable stroke color.
+  ///
+  /// In Flutter UI widgets (e.g. `BabyIcon`), color tinting is applied via `ColorFilter`
+  /// shader on the default SVG string to utilize Flutter's compiled picture cache and
+  /// preserve alpha transparency. In PDF export (`PdfExportService`), the [strokeColor]
+  /// parameter is supplied directly to interpolate the hex color.
   static String getSvg({String strokeColor = '#2E7D32'}) {
     return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <g fill="none" stroke="$strokeColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">

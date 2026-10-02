@@ -403,7 +403,7 @@ class PdfExportService {
     return pw.SvgImage(
       svg: BabySvg.getSvg(strokeColor: hex),
       width: 14,
-      height: 18,
+      height: 14,
     );
   }
 }

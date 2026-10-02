@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:golden_toolkit/golden_toolkit.dart';
 import 'package:petal_count/theme/baby_svg.dart';
@@ -9,6 +12,23 @@ void main() {
   group('BabySvg Unit Tests', () {
     test('assetPath points to baby_swaddled.svg', () {
       expect(BabySvg.assetPath, 'assets/images/baby_swaddled.svg');
+    });
+
+    test('getSvg matches canonical assets/images/baby_swaddled.svg file', () {
+      final file = File(BabySvg.assetPath);
+      expect(file.existsSync(), isTrue);
+      final assetContent = file.readAsStringSync();
+
+      // Normalize stroke="currentColor" to stroke="#2E7D32" and compare whitespace-trimmed lines
+      final expectedFromAsset = assetContent
+          .replaceAll('stroke="currentColor"', 'stroke="#2E7D32"')
+          .replaceAll('\r\n', '\n')
+          .trim();
+      final actualSvg = BabySvg.getSvg()
+          .replaceAll('\r\n', '\n')
+          .trim();
+
+      expect(actualSvg, expectedFromAsset);
     });
 
     test(
@@ -29,7 +49,9 @@ void main() {
   });
 
   group('BabyIcon Widget Tests', () {
-    testWidgets('Renders BabyIcon with default properties', (tester) async {
+    testWidgets('Renders BabyIcon with default properties and semantics', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(body: Center(child: BabyIcon())),
@@ -37,9 +59,23 @@ void main() {
       );
 
       expect(find.byType(BabyIcon), findsOneWidget);
+
+      final svgFinder = find.byType(SvgPicture);
+      expect(svgFinder, findsOneWidget);
+
+      final svgWidget = tester.widget<SvgPicture>(svgFinder);
+      expect(svgWidget.width, 24.0);
+      expect(svgWidget.height, 24.0);
+      expect(svgWidget.semanticsLabel, 'Baby icon');
+      expect(
+        svgWidget.colorFilter,
+        const ColorFilter.mode(CreightonTheme.babyIconGreen, BlendMode.srcIn),
+      );
     });
 
-    testWidgets('Renders BabyIcon with custom size and color', (tester) async {
+    testWidgets('Renders BabyIcon with custom size, color, and semanticsLabel', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -47,6 +83,7 @@ void main() {
               child: BabyIcon(
                 size: 32,
                 color: CreightonTheme.babyIconDarkGreen,
+                semanticsLabel: 'Fertile day baby symbol',
               ),
             ),
           ),
@@ -59,6 +96,35 @@ void main() {
       final babyIcon = tester.widget<BabyIcon>(iconFinder);
       expect(babyIcon.size, 32);
       expect(babyIcon.color, CreightonTheme.babyIconDarkGreen);
+      expect(babyIcon.semanticsLabel, 'Fertile day baby symbol');
+
+      final svgWidget = tester.widget<SvgPicture>(find.byType(SvgPicture));
+      expect(svgWidget.width, 32);
+      expect(svgWidget.height, 32);
+      expect(svgWidget.semanticsLabel, 'Fertile day baby symbol');
+      expect(
+        svgWidget.colorFilter,
+        const ColorFilter.mode(CreightonTheme.babyIconDarkGreen, BlendMode.srcIn),
+      );
+    });
+
+    testWidgets('BabyIcon preserves alpha and transparency via ColorFilter', (
+      tester,
+    ) async {
+      const translucentGreen = Color(0x802E7D32); // 50% opacity green
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(child: BabyIcon(color: translucentGreen)),
+          ),
+        ),
+      );
+
+      final svgWidget = tester.widget<SvgPicture>(find.byType(SvgPicture));
+      expect(
+        svgWidget.colorFilter,
+        const ColorFilter.mode(translucentGreen, BlendMode.srcIn),
+      );
     });
 
     testGoldens('BabyIcon renders swaddled sleeping baby golden', (

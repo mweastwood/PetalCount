@@ -8,20 +8,26 @@ import '../theme/creighton_theme.dart';
 class BabyIcon extends StatelessWidget {
   final double size;
   final Color? color;
+  final String? semanticsLabel;
 
-  const BabyIcon({super.key, this.size = 24.0, this.color});
+  const BabyIcon({
+    super.key,
+    this.size = 24.0,
+    this.color,
+    this.semanticsLabel = 'Baby icon',
+  });
 
   @override
   Widget build(BuildContext context) {
     final effectiveColor = color ?? CreightonTheme.babyIconGreen;
-    final hex =
-        '#${(effectiveColor.toARGB32() & 0x00FFFFFF).toRadixString(16).padLeft(6, '0')}';
 
     return SvgPicture.string(
-      BabySvg.getSvg(strokeColor: hex),
+      BabySvg.getSvg(),
       width: size,
       height: size,
       fit: BoxFit.contain,
+      semanticsLabel: semanticsLabel,
+      colorFilter: ColorFilter.mode(effectiveColor, BlendMode.srcIn),
     );
   }
 }
