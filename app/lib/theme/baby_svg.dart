@@ -20,8 +20,13 @@ class BabySvg {
   /// preserve alpha transparency. In PDF export (`PdfExportService`), the [strokeColor]
   /// parameter is supplied directly to interpolate the hex color.
   static String getSvg({String strokeColor = '#2E7D32'}) {
+    final normalizedColor = strokeColor.startsWith('#') ||
+            strokeColor.startsWith('rgb') ||
+            strokeColor == 'currentColor'
+        ? strokeColor
+        : '#$strokeColor';
     return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <g fill="none" stroke="$strokeColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+  <g fill="none" stroke="$normalizedColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
     <!-- Hair curl -->
     <path d="M 32 10.5 C 32.5 7.5, 36.5 7, 35.5 10 C 35 11.5, 33 12, 32 13" />
     <!-- Head outline -->

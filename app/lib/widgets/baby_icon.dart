@@ -9,12 +9,14 @@ class BabyIcon extends StatelessWidget {
   final double size;
   final Color? color;
   final String? semanticsLabel;
+  final bool excludeFromSemantics;
 
   const BabyIcon({
     super.key,
     this.size = 24.0,
     this.color,
     this.semanticsLabel = 'Baby icon',
+    this.excludeFromSemantics = false,
   });
 
   @override
@@ -26,7 +28,8 @@ class BabyIcon extends StatelessWidget {
       width: size,
       height: size,
       fit: BoxFit.contain,
-      semanticsLabel: semanticsLabel,
+      semanticsLabel: excludeFromSemantics ? null : semanticsLabel,
+      excludeFromSemantics: excludeFromSemantics,
       colorFilter: ColorFilter.mode(effectiveColor, BlendMode.srcIn),
     );
   }

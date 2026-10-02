@@ -15,7 +15,10 @@ void main() {
     });
 
     test('getSvg matches canonical assets/images/baby_swaddled.svg file', () {
-      final file = File(BabySvg.assetPath);
+      final assetPath = File(BabySvg.assetPath).existsSync()
+          ? BabySvg.assetPath
+          : 'app/${BabySvg.assetPath}';
+      final file = File(assetPath);
       expect(file.existsSync(), isTrue);
       final assetContent = file.readAsStringSync();
 
@@ -30,7 +33,7 @@ void main() {
     });
 
     test(
-      'getSvg generates valid SVG string with default and custom colors',
+      'getSvg generates valid SVG string with default, unhashed, and custom colors',
       () {
         final defaultSvg = BabySvg.getSvg();
         expect(defaultSvg, contains('<svg'));
@@ -39,6 +42,15 @@ void main() {
 
         final whiteSvg = BabySvg.getSvg(strokeColor: '#FFFFFF');
         expect(whiteSvg, contains('stroke="#FFFFFF"'));
+
+        final unhashedSvg = BabySvg.getSvg(strokeColor: 'FFFFFF');
+        expect(unhashedSvg, contains('stroke="#FFFFFF"'));
+
+        final currentColorSvg = BabySvg.getSvg(strokeColor: 'currentColor');
+        expect(currentColorSvg, contains('stroke="currentColor"'));
+
+        final rgbSvg = BabySvg.getSvg(strokeColor: 'rgb(46, 125, 50)');
+        expect(rgbSvg, contains('stroke="rgb(46, 125, 50)"'));
 
         final blackSvg = BabySvg.getSvg(strokeColor: '#000000');
         expect(blackSvg, contains('stroke="#000000"'));
@@ -127,6 +139,22 @@ void main() {
         svgWidget.colorFilter,
         const ColorFilter.mode(translucentGreen, BlendMode.srcIn),
       );
+    });
+
+    testWidgets('BabyIcon respects excludeFromSemantics flag', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: BabyIcon(excludeFromSemantics: true),
+            ),
+          ),
+        ),
+      );
+
+      final svgWidget = tester.widget<SvgPicture>(find.byType(SvgPicture));
+      expect(svgWidget.excludeFromSemantics, isTrue);
+      expect(svgWidget.semanticsLabel, isNull);
     });
 
     testGoldens('BabyIcon renders swaddled sleeping baby golden', (
