@@ -9,11 +9,7 @@ class BabyIcon extends StatelessWidget {
   final double size;
   final Color? color;
 
-  const BabyIcon({
-    super.key,
-    this.size = 24.0,
-    this.color,
-  });
+  const BabyIcon({super.key, this.size = 24.0, this.color});
 
   @override
   Widget build(BuildContext context) {

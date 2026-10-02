@@ -11,29 +11,28 @@ void main() {
       expect(BabySvg.assetPath, 'assets/images/baby_swaddled.svg');
     });
 
-    test('getSvg generates valid SVG string with default and custom colors', () {
-      final defaultSvg = BabySvg.getSvg();
-      expect(defaultSvg, contains('<svg'));
-      expect(defaultSvg, contains('viewBox="0 0 64 64"'));
-      expect(defaultSvg, contains('stroke="#2E7D32"'));
+    test(
+      'getSvg generates valid SVG string with default and custom colors',
+      () {
+        final defaultSvg = BabySvg.getSvg();
+        expect(defaultSvg, contains('<svg'));
+        expect(defaultSvg, contains('viewBox="0 0 64 64"'));
+        expect(defaultSvg, contains('stroke="#2E7D32"'));
 
-      final whiteSvg = BabySvg.getSvg(strokeColor: '#FFFFFF');
-      expect(whiteSvg, contains('stroke="#FFFFFF"'));
+        final whiteSvg = BabySvg.getSvg(strokeColor: '#FFFFFF');
+        expect(whiteSvg, contains('stroke="#FFFFFF"'));
 
-      final blackSvg = BabySvg.getSvg(strokeColor: '#000000');
-      expect(blackSvg, contains('stroke="#000000"'));
-    });
+        final blackSvg = BabySvg.getSvg(strokeColor: '#000000');
+        expect(blackSvg, contains('stroke="#000000"'));
+      },
+    );
   });
 
   group('BabyIcon Widget Tests', () {
     testWidgets('Renders BabyIcon with default properties', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: BabyIcon(),
-            ),
-          ),
+          home: Scaffold(body: Center(child: BabyIcon())),
         ),
       );
 
@@ -62,7 +61,9 @@ void main() {
       expect(babyIcon.color, CreightonTheme.babyIconDarkGreen);
     });
 
-    testGoldens('BabyIcon renders swaddled sleeping baby golden', (tester) async {
+    testGoldens('BabyIcon renders swaddled sleeping baby golden', (
+      tester,
+    ) async {
       await tester.pumpWidgetBuilder(
         MaterialApp(
           debugShowCheckedModeBanner: false,
@@ -91,10 +92,7 @@ void main() {
                     height: 50,
                     color: CreightonTheme.greenStamp,
                     child: const Center(
-                      child: BabyIcon(
-                        size: 26,
-                        color: Colors.white,
-                      ),
+                      child: BabyIcon(size: 26, color: Colors.white),
                     ),
                   ),
                   const SizedBox(width: 16),

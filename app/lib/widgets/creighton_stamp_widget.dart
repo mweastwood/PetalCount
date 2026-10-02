@@ -128,10 +128,7 @@ class CreightonStampWidget extends StatelessWidget {
               ),
             ),
           if (hasBaby)
-            Positioned(
-              bottom: 4,
-              child: BabyIcon(size: 20, color: babyColor),
-            ),
+            Positioned(bottom: 4, child: BabyIcon(size: 20, color: babyColor)),
         ],
       ),
     );
