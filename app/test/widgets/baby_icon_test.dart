@@ -24,9 +24,7 @@ void main() {
           .replaceAll('stroke="currentColor"', 'stroke="#2E7D32"')
           .replaceAll('\r\n', '\n')
           .trim();
-      final actualSvg = BabySvg.getSvg()
-          .replaceAll('\r\n', '\n')
-          .trim();
+      final actualSvg = BabySvg.getSvg().replaceAll('\r\n', '\n').trim();
 
       expect(actualSvg, expectedFromAsset);
     });
@@ -73,40 +71,44 @@ void main() {
       );
     });
 
-    testWidgets('Renders BabyIcon with custom size, color, and semanticsLabel', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: BabyIcon(
-                size: 32,
-                color: CreightonTheme.babyIconDarkGreen,
-                semanticsLabel: 'Fertile day baby symbol',
+    testWidgets(
+      'Renders BabyIcon with custom size, color, and semanticsLabel',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: BabyIcon(
+                  size: 32,
+                  color: CreightonTheme.babyIconDarkGreen,
+                  semanticsLabel: 'Fertile day baby symbol',
+                ),
               ),
             ),
           ),
-        ),
-      );
+        );
 
-      final iconFinder = find.byType(BabyIcon);
-      expect(iconFinder, findsOneWidget);
+        final iconFinder = find.byType(BabyIcon);
+        expect(iconFinder, findsOneWidget);
 
-      final babyIcon = tester.widget<BabyIcon>(iconFinder);
-      expect(babyIcon.size, 32);
-      expect(babyIcon.color, CreightonTheme.babyIconDarkGreen);
-      expect(babyIcon.semanticsLabel, 'Fertile day baby symbol');
+        final babyIcon = tester.widget<BabyIcon>(iconFinder);
+        expect(babyIcon.size, 32);
+        expect(babyIcon.color, CreightonTheme.babyIconDarkGreen);
+        expect(babyIcon.semanticsLabel, 'Fertile day baby symbol');
 
-      final svgWidget = tester.widget<SvgPicture>(find.byType(SvgPicture));
-      expect(svgWidget.width, 32);
-      expect(svgWidget.height, 32);
-      expect(svgWidget.semanticsLabel, 'Fertile day baby symbol');
-      expect(
-        svgWidget.colorFilter,
-        const ColorFilter.mode(CreightonTheme.babyIconDarkGreen, BlendMode.srcIn),
-      );
-    });
+        final svgWidget = tester.widget<SvgPicture>(find.byType(SvgPicture));
+        expect(svgWidget.width, 32);
+        expect(svgWidget.height, 32);
+        expect(svgWidget.semanticsLabel, 'Fertile day baby symbol');
+        expect(
+          svgWidget.colorFilter,
+          const ColorFilter.mode(
+            CreightonTheme.babyIconDarkGreen,
+            BlendMode.srcIn,
+          ),
+        );
+      },
+    );
 
     testWidgets('BabyIcon preserves alpha and transparency via ColorFilter', (
       tester,
