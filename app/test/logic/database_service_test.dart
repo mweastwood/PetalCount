@@ -410,9 +410,8 @@ void main() {
         // Newest first — the new pre-cycle should start on Aug 25
         final preCycle = cycles.firstWhere(
           (c) => c.startDate == aug25,
-          orElse: () => throw TestFailure(
-            'Expected a cycle with startDate 2026-08-25',
-          ),
+          orElse: () =>
+              throw TestFailure('Expected a cycle with startDate 2026-08-25'),
         );
         expect(preCycle.dailyEntries.containsKey('2026-08-25'), isTrue);
         // Verify positive day index
@@ -443,9 +442,7 @@ void main() {
         );
 
         final cycles = await db.streamCycles().first;
-        final preCycle = cycles.firstWhere(
-          (c) => c.startDate == aug20,
-        );
+        final preCycle = cycles.firstWhere((c) => c.startDate == aug20);
         expect(preCycle.bipCodes, equals(['6C', '8Y']));
       },
     );
@@ -477,9 +474,8 @@ void main() {
         // A new cycle should be created starting on aug28
         final preCycle = cycles.firstWhere(
           (c) => c.startDate == aug28,
-          orElse: () => throw TestFailure(
-            'Expected a cycle with startDate 2026-08-28',
-          ),
+          orElse: () =>
+              throw TestFailure('Expected a cycle with startDate 2026-08-28'),
         );
         expect(preCycle.dailyEntries.containsKey('2026-08-28'), isTrue);
         expect(preCycle.dayNumberFor(aug28), equals(1));
@@ -530,9 +526,8 @@ void main() {
         // since Sep 27 <= Sep 28.
         final preCycle = cycles.firstWhere(
           (c) => c.startDate == sep27,
-          orElse: () => throw TestFailure(
-            'Expected a cycle with startDate 2026-09-27',
-          ),
+          orElse: () =>
+              throw TestFailure('Expected a cycle with startDate 2026-09-27'),
         );
         expect(preCycle.dailyEntries.containsKey('2026-09-27'), isTrue);
         expect(preCycle.dailyEntries.containsKey('2026-09-28'), isTrue);
