@@ -103,6 +103,8 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
   }
 
   Future<void> _handleSave() async {
+    if (_isSaving) return;
+
     final name = _nameCtrl.text.trim();
     final quantity = _quantityCtrl.text.trim();
     bool hasError = false;
@@ -157,7 +159,10 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save supplement: $e')),
+          SnackBar(
+            content: Text('Failed to save supplement: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     } finally {
@@ -171,8 +176,10 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
   Widget build(BuildContext context) {
     final existing = widget.supplement;
 
-    return AlertDialog(
-      title: Text(existing == null ? 'Add Supplement' : 'Edit Supplement'),
+    return PopScope(
+      canPop: !_isSaving,
+      child: AlertDialog(
+        title: Text(existing == null ? 'Add Supplement' : 'Edit Supplement'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -408,19 +415,22 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
         FilledButton(
           onPressed: _isSaving ? null : _handleSave,
           child: _isSaving
-              ? const SizedBox(
+              ? SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withOpacity(0.38),
                   ),
                 )
               : const Text('Save'),
         ),
       ],
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildDoseRow({
     required String label,
