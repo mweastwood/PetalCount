@@ -24,6 +24,9 @@ jobs:
         with:
           channel: 'stable'
 
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y ghostscript
+
       - name: Install dependencies
         run: flutter pub get
 

@@ -128,6 +128,33 @@ class CreightonLogic {
       }
     }
 
+    final isPureMenstrualFlow =
+        worstBleeding.isMenstrualFlow &&
+        !bestObs.hasMucus &&
+        bestObs.sensation == Sensation.dry;
+
+    if (resolvedFrequency == Frequency.none &&
+        !isPureMenstrualFlow &&
+        observations.isNotEmpty) {
+      final matchingCount = observations.where((obs) {
+        if (bestObs.hasMucus) {
+          return obs.hasMucus && obs.mucusPart() == bestObs.mucusPart();
+        } else {
+          return !obs.hasMucus && obs.sensation == bestObs.sensation;
+        }
+      }).length;
+
+      if (matchingCount == 1) {
+        resolvedFrequency = Frequency.once;
+      } else if (matchingCount == 2) {
+        resolvedFrequency = Frequency.twice;
+      } else if (matchingCount == 3) {
+        resolvedFrequency = Frequency.thrice;
+      } else if (matchingCount >= 4) {
+        resolvedFrequency = Frequency.allDay;
+      }
+    }
+
     bool hasAnyIntercourse = observations.any((o) => o.intercourse);
 
     if (hasAnyBleeding) {

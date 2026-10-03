@@ -17,18 +17,87 @@ void main() {
 
         final pdfText = _extractPdfText(bytes);
         expect(pdfText, contains('Creighton'));
-        expect(pdfText, contains('FertilityCare'));
+        expect(pdfText, contains('Model'));
         expect(pdfText, contains('Chart'));
         expect(pdfText, contains('Generated'));
         expect(pdfText, contains('on:'));
-        expect(pdfText, contains('Legend'));
-        expect(pdfText, contains('Bleeding'));
-        expect(pdfText, contains('Infertile'));
-        expect(pdfText, contains('Fertile'));
+        expect(pdfText, isNot(contains('FertilityCare')));
+        expect(pdfText, isNot(contains('Legend')));
         expect(pdfText, isNot(contains('Cycle Starting:')));
         expect(pdfText, isNot(contains('Daily Notes:')));
       },
     );
+
+    test('generatePdfBytes formats custom generatedAt in PDF header', () async {
+      final customDate = DateTime(2025, 12, 25);
+      final bytes = await PdfExportService.generatePdfBytes(
+        [],
+        generatedAt: customDate,
+      );
+      final pdfText = _extractPdfText(bytes);
+      expect(pdfText, contains('Generated'));
+      expect(pdfText, contains('2025-12-25'));
+    });
+
+    test('generatePdfBytes formats Peak and +1, +2, +3 labels', () async {
+      final start = DateTime(2026, 6, 1);
+      final entries = <String, DailyEntry>{
+        '2026-06-01': DailyEntry(
+          date: start,
+          stampType: StampType.whiteBaby,
+          resolvedVdrsCode: '10KL',
+          peakDayLabel: 'P',
+          painLevel: 0,
+          painTypes: [],
+          comments: '',
+          observations: [],
+        ),
+        '2026-06-02': DailyEntry(
+          date: start.addCalendarDays(1),
+          stampType: StampType.greenBaby,
+          resolvedVdrsCode: '2',
+          peakDayLabel: '1',
+          painLevel: 0,
+          painTypes: [],
+          comments: '',
+          observations: [],
+        ),
+        '2026-06-03': DailyEntry(
+          date: start.addCalendarDays(2),
+          stampType: StampType.greenBaby,
+          resolvedVdrsCode: '2',
+          peakDayLabel: '2',
+          painLevel: 0,
+          painTypes: [],
+          comments: '',
+          observations: [],
+        ),
+        '2026-06-04': DailyEntry(
+          date: start.addCalendarDays(3),
+          stampType: StampType.greenBaby,
+          resolvedVdrsCode: '2',
+          peakDayLabel: '3',
+          painLevel: 0,
+          painTypes: [],
+          comments: '',
+          observations: [],
+        ),
+      };
+
+      final cycle = Cycle(
+        id: 'cycle_peak',
+        startDate: start,
+        bipCodes: const [],
+        dailyEntries: entries,
+      );
+
+      final bytes = await PdfExportService.generatePdfBytes([cycle]);
+      final pdfText = _extractPdfText(bytes);
+      expect(pdfText, contains('Peak'));
+      expect(pdfText, contains('+1'));
+      expect(pdfText, contains('+2'));
+      expect(pdfText, contains('+3'));
+    });
 
     test(
       'generatePdfBytes produces valid PDF bytes for single cycle',
@@ -42,6 +111,8 @@ void main() {
           colors: [],
           consistencies: [],
           bleeding: Bleeding.heavy,
+          painLevel: 2,
+          painTypes: ['Cramps'],
           comment: 'Period start',
           userId: 'test',
         );
@@ -66,14 +137,15 @@ void main() {
 
         final pdfText = _extractPdfText(bytes);
         expect(pdfText, contains('Creighton'));
-        expect(pdfText, contains('FertilityCare'));
+        expect(pdfText, contains('Model'));
         expect(pdfText, contains('Chart'));
+        expect(pdfText, contains('Cycle'));
+        expect(pdfText, contains('Starting:'));
         expect(pdfText, contains('2026-06-01'));
-        expect(pdfText, contains('6C'));
+        expect(pdfText, isNot(contains('BIP:')));
         expect(pdfText, contains('Period'));
         expect(pdfText, contains('start'));
-        expect(pdfText, contains('Daily'));
-        expect(pdfText, contains('Notes:'));
+        expect(pdfText, contains('Cramps'));
         expect(pdfText, contains('H'));
         expect(pdfText, contains('Jun'));
         expect(pdfText, contains('01'));
@@ -106,9 +178,8 @@ void main() {
 
         final pdfText = _extractPdfText(bytes);
         expect(pdfText, contains('2026-06-01'));
-        expect(pdfText, contains('6C'));
         expect(pdfText, contains('2026-07-01'));
-        expect(pdfText, contains('8C'));
+        expect(pdfText, isNot(contains('BIP:')));
       },
     );
 
@@ -161,7 +232,7 @@ void main() {
 
         final pdfText = _extractPdfText(bytes);
         expect(pdfText, contains('2026-06-01'));
-        expect(pdfText, contains('6C'));
+        expect(pdfText, isNot(contains('BIP:')));
         expect(pdfText, contains('Period'));
         expect(pdfText, contains('start'));
         expect(pdfText, contains('?'));
@@ -174,7 +245,7 @@ void main() {
     );
 
     test(
-      'generatePdfBytes produces valid PDF bytes for extended cycle exceeding 35 days (45 days)',
+      'generatePdfBytes produces valid PDF bytes for extended cycle exceeding 14 days (45 days)',
       () async {
         final start = DateTime(2026, 1, 1);
         final entries = <String, DailyEntry>{};
@@ -212,7 +283,6 @@ void main() {
 
         final pdfText = _extractPdfText(bytes);
         expect(pdfText, contains('2026-01-01'));
-        expect(pdfText, contains('2'));
         expect(pdfText, contains('Extended'));
         expect(pdfText, contains('comment'));
         expect(pdfText, contains('day'));
@@ -222,7 +292,7 @@ void main() {
     );
 
     test(
-      'generatePdfBytes produces valid PDF bytes for multi-row cycle (75 days spanning 3 rows)',
+      'generatePdfBytes produces valid PDF bytes for multi-row cycle (75 days spanning multiple 14-day rows)',
       () async {
         final start = DateTime(2026, 1, 1);
         final entries = <String, DailyEntry>{};
@@ -259,11 +329,173 @@ void main() {
 
         final pdfText = _extractPdfText(bytes);
         expect(pdfText, contains('2026-01-01'));
-        expect(pdfText, contains('None'));
         expect(pdfText, contains('75'));
         expect(pdfText, contains('Creighton'));
       },
     );
+
+    test('formatObservationCode handles various counts and codes properly', () {
+      final date = DateTime(2026, 6, 1);
+
+      // null entry
+      expect(PdfExportService.formatObservationCode(null), '?');
+
+      // Empty code
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: '',
+            stampType: StampType.green,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        '',
+      );
+
+      // Menstrual flow without frequency
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: 'H',
+            stampType: StampType.red,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        'H',
+      );
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: 'L',
+            stampType: StampType.red,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        'L',
+      );
+
+      // Already has frequency
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: '10K x2 I',
+            stampType: StampType.whiteBaby,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        '10K x2 I',
+      );
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: '0 AD',
+            stampType: StampType.green,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        '0 AD',
+      );
+
+      // Single observation without frequency gets x1
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: '10WLK',
+            stampType: StampType.whiteBaby,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        '10WLK x1',
+      );
+
+      // Single observation with intercourse
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: '2 I',
+            stampType: StampType.green,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        '2 x1 I',
+      );
+
+      // Count matching observations from entry.observations
+      final obsA = Observation(
+        id: '1',
+        timestamp: date,
+        sensation: Sensation.damp,
+        stretch: Stretch.stretchy,
+        colors: const [MucusColor.clear],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'u',
+      );
+      final obsB = Observation(
+        id: '2',
+        timestamp: date,
+        sensation: Sensation.damp,
+        stretch: Stretch.stretchy,
+        colors: const [MucusColor.clear],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'u',
+      );
+      final obsDry = Observation(
+        id: '3',
+        timestamp: date,
+        sensation: Sensation.damp,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        userId: 'u',
+      );
+
+      // 2 matching mucus observations -> 10K x2
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: '10K',
+            stampType: StampType.whiteBaby,
+            observations: [obsDry, obsA, obsB],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        '10K x2',
+      );
+    });
   });
 }
 

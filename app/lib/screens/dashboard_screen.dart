@@ -103,9 +103,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     DateTime now,
   ) async {
     try {
-      final enabled = await Services.db
-          .streamChartReminderEnabled(chartId)
-          .first;
+      final cached = Services.db.getLatestNotificationPreferences(chartId);
+      final enabled =
+          cached?.dailyLoggingReminder ??
+          (await _getNotificationPreferencesStream(
+            chartId,
+          ).first).dailyLoggingReminder;
+
       await Services.notifications.syncReminderSchedule(
         chartId: chartId,
         reminderEnabled: enabled,
@@ -128,7 +132,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     try {
       final prefs =
           Services.db.getLatestNotificationPreferences(chartId) ??
-          await Services.db.streamNotificationPreferences(chartId).first;
+          await _getNotificationPreferencesStream(chartId).first;
       if (!prefs.breastSelfExamReminder) return;
 
       final roleStr = await Services.db.streamUserRole().first;

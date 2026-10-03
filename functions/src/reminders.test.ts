@@ -1171,4 +1171,357 @@ describe("processDailyReminders", () => {
     expect(result9PM.chartsChecked).toBe(1);
     expect(result9PM.remindersSent).toBe(1);
   });
+
+  it("batches timezone lookups and deduplicates user references across multiple charts missing timezone", async () => {
+    // 2026-08-21 01:00:00 UTC is 2026-08-20 21:00:00 EDT (target hour 21)
+    const now = new Date(Date.UTC(2026, 7, 21, 1, 0, 0));
+
+    const mockBackfillSet1 = jest.fn().mockResolvedValue(undefined);
+    const mockBackfillSet2 = jest.fn().mockResolvedValue(undefined);
+
+    const mockChartDoc1 = {
+      id: "chart_missing_tz_1",
+      ref: { set: mockBackfillSet1 },
+      data: () => ({
+        id: "chart_missing_tz_1",
+        userIds: ["user_shared_primary", "user_collaborator_1"],
+        reminderEnabled: true,
+        // timezone missing
+      }),
+    };
+
+    const mockChartDoc2 = {
+      id: "chart_missing_tz_2",
+      ref: { set: mockBackfillSet2 },
+      data: () => ({
+        id: "chart_missing_tz_2",
+        userIds: ["user_shared_primary", "user_collaborator_2"],
+        reminderEnabled: true,
+        // timezone missing
+      }),
+    };
+
+    const mockChartDocDisabled = {
+      id: "chart_disabled_missing_tz",
+      ref: { set: jest.fn() },
+      data: () => ({
+        id: "chart_disabled_missing_tz",
+        userIds: ["user_disabled_only"],
+        reminderEnabled: false,
+        // timezone missing
+      }),
+    };
+
+    const mockUserShared = {
+      id: "user_shared_primary",
+      exists: true,
+      data: () => ({
+        uid: "user_shared_primary",
+        timezone: "America/New_York",
+        fcmTokens: ["token_shared_1"],
+      }),
+    };
+
+    const mockUserCollab1 = {
+      id: "user_collaborator_1",
+      exists: true,
+      data: () => ({
+        uid: "user_collaborator_1",
+        fcmTokens: ["token_collab_1"],
+      }),
+    };
+
+    const mockUserCollab2 = {
+      id: "user_collaborator_2",
+      exists: true,
+      data: () => ({
+        uid: "user_collaborator_2",
+        fcmTokens: ["token_collab_2"],
+      }),
+    };
+
+    const mockCycleDoc = {
+      ref: {
+        collection: jest.fn().mockReturnValue({
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue({ exists: false }),
+          }),
+        }),
+      },
+      data: () => ({ dailyEntries: {} }),
+    };
+
+    const mockUserGet = jest.fn();
+    const mockDb = {
+      collection: jest.fn((colName: string) => {
+        if (colName === "charts") {
+          return {
+            get: jest.fn().mockResolvedValue({
+              docs: [mockChartDoc1, mockChartDoc2, mockChartDocDisabled],
+            }),
+            doc: jest.fn().mockReturnValue({
+              collection: jest.fn().mockReturnValue({
+                where: jest.fn().mockReturnThis(),
+                orderBy: jest.fn().mockReturnThis(),
+                limit: jest.fn().mockReturnValue({
+                  get: jest.fn().mockResolvedValue({
+                    empty: false,
+                    docs: [mockCycleDoc],
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (colName === "users") {
+          return {
+            doc: jest.fn((uid: string) => ({
+              id: uid,
+              get: mockUserGet.mockImplementation(() => {
+                if (uid === "user_shared_primary") return Promise.resolve(mockUserShared);
+                if (uid === "user_collaborator_1") return Promise.resolve(mockUserCollab1);
+                return Promise.resolve(mockUserCollab2);
+              }),
+              update: jest.fn().mockResolvedValue(undefined),
+            })),
+          };
+        }
+        return {};
+      }),
+      getAll: jest.fn().mockImplementation((...refs) =>
+        Promise.all(
+          refs.map((r: { id: string }) => {
+            if (r.id === "user_shared_primary") return Promise.resolve(mockUserShared);
+            if (r.id === "user_collaborator_1") return Promise.resolve(mockUserCollab1);
+            return Promise.resolve(mockUserCollab2);
+          })
+        )
+      ),
+    } as unknown as admin.firestore.Firestore;
+
+    const mockMessaging = {
+      sendEachForMulticast: jest.fn().mockResolvedValue({
+        successCount: 2,
+        failureCount: 0,
+        responses: [{ success: true }, { success: true }],
+      }),
+    } as unknown as admin.messaging.Messaging;
+
+    const result = await processDailyReminders(mockDb, mockMessaging, { now });
+
+    // Both active charts should be checked and reminders sent
+    expect(result.chartsChecked).toBe(2);
+    expect(result.remindersSent).toBe(2);
+
+    // Verify userDoc.get was NEVER called sequentially for timezone resolution
+    expect(mockUserGet).not.toHaveBeenCalled();
+
+    // Verify getAll was called:
+    // First call: timezone lookup for ["user_shared_primary"] (deduplicated across Chart 1 & 2; chart_disabled omitted)
+    // Second call: collaborator token lookup for eligible charts (user_shared_primary, user_collaborator_1, user_collaborator_2)
+    expect(mockDb.getAll).toHaveBeenCalled();
+    const calls = (mockDb.getAll as jest.Mock).mock.calls;
+    const tzCallArgs = calls[0];
+    expect(tzCallArgs).toHaveLength(1);
+    expect(tzCallArgs[0].id).toBe("user_shared_primary");
+
+    // Verify backfills were executed concurrently with merge: true
+    expect(mockBackfillSet1).toHaveBeenCalledWith(
+      { timezone: "America/New_York" },
+      { merge: true }
+    );
+    expect(mockBackfillSet2).toHaveBeenCalledWith(
+      { timezone: "America/New_York" },
+      { merge: true }
+    );
+  });
+
+  it("resiliently falls back to America/Los_Angeles when db.getAll fails during timezone lookup", async () => {
+    // 2026-08-21 04:00:00 UTC is 2026-08-20 21:00:00 PDT
+    const now9PMPacific = new Date(Date.UTC(2026, 7, 21, 4, 0, 0));
+
+    const mockBackfillSet = jest.fn();
+    const mockChartDoc = {
+      id: "chart_getAll_fails",
+      ref: { set: mockBackfillSet },
+      data: () => ({
+        id: "chart_getAll_fails",
+        userIds: ["user_error_tz"],
+        reminderEnabled: true,
+      }),
+    };
+
+    const mockUser = {
+      id: "user_error_tz",
+      exists: true,
+      data: () => ({
+        uid: "user_error_tz",
+        fcmTokens: ["token_1"],
+      }),
+    };
+
+    const mockCycleDoc = {
+      ref: {
+        collection: jest.fn().mockReturnValue({
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue({ exists: false }),
+          }),
+        }),
+      },
+      data: () => ({ dailyEntries: {} }),
+    };
+
+    let firstGetAll = true;
+    const mockDb = {
+      collection: jest.fn((colName: string) => {
+        if (colName === "charts") {
+          return {
+            get: jest.fn().mockResolvedValue({
+              docs: [mockChartDoc],
+            }),
+            doc: jest.fn().mockReturnValue({
+              collection: jest.fn().mockReturnValue({
+                where: jest.fn().mockReturnThis(),
+                orderBy: jest.fn().mockReturnThis(),
+                limit: jest.fn().mockReturnValue({
+                  get: jest.fn().mockResolvedValue({
+                    empty: false,
+                    docs: [mockCycleDoc],
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (colName === "users") {
+          return {
+            doc: jest.fn((uid: string) => ({
+              id: uid,
+              get: jest.fn().mockResolvedValue(mockUser),
+              update: jest.fn().mockResolvedValue(undefined),
+            })),
+          };
+        }
+        return {};
+      }),
+      getAll: jest.fn().mockImplementation((...refs) => {
+        if (firstGetAll) {
+          firstGetAll = false;
+          throw new Error("Firestore batch read error");
+        }
+        return Promise.all(refs.map(() => Promise.resolve(mockUser)));
+      }),
+    } as unknown as admin.firestore.Firestore;
+
+    const mockMessaging = {
+      sendEachForMulticast: jest.fn().mockResolvedValue({
+        successCount: 1,
+        failureCount: 0,
+        responses: [{ success: true }],
+      }),
+    } as unknown as admin.messaging.Messaging;
+
+    const result = await processDailyReminders(mockDb, mockMessaging, {
+      now: now9PMPacific,
+    });
+
+    expect(result.chartsChecked).toBe(1);
+    expect(result.remindersSent).toBe(1);
+    expect(mockBackfillSet).not.toHaveBeenCalled();
+  });
+
+  it("handles individual backfill write failures gracefully", async () => {
+    // 2026-08-21 01:00:00 UTC is 2026-08-20 21:00:00 EDT
+    const now = new Date(Date.UTC(2026, 7, 21, 1, 0, 0));
+
+    const mockBackfillSet = jest
+      .fn()
+      .mockRejectedValue(new Error("Backfill write permission denied"));
+
+    const mockChartDoc = {
+      id: "chart_backfill_fails",
+      ref: { set: mockBackfillSet },
+      data: () => ({
+        id: "chart_backfill_fails",
+        userIds: ["user_backfill_fails"],
+        reminderEnabled: true,
+      }),
+    };
+
+    const mockUser = {
+      id: "user_backfill_fails",
+      exists: true,
+      data: () => ({
+        uid: "user_backfill_fails",
+        timezone: "America/New_York",
+        fcmTokens: ["token_backfill"],
+      }),
+    };
+
+    const mockCycleDoc = {
+      ref: {
+        collection: jest.fn().mockReturnValue({
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue({ exists: false }),
+          }),
+        }),
+      },
+      data: () => ({ dailyEntries: {} }),
+    };
+
+    const mockDb = {
+      collection: jest.fn((colName: string) => {
+        if (colName === "charts") {
+          return {
+            get: jest.fn().mockResolvedValue({
+              docs: [mockChartDoc],
+            }),
+            doc: jest.fn().mockReturnValue({
+              collection: jest.fn().mockReturnValue({
+                where: jest.fn().mockReturnThis(),
+                orderBy: jest.fn().mockReturnThis(),
+                limit: jest.fn().mockReturnValue({
+                  get: jest.fn().mockResolvedValue({
+                    empty: false,
+                    docs: [mockCycleDoc],
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (colName === "users") {
+          return {
+            doc: jest.fn((uid: string) => ({
+              id: uid,
+              get: jest.fn().mockResolvedValue(mockUser),
+              update: jest.fn().mockResolvedValue(undefined),
+            })),
+          };
+        }
+        return {};
+      }),
+      getAll: jest.fn().mockImplementation((...refs) =>
+        Promise.all(refs.map(() => Promise.resolve(mockUser)))
+      ),
+    } as unknown as admin.firestore.Firestore;
+
+    const mockMessaging = {
+      sendEachForMulticast: jest.fn().mockResolvedValue({
+        successCount: 1,
+        failureCount: 0,
+        responses: [{ success: true }],
+      }),
+    } as unknown as admin.messaging.Messaging;
+
+    // Should resolve without rejecting even if backfill write fails
+    const result = await processDailyReminders(mockDb, mockMessaging, { now });
+
+    expect(result.chartsChecked).toBe(1);
+    expect(result.remindersSent).toBe(1);
+    expect(mockBackfillSet).toHaveBeenCalledWith(
+      { timezone: "America/New_York" },
+      { merge: true }
+    );
+  });
 });

@@ -809,6 +809,78 @@ void main() {
         await logQueue.cancel();
       },
     );
+
+    test(
+      'streamSupplements supports re-subscription and forwards errors correctly',
+      () async {
+        final stream = db.streamSupplements();
+
+        // 1. Initial subscription receives initial list of supplements
+        final sub1 = stream.listen(null);
+        await pumpEventQueue();
+        await sub1.cancel();
+
+        // 2. Re-subscription after cancellation
+        final receivedLists = <List<SupplementItem>>[];
+        Object? receivedError;
+        final sub2 = stream.listen(
+          (data) => receivedLists.add(data),
+          onError: (Object err) {
+            receivedError = err;
+          },
+        );
+        await pumpEventQueue();
+
+        // Should receive current items upon re-subscribing
+        expect(receivedLists, hasLength(1));
+        expect(receivedLists.first, hasLength(20));
+
+        // 3. Error forwarding
+        final testException = Exception('Test supplements error propagation');
+        db.emitSupplementsError(testException);
+        await pumpEventQueue();
+
+        expect(receivedError, equals(testException));
+
+        await sub2.cancel();
+      },
+    );
+
+    test(
+      'streamDailySupplementLogs supports re-subscription and forwards errors correctly',
+      () async {
+        final stream = db.streamDailySupplementLogs();
+
+        // 1. Initial subscription receives initial logs map
+        final sub1 = stream.listen(null);
+        await pumpEventQueue();
+        await sub1.cancel();
+
+        // 2. Re-subscription after cancellation
+        final receivedLogs = <Map<String, DailySupplementLog>>[];
+        Object? receivedError;
+        final sub2 = stream.listen(
+          (data) => receivedLogs.add(data),
+          onError: (Object err) {
+            receivedError = err;
+          },
+        );
+        await pumpEventQueue();
+
+        // Should receive current logs upon re-subscribing
+        expect(receivedLogs, hasLength(1));
+        expect(receivedLogs.first, isEmpty);
+
+        // 3. Error forwarding
+        final testException = Exception('Test logs error propagation');
+        db.emitDailySupplementLogsError(testException);
+        await pumpEventQueue();
+
+        expect(receivedError, equals(testException));
+
+        await sub2.cancel();
+      },
+    );
   });
 
   group('DatabaseService Notification Preferences Cache', () {
