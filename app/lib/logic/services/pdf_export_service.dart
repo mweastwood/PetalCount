@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/cycle.dart';
 import '../models/daily_entry.dart';
 import '../utils/date_utils.dart';
+import '../../theme/baby_svg.dart';
 import 'web_download_helper.dart';
 
 class PdfExportService {
@@ -395,32 +396,13 @@ class PdfExportService {
     }
   }
 
-  // Draw a simple vector stick baby outline to represent the baby symbol
-  static pw.Widget _buildBabySymbol(PdfColor color) {
-    return pw.CustomPaint(
-      size: const PdfPoint(10, 15),
-      painter: (PdfGraphics canvas, PdfPoint size) {
-        canvas
-          ..setColor(color)
-          ..setLineWidth(0.8)
-          // Head (Circle)
-          ..drawEllipse(5, 11.5, 2.5, 2.5)
-          ..strokePath()
-          // Body (Line/Oval)
-          ..moveTo(5, 9.0)
-          ..lineTo(5, 3.5)
-          ..strokePath()
-          // Arms
-          ..moveTo(2.0, 6.5)
-          ..lineTo(8.0, 6.5)
-          ..strokePath()
-          // Legs
-          ..moveTo(5, 3.5)
-          ..lineTo(2.5, 1.0)
-          ..moveTo(5, 3.5)
-          ..lineTo(7.5, 1.0)
-          ..strokePath();
-      },
+  // Draw the swaddled sleeping baby symbol as an SVG vector
+  static pw.Widget _buildBabySymbol(PdfColor color, {double size = 14}) {
+    final hex = color.toHex();
+    return pw.SvgImage(
+      svg: BabySvg.getSvg(strokeColor: hex),
+      width: size,
+      height: size,
     );
   }
 }
