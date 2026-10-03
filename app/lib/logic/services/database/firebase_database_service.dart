@@ -1150,17 +1150,28 @@ class FirebaseDatabaseService implements DatabaseService {
 
       if (eligibleSnap.docs.isEmpty) {
         final anySnap = await cyclesCol.orderBy('startDate').limit(1).get();
-        if (anySnap.docs.isEmpty) {
-          final newCycle = Cycle(
-            id: dateStr,
-            startDate: date,
-            bipCodes: const ['6C'],
-            dailyEntries: {},
-          );
-          await cyclesCol.doc(dateStr).set(newCycle.toMap());
-          targetCycle = newCycle;
+        final earliestCycle = anySnap.docs.isNotEmpty
+            ? Cycle.fromMap(anySnap.docs.first.data())
+            : null;
+        final inheritedBipCodes =
+            (earliestCycle != null && earliestCycle.bipCodes.isNotEmpty)
+                ? earliestCycle.bipCodes
+                : const <String>['6C'];
+        final newCycle = Cycle(
+          id: dateStr,
+          startDate: date,
+          bipCodes: inheritedBipCodes,
+          dailyEntries: {},
+        );
+        await cyclesCol.doc(dateStr).set(newCycle.toMap());
+        if (anySnap.docs.isNotEmpty) {
+          await _reallocateAndRecalculate(chartId);
+          final reloadedDoc = await cyclesCol.doc(dateStr).get();
+          targetCycle = reloadedDoc.exists && reloadedDoc.data() != null
+              ? Cycle.fromMap(reloadedDoc.data()!)
+              : newCycle;
         } else {
-          targetCycle = Cycle.fromMap(anySnap.docs.first.data());
+          targetCycle = newCycle;
         }
       } else {
         final latest = Cycle.fromMap(eligibleSnap.docs.first.data());
