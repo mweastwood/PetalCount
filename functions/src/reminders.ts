@@ -1,7 +1,7 @@
 import * as admin from "firebase-admin";
 
 export interface ChartData {
-  id: string;
+  id?: string;
   userIds?: string[];
   emails?: string[];
   reminderEnabled?: boolean;
@@ -239,23 +239,36 @@ export async function processDailyReminders(
 }> {
   const now = options.now ?? new Date();
   const targetHour = options.targetHour ?? 21; // 9:00 PM (21:00)
+  const forceChartId =
+    typeof options.forceChartId === "string"
+      ? options.forceChartId.trim()
+      : undefined;
 
-  let chartsQuery: admin.firestore.Query = db.collection("charts");
-  if (options.forceChartId) {
-    chartsQuery = db
+  let chartDocs: admin.firestore.DocumentSnapshot[];
+  if (options.forceChartId !== undefined) {
+    if (!forceChartId) {
+      return { chartsChecked: 0, remindersSent: 0, tokensNotified: 0 };
+    }
+    const chartDoc = await db
       .collection("charts")
-      .where("id", "==", options.forceChartId);
-  }
-
-  const chartsSnap = await chartsQuery.get();
-  if (chartsSnap.empty) {
-    return { chartsChecked: 0, remindersSent: 0, tokensNotified: 0 };
+      .doc(forceChartId)
+      .get();
+    if (!chartDoc.exists) {
+      return { chartsChecked: 0, remindersSent: 0, tokensNotified: 0 };
+    }
+    chartDocs = [chartDoc];
+  } else {
+    const chartsSnap = await db.collection("charts").get();
+    if (chartsSnap.empty) {
+      return { chartsChecked: 0, remindersSent: 0, tokensNotified: 0 };
+    }
+    chartDocs = chartsSnap.docs;
   }
 
   // Collect distinct primary user IDs needing timezone lookup
   const usersNeedingTimezone = new Set<string>();
-  for (const chartDoc of chartsSnap.docs) {
-    const chart = chartDoc.data() as ChartData;
+  for (const chartDoc of chartDocs) {
+    const chart = (chartDoc.data() || {}) as ChartData;
     if (chart.reminderEnabled !== false && !chart.timezone) {
       const primaryUserId =
         chart.userIds && chart.userIds.length > 0
@@ -303,9 +316,12 @@ export async function processDailyReminders(
 
   const backfillPromises: Promise<unknown>[] = [];
 
-  for (const chartDoc of chartsSnap.docs) {
-    const chart = chartDoc.data() as ChartData;
-    const chartId = chart.id || chartDoc.id;
+  for (const chartDoc of chartDocs) {
+    const chart = (chartDoc.data() || {}) as ChartData;
+    const chartId = chartDoc.id || chart.id;
+    if (!chartId) {
+      continue;
+    }
 
     // Skip charts that disabled reminders
     if (chart.reminderEnabled === false) {
@@ -337,7 +353,7 @@ export async function processDailyReminders(
     const { hour, dateKey } = getLocalTimeInfo(now, timezone);
 
     // Only process charts that are currently in their 9:00 PM hour (unless forced)
-    if (!options.forceChartId && hour !== targetHour) {
+    if (!forceChartId && hour !== targetHour) {
       continue;
     }
 
