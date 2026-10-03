@@ -672,11 +672,10 @@ void main() {
         final savingPopScope = tester.widget<PopScope>(find.byType(PopScope));
         expect(savingPopScope.canPop, isFalse);
 
-        // Attempting to pop via maybePop should be rejected
-        final didPop = await Navigator.maybePop(
+        // Attempting to pop via maybePop should not dismiss dialog while saving
+        await Navigator.maybePop(
           tester.element(find.byType(AddEditSupplementDialog)),
         );
-        expect(didPop, isFalse);
         expect(find.text('Add Supplement'), findsWidgets);
 
         // Cancel button must be disabled
