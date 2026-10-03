@@ -622,6 +622,12 @@ void main() {
         final snackBar = tester.widget<SnackBar>(find.byType(SnackBar));
         final theme = Theme.of(tester.element(find.byType(SnackBar)));
         expect(snackBar.backgroundColor, equals(theme.colorScheme.error));
+        final snackBarText = tester.widget<Text>(
+          find.text(
+            'Failed to save supplement: Exception: Firestore write denied',
+          ),
+        );
+        expect(snackBarText.style?.color, equals(theme.colorScheme.onError));
 
         // Save button should be re-enabled after failure (retry capability)
         final saveButtonAfterError = tester.widget<FilledButton>(
@@ -704,9 +710,26 @@ void main() {
 
         // Complete save operation
         completer.complete();
-        await tester.pumpAndSettle();
+        // Pump a single frame to start the route pop transition animation
+        await tester.pump();
 
-        // Dialog should be dismissed after save completes
+        // While the dialog route is popping (during exit transition animation),
+        // action buttons must remain disabled and PopScope.canPop must remain false
+        final poppingPopScope = tester.widget<PopScope>(find.byType(PopScope));
+        expect(poppingPopScope.canPop, isFalse);
+
+        final poppingCancelButton = tester.widget<TextButton>(
+          find.widgetWithText(TextButton, 'Cancel'),
+        );
+        expect(poppingCancelButton.onPressed, isNull);
+
+        final poppingSaveButton = tester.widget<FilledButton>(
+          find.byType(FilledButton),
+        );
+        expect(poppingSaveButton.onPressed, isNull);
+
+        // Dialog should be dismissed after save completes and transition settles
+        await tester.pumpAndSettle();
         expect(find.text('Add Supplement'), findsNothing);
       },
     );
