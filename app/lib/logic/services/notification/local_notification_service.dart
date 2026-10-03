@@ -159,7 +159,15 @@ class LocalNotificationService implements NotificationService {
 
     try {
       final tzLocation = tz.local;
-      final scheduledTzDate = tz.TZDateTime.from(triggerTime, tzLocation);
+      final scheduledTzDate = tz.TZDateTime(
+        tzLocation,
+        triggerTime.year,
+        triggerTime.month,
+        triggerTime.day,
+        triggerTime.hour,
+        triggerTime.minute,
+        triggerTime.second,
+      );
       final reminderMsg = CycleNotificationFormatter.dailyLoggingReminder(role);
 
       const androidDetails = AndroidNotificationDetails(

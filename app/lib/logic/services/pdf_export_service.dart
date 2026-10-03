@@ -1,68 +1,81 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/cycle.dart';
 import '../models/daily_entry.dart';
 import '../utils/date_utils.dart';
+import '../../theme/baby_svg.dart';
 import 'web_download_helper.dart';
 
 class PdfExportService {
-  static Future<Uint8List> generatePdfBytes(List<Cycle> cycles) async {
+  static Future<Uint8List> generatePdfBytes(
+    List<Cycle> cycles, {
+    DateTime? generatedAt,
+  }) async {
     final pdf = pw.Document();
+    final effectiveGeneratedAt = generatedAt ?? DateTime.now();
 
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.letter.landscape,
-        margin: const pw.EdgeInsets.all(32),
-        build: (pw.Context context) {
-          return [
-            // Title Header
-            pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  'Creighton Model FertilityCare Chart',
-                  style: pw.TextStyle(
-                    fontSize: 20,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.pink900,
-                  ),
-                ),
-                pw.Text(
-                  'Generated on: ${DateTime.now().dateKey}',
-                  style: const pw.TextStyle(
-                    fontSize: 10,
-                    color: PdfColors.grey700,
-                  ),
-                ),
-              ],
-            ),
-            pw.SizedBox(height: 16),
-
-            // Loop through each cycle and draw a row
-            for (var cycle in cycles) ...[
-              _buildCycleRow(cycle),
-              pw.SizedBox(height: 24),
-            ],
-
-            // Legend / Key
-            pw.SizedBox(height: 16),
-            _buildLegend(),
-          ];
-        },
-      ),
-    );
+    if (cycles.isEmpty) {
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.letter.landscape,
+          margin: const pw.EdgeInsets.all(32),
+          build: (pw.Context context) {
+            return [_buildTitleHeader(effectiveGeneratedAt)];
+          },
+        ),
+      );
+    } else {
+      for (final cycle in cycles) {
+        pdf.addPage(
+          pw.MultiPage(
+            pageFormat: PdfPageFormat.letter.landscape,
+            margin: const pw.EdgeInsets.all(32),
+            build: (pw.Context context) {
+              return [
+                _buildTitleHeader(effectiveGeneratedAt),
+                pw.SizedBox(height: 16),
+                _buildCycleRow(cycle),
+              ];
+            },
+          ),
+        );
+      }
+    }
 
     return pdf.save();
   }
 
-  static Future<void> exportCyclesToPdf(List<Cycle> cycles) async {
-    final bytes = await generatePdfBytes(cycles);
+  static pw.Widget _buildTitleHeader(DateTime generatedAt) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(
+          'Creighton Model Chart',
+          style: pw.TextStyle(
+            fontSize: 20,
+            fontWeight: pw.FontWeight.bold,
+            color: PdfColors.pink900,
+          ),
+        ),
+        pw.Text(
+          'Generated on: ${generatedAt.dateKey}',
+          style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+        ),
+      ],
+    );
+  }
+
+  static Future<void> exportCyclesToPdf(
+    List<Cycle> cycles, {
+    DateTime? generatedAt,
+  }) async {
+    final bytes = await generatePdfBytes(cycles, generatedAt: generatedAt);
 
     // Save and Share the file
     try {
@@ -91,12 +104,14 @@ class PdfExportService {
   }
 
   static pw.Widget _buildCycleRow(Cycle cycle) {
-    const int daysPerRow = 35;
+    const int daysPerRow = 14;
     final int cycleMaxDay = cycle.maxDayNumber;
-    final int displayDays = cycleMaxDay < daysPerRow ? daysPerRow : cycleMaxDay;
-
-    // Collect comments to print at the bottom of the cycle row
-    final commentsList = <Map<String, String>>[];
+    const int minDisplayDays = 14;
+    final int totalDays = cycleMaxDay < minDisplayDays
+        ? minDisplayDays
+        : cycleMaxDay;
+    final int displayDays =
+        ((totalDays + daysPerRow - 1) ~/ daysPerRow) * daysPerRow;
 
     final chunkRows = <pw.Widget>[];
 
@@ -111,11 +126,11 @@ class PdfExportService {
 
       final rowColumns = <pw.Widget>[];
       for (int i = startIndex; i < endIndex; i++) {
-        rowColumns.add(_buildDayColumn(cycle, i, commentsList));
+        rowColumns.add(_buildDayColumn(cycle, i));
       }
 
       if (chunkRows.isNotEmpty) {
-        chunkRows.add(pw.SizedBox(height: 8));
+        chunkRows.add(pw.SizedBox(height: 12));
       }
 
       chunkRows.add(
@@ -131,65 +146,22 @@ class PdfExportService {
       children: [
         // Cycle Metadata Header
         pw.Text(
-          'Cycle Starting: ${cycle.startDate.dateKey}  |  BIP: ${cycle.bipCodes.isEmpty ? 'None' : cycle.bipCodes.join(', ')}',
+          'Cycle Starting: ${cycle.startDate.dateKey}',
           style: pw.TextStyle(
-            fontSize: 10,
+            fontSize: 12,
             fontWeight: pw.FontWeight.bold,
             color: PdfColors.grey800,
           ),
         ),
-        pw.SizedBox(height: 6),
+        pw.SizedBox(height: 8),
 
         // Grid rows
         ...chunkRows,
-
-        // Comments list below the row
-        if (commentsList.isNotEmpty) ...[
-          pw.SizedBox(height: 6),
-          pw.Container(
-            padding: const pw.EdgeInsets.all(6),
-            decoration: const pw.BoxDecoration(
-              color: PdfColors.grey100,
-              borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  'Daily Notes:',
-                  style: pw.TextStyle(
-                    fontSize: 8,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.grey800,
-                  ),
-                ),
-                pw.SizedBox(height: 2),
-                pw.Wrap(
-                  spacing: 12,
-                  runSpacing: 4,
-                  children: commentsList.map((c) {
-                    return pw.Text(
-                      '* Day ${c['day']}: ${c['comment']}',
-                      style: const pw.TextStyle(
-                        fontSize: 7,
-                        color: PdfColors.grey700,
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-        ],
       ],
     );
   }
 
-  static pw.Widget _buildDayColumn(
-    Cycle cycle,
-    int dayIndex,
-    List<Map<String, String>> commentsList,
-  ) {
+  static pw.Widget _buildDayColumn(Cycle cycle, int dayIndex) {
     final dayDate = cycle.startDate.addCalendarDays(dayIndex);
     final dateKey = dayDate.dateKey;
     final entry = cycle.dailyEntries[dateKey];
@@ -224,235 +196,213 @@ class PdfExportService {
           drawBaby = true;
           break;
       }
+    }
 
-      // Add comments if they exist
-      if (entry.comments.trim().isNotEmpty) {
-        commentsList.add({'day': dayNum.toString(), 'comment': entry.comments});
+    // Pain description in English
+    final String painDescription = (entry != null && entry.painLevel > 0)
+        ? (entry.painTypes.isNotEmpty ? entry.painTypes.join(', ') : 'Pain')
+        : '';
+
+    final numColor =
+        (cellColor == PdfColors.red || cellColor == PdfColors.green)
+        ? PdfColors.white
+        : PdfColors.black;
+
+    // Peak label formatting: "Peak" for 'P', "+1", "+2", "+3" for following days
+    String peakLabel = '';
+    if (entry?.peakDayLabel != null) {
+      switch (entry!.peakDayLabel) {
+        case 'P':
+        case 'Peak':
+          peakLabel = 'Peak';
+          break;
+        case '1':
+        case '+1':
+          peakLabel = '+1';
+          break;
+        case '2':
+        case '+2':
+          peakLabel = '+2';
+          break;
+        case '3':
+        case '+3':
+          peakLabel = '+3';
+          break;
+        default:
+          peakLabel = entry.peakDayLabel!;
       }
     }
 
-    // Check for pain
-    final hasPain = entry != null && entry.painLevel > 0;
-    final String painSymbol = hasPain
-        ? (entry.painTypes.contains('Cramps')
-              ? 'C'
-              : (entry.painTypes.contains('Ovulation') ? 'O' : 'P'))
-        : '';
+    const double cellWidth = 51;
 
     return pw.Container(
-      width: 20,
+      width: cellWidth,
       child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
         children: [
           // 1. Peak Day label above stamp
           pw.Container(
-            height: 12,
+            height: 14,
             child: pw.Text(
-              entry?.peakDayLabel ?? '',
+              peakLabel,
               style: pw.TextStyle(
-                fontSize: 8,
+                fontSize: 10,
                 fontWeight: pw.FontWeight.bold,
-                color: entry?.peakDayLabel == 'P'
-                    ? PdfColors.red900
-                    : PdfColors.black,
+                color: peakLabel == 'Peak' ? PdfColors.red900 : PdfColors.black,
               ),
             ),
           ),
 
-          // 2. The Stamp itself
+          // 2. The Stamp with inset cycle day number in top-left
           pw.Container(
-            width: 18,
-            height: 22,
+            width: 48,
+            height: 38,
             decoration: pw.BoxDecoration(
               color: cellColor,
               border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
             ),
-            child: pw.Center(
-              child: drawBaby
-                  ? _buildBabySymbol(PdfColors.black)
-                  : (drawGreenBaby
-                        ? _buildBabySymbol(PdfColors.white)
-                        : (entry == null
-                              ? pw.Text(
-                                  '?',
-                                  style: pw.TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: pw.FontWeight.bold,
-                                    color: PdfColors.grey600,
-                                  ),
-                                )
-                              : pw.SizedBox())),
+            child: pw.Stack(
+              children: [
+                pw.Positioned(
+                  top: 2,
+                  left: 3,
+                  child: pw.Text(
+                    '$dayNum',
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                      fontWeight: pw.FontWeight.bold,
+                      color: numColor,
+                    ),
+                  ),
+                ),
+                pw.Center(
+                  child: drawBaby
+                      ? _buildBabySymbol(PdfColors.black)
+                      : (drawGreenBaby
+                            ? _buildBabySymbol(PdfColors.white)
+                            : (entry == null
+                                  ? pw.Text(
+                                      '?',
+                                      style: pw.TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: pw.FontWeight.bold,
+                                        color: PdfColors.grey600,
+                                      ),
+                                    )
+                                  : pw.SizedBox())),
+                ),
+              ],
             ),
           ),
 
-          pw.SizedBox(height: 2),
+          pw.SizedBox(height: 3),
 
-          // 3. Cycle Day number
-          pw.Text(
-            '$dayNum',
-            style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700),
-          ),
-
-          // 4. Date
+          // 3. Date in black
           pw.Text(
             AppDateFormats.shortMonthDay.format(dayDate),
-            style: const pw.TextStyle(fontSize: 6, color: PdfColors.grey500),
+            style: const pw.TextStyle(
+              fontSize: 10,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.black,
+            ),
+            textAlign: pw.TextAlign.center,
           ),
 
-          // 5. Resolved VDRS Code
-          pw.Container(
-            height: 20,
-            alignment: pw.Alignment.topCenter,
-            child: pw.Text(
-              entry != null ? entry.resolvedVdrsCode : '?',
+          pw.SizedBox(height: 3),
+
+          // 4. Resolved VDRS Code in serif font (size 12) with frequency count
+          pw.Text(
+            entry != null ? formatObservationCode(entry) : '?',
+            style: pw.TextStyle(
+              font: pw.Font.timesBold(),
+              fontSize: 12,
+              color: entry != null ? PdfColors.black : PdfColors.grey600,
+            ),
+            textAlign: pw.TextAlign.center,
+          ),
+
+          // 5. Pain in English (size 10)
+          if (painDescription.isNotEmpty) ...[
+            pw.SizedBox(height: 3),
+            pw.Text(
+              painDescription,
               style: pw.TextStyle(
-                fontSize: 5,
-                color: entry != null ? PdfColors.black : PdfColors.grey600,
+                fontSize: 10,
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.red700,
               ),
               textAlign: pw.TextAlign.center,
             ),
-          ),
+          ],
 
-          // 6. Pain symbol / Asterisk for comments
-          pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.center,
-            children: [
-              if (painSymbol.isNotEmpty)
-                pw.Text(
-                  painSymbol,
-                  style: const pw.TextStyle(
-                    fontSize: 6,
-                    color: PdfColors.red700,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-              if (entry != null && entry.comments.isNotEmpty) ...[
-                pw.SizedBox(width: 1),
-                pw.Text(
-                  '*',
-                  style: const pw.TextStyle(
-                    fontSize: 7,
-                    color: PdfColors.blue700,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-              ],
-            ],
-          ),
+          // 6. Daily notes directly under day (size 10)
+          if (entry != null && entry.comments.trim().isNotEmpty) ...[
+            pw.SizedBox(height: 3),
+            pw.Text(
+              entry.comments.trim(),
+              style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey800),
+              textAlign: pw.TextAlign.center,
+            ),
+          ],
         ],
       ),
     );
   }
 
-  // Draw a simple vector stick baby outline to represent the baby symbol
-  static pw.Widget _buildBabySymbol(PdfColor color) {
-    return pw.CustomPaint(
-      size: const PdfPoint(8, 12),
-      painter: (PdfGraphics canvas, PdfPoint size) {
-        canvas
-          ..setColor(color)
-          ..setLineWidth(0.7)
-          // Head (Circle)
-          ..drawEllipse(4, 9, 2.2, 2.2)
-          ..strokePath()
-          // Body (Line/Oval)
-          ..moveTo(4, 6.8)
-          ..lineTo(4, 2.5)
-          ..strokePath()
-          // Arms
-          ..moveTo(1.5, 5.0)
-          ..lineTo(6.5, 5.0)
-          ..strokePath()
-          // Legs
-          ..moveTo(4, 2.5)
-          ..lineTo(2.0, 0.5)
-          ..moveTo(4, 2.5)
-          ..lineTo(6.0, 0.5)
-          ..strokePath();
-      },
-    );
+  // Formats the observation code ensuring that frequency count (e.g., x1, x2, x3, AD) is effectively included
+  static String formatObservationCode(DailyEntry? entry) {
+    if (entry == null) return '?';
+    final code = entry.resolvedVdrsCode.trim();
+    if (code.isEmpty || code == '?') return code;
+
+    // If code already contains a frequency code (x1, x2, x3, AD, etc.), return as is
+    final hasFrequency = RegExp(r'\b(x\d+|AD)\b').hasMatch(code);
+    if (hasFrequency) return code;
+
+    // Check if it's pure menstrual flow (H, M, L without mucus or sensation)
+    if (RegExp(r'^[HML](-[A-Z]+)?(\s+I)?$').hasMatch(code)) {
+      return code;
+    }
+
+    // Determine count from matching observations if available
+    int count = 1;
+    if (entry.observations.isNotEmpty) {
+      final codeParts = code.split(' ').where((p) => p != 'I').toList();
+      final baseCode = codeParts.isNotEmpty ? codeParts.last : code;
+
+      final matching = entry.observations.where((obs) {
+        if (obs.hasMucus) {
+          return obs.mucusPart() == baseCode;
+        }
+        return obs.sensation.code == baseCode || obs.mucusPart() == baseCode;
+      }).length;
+
+      if (matching > 0) {
+        count = matching;
+      }
+    }
+
+    final freqStr = count == 1
+        ? 'x1'
+        : (count == 2 ? 'x2' : (count == 3 ? 'x3' : 'AD'));
+
+    if (code.endsWith(' I')) {
+      final withoutI = code.substring(0, code.length - 2);
+      return '$withoutI $freqStr I';
+    } else if (code == 'I') {
+      return '$freqStr I';
+    } else {
+      return '$code $freqStr';
+    }
   }
 
-  static pw.Widget _buildLegend() {
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(8),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey300, width: 0.5),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-      ),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(
-            'Chart Legend & Key:',
-            style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-          ),
-          pw.SizedBox(height: 4),
-          pw.Row(
-            children: [
-              _buildLegendItem(
-                PdfColors.red,
-                'Bleeding Day (Menstruation/Spotting)',
-                hasBaby: false,
-              ),
-              pw.SizedBox(width: 12),
-              _buildLegendItem(
-                PdfColors.green,
-                'Dry Day (Infertile)',
-                hasBaby: false,
-              ),
-              pw.SizedBox(width: 12),
-              _buildLegendItem(
-                PdfColors.white,
-                'Mucus Day (Potentially Fertile)',
-                hasBaby: true,
-              ),
-              pw.SizedBox(width: 12),
-              _buildLegendItem(
-                PdfColors.green,
-                'Post-Peak Dry Day (Fertile window)',
-                hasBaby: true,
-                babyColor: PdfColors.white,
-              ),
-              pw.SizedBox(width: 12),
-              _buildLegendItem(
-                PdfColors.yellow,
-                'Continuous BIP Mucus (Infertile)',
-                hasBaby: false,
-              ),
-            ],
-          ),
-          pw.SizedBox(height: 4),
-          pw.Text(
-            'VDRS Symbols: K = Clear | C = Cloudy | Y = Yellow | W = White | L = Lubricative | G = Gummy | P = Pasty | 0/2/4 = Dry/Damp/Shiny Sensation. Frequency: x1/x2/x3 = Frequency | AD = All Day. Intercourse: I = Intercourse occurred. Pain: C = Cramps | O = Ovulation | P = Other Pain.',
-            style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _buildLegendItem(
-    PdfColor color,
-    String description, {
-    required bool hasBaby,
-    PdfColor babyColor = PdfColors.black,
-  }) {
-    return pw.Row(
-      children: [
-        pw.Container(
-          width: 10,
-          height: 12,
-          decoration: pw.BoxDecoration(
-            color: color,
-            border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
-          ),
-          child: pw.Center(
-            child: hasBaby ? _buildBabySymbol(babyColor) : pw.SizedBox(),
-          ),
-        ),
-        pw.SizedBox(width: 4),
-        pw.Text(description, style: const pw.TextStyle(fontSize: 7)),
-      ],
+  // Draw the swaddled sleeping baby symbol as an SVG vector
+  static pw.Widget _buildBabySymbol(PdfColor color, {double size = 14}) {
+    final hex = color.toHex();
+    return pw.SvgImage(
+      svg: BabySvg.getSvg(strokeColor: hex),
+      width: size,
+      height: size,
     );
   }
 }

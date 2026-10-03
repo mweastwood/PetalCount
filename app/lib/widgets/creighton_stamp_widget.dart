@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../logic/models/daily_entry.dart';
 import '../theme/creighton_theme.dart';
+import 'baby_icon.dart';
 
 enum _StampWidgetMode { badge, gridSticker, timelineNode }
 
@@ -100,7 +101,6 @@ class CreightonStampWidget extends StatelessWidget {
           width: 2,
         );
     final hasBaby = CreightonTheme.hasBabyIcon(stampType);
-    final babyColor = CreightonTheme.getBabyIconColor(stampType);
 
     return Container(
       width: width ?? 44.0,
@@ -129,7 +129,7 @@ class CreightonStampWidget extends StatelessWidget {
           if (hasBaby)
             Positioned(
               bottom: 4,
-              child: Icon(Icons.child_care, size: 20, color: babyColor),
+              child: BabyIcon.forStamp(stampType, size: 20),
             ),
         ],
       ),
@@ -142,7 +142,6 @@ class CreightonStampWidget extends StatelessWidget {
       defaultColor: theme.colorScheme.surfaceContainerLowest,
     );
     final hasBaby = CreightonTheme.hasBabyIcon(stampType);
-    final babyColor = CreightonTheme.getBabyIconColor(stampType);
 
     return Container(
       width: width ?? double.infinity,
@@ -182,7 +181,7 @@ class CreightonStampWidget extends StatelessWidget {
             ),
           // Baby Icon in center for fertile stamps, or '?' for unlogged days
           if (hasBaby)
-            Center(child: Icon(Icons.child_care, size: 26, color: babyColor))
+            Center(child: BabyIcon.forStamp(stampType, size: 26))
           else if (stampType == null)
             Center(
               child: Text(
@@ -210,7 +209,6 @@ class CreightonStampWidget extends StatelessWidget {
               : Colors.grey.shade400)
         : theme.colorScheme.outlineVariant;
     final hasBaby = CreightonTheme.hasBabyIcon(stampType);
-    final babyColor = CreightonTheme.getBabyIconColor(stampType);
 
     return Container(
       width: width ?? 52.0,
@@ -246,7 +244,7 @@ class CreightonStampWidget extends StatelessWidget {
               ),
             ),
           if (hasBaby)
-            Icon(Icons.child_care, size: 24, color: babyColor)
+            BabyIcon.forStamp(stampType, size: 24)
           else if (dayNumber != null)
             Text(
               '$dayNumber',

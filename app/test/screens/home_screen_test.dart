@@ -715,6 +715,67 @@ void main() {
   );
 
   testWidgets(
+    'DashboardScreen synchronizes daily logging reminder using cached NotificationPreferences',
+    (WidgetTester tester) async {
+      final chartId = Services.db.currentChartId!;
+
+      // 1. Update notification preferences to disable dailyLoggingReminder
+      await Services.db.updateNotificationPreferences(
+        chartId,
+        const NotificationPreferences(dailyLoggingReminder: false),
+      );
+
+      // Verify cached preferences synchronously reflect false
+      expect(
+        Services.db
+            .getLatestNotificationPreferences(chartId)
+            ?.dailyLoggingReminder,
+        isFalse,
+      );
+
+      await tester.pumpWidgetBuilder(
+        PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+        surfaceSize: const Size(400, 800),
+      );
+      await tester.pumpAndSettle();
+
+      // With reminder disabled in cached prefs, isReminderScheduled should be false
+      expect(Services.notifications.isReminderScheduled, isFalse);
+
+      // 2. Update notification preferences to re-enable daily logging reminder
+      await Services.db.updateNotificationPreferences(
+        chartId,
+        const NotificationPreferences(dailyLoggingReminder: true),
+      );
+      expect(
+        Services.db
+            .getLatestNotificationPreferences(chartId)
+            ?.dailyLoggingReminder,
+        isTrue,
+      );
+
+      // Trigger cycle update by saving observation
+      await Services.db.saveObservation(
+        date: DateTime(2026, 8, 3, 9, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.heavy,
+        bleedingColor: 'R',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Cycle update',
+        isVdrsExplicit: true,
+      );
+      await tester.pumpAndSettle();
+
+      // Daily reminder schedule should now be synced and scheduled
+      expect(Services.notifications.isReminderScheduled, isTrue);
+    },
+  );
+
+  testWidgets(
     'SupplementScreen and SettingsScreen receive the correct latest cycle',
     (WidgetTester tester) async {
       // Cycle 1: Earlier cycle (June 1, 2026)
