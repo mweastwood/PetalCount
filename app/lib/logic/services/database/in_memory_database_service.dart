@@ -854,10 +854,13 @@ class InMemoryDatabaseService implements DatabaseService {
         // starting on this date so the observation is not attached to a future
         // cycle (which would produce a negative day index).
         final dateStr = date.dateKey;
+        final earliestBips = cycles.first.bipCodes;
         final newCycle = Cycle(
           id: dateStr,
           startDate: date,
-          bipCodes: List<String>.from(cycles.first.bipCodes),
+          bipCodes: earliestBips.isNotEmpty
+              ? List<String>.from(earliestBips)
+              : const <String>['6C'],
           dailyEntries: {},
         );
         _cycles[chartId]![dateStr] = newCycle.toMap();

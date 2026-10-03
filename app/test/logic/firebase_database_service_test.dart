@@ -1312,6 +1312,257 @@ void main() {
         expect(fakeDb.store['charts/$chartId/cycles/$dateKey'], isNull);
       },
     );
+
+    test(
+      'saveObservation: before all existing cycles creates a new cycle starting on observation date (fixes #245)',
+      () async {
+        final sep1 = DateTime(2026, 9, 1);
+        await service.startNewCycle(sep1, ['6C']);
+
+        final aug25 = DateTime(2026, 8, 25);
+        await service.saveObservation(
+          date: aug25,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Backfilled observation before first cycle',
+        );
+
+        final cycles = await service.streamCycles().first;
+        expect(cycles.length, 2);
+        final preCycle = cycles.firstWhere(
+          (c) => c.startDate == aug25,
+          orElse: () =>
+              throw TestFailure('Expected a cycle with startDate 2026-08-25'),
+        );
+        expect(preCycle.dailyEntries.containsKey('2026-08-25'), isTrue);
+        expect(preCycle.dayNumberFor(aug25), equals(1));
+
+        final subDoc = fakeDb.store[
+          'charts/$chartId/cycles/2026-08-25/dailyEntries/2026-08-25'
+        ];
+        expect(subDoc, isNotNull);
+      },
+    );
+
+    test(
+      'saveObservation: pre-cycle observation inherits BIP codes from earliest existing cycle',
+      () async {
+        final sep1 = DateTime(2026, 9, 1);
+        await service.startNewCycle(sep1, ['6C', '8Y']);
+
+        final aug20 = DateTime(2026, 8, 20);
+        await service.saveObservation(
+          date: aug20,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Pre-cycle observation',
+        );
+
+        final cycles = await service.streamCycles().first;
+        final preCycle = cycles.firstWhere((c) => c.startDate == aug20);
+        expect(preCycle.bipCodes, equals(['6C', '8Y']));
+      },
+    );
+
+    test(
+      'saveObservation: pre-cycle observation falls back to default 6C when earliest existing cycle has empty BIP codes',
+      () async {
+        final sep1 = DateTime(2026, 9, 1);
+        await service.startNewCycle(sep1, []);
+
+        final aug20 = DateTime(2026, 8, 20);
+        await service.saveObservation(
+          date: aug20,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Pre-cycle observation with empty bipCodes',
+        );
+
+        final cycles = await service.streamCycles().first;
+        final preCycle = cycles.firstWhere((c) => c.startDate == aug20);
+        expect(preCycle.bipCodes, equals(['6C']));
+      },
+    );
+
+    test(
+      'saveObservation: pre-cycle heavy bleeding observation creates cycle with positive day index',
+      () async {
+        final sep1 = DateTime(2026, 9, 1);
+        await service.startNewCycle(sep1, ['6C']);
+
+        final aug28 = DateTime(2026, 8, 28);
+        await service.saveObservation(
+          date: aug28,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.heavy,
+          bleedingColor: 'R',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Backfilled period bleeding',
+        );
+
+        final cycles = await service.streamCycles().first;
+        final preCycle = cycles.firstWhere(
+          (c) => c.startDate == aug28,
+          orElse: () =>
+              throw TestFailure('Expected a cycle with startDate 2026-08-28'),
+        );
+        expect(preCycle.dailyEntries.containsKey('2026-08-28'), isTrue);
+        expect(preCycle.dayNumberFor(aug28), equals(1));
+      },
+    );
+
+    test(
+      'saveObservation: multiple pre-cycle observations end up in same cycle and trigger daily entry reallocation',
+      () async {
+        final oct1 = DateTime(2026, 10, 1);
+        await service.startNewCycle(oct1, ['6C']);
+
+        final sep27 = DateTime(2026, 9, 27);
+        final sep28 = DateTime(2026, 9, 28);
+
+        await service.saveObservation(
+          date: sep27,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'First pre-cycle obs',
+        );
+
+        await service.saveObservation(
+          date: sep28,
+          sensation: Sensation.damp,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Second pre-cycle obs',
+        );
+
+        final cycles = await service.streamCycles().first;
+        final preCycle = cycles.firstWhere(
+          (c) => c.startDate == sep27,
+          orElse: () =>
+              throw TestFailure('Expected a cycle with startDate 2026-09-27'),
+        );
+        expect(preCycle.dailyEntries.containsKey('2026-09-27'), isTrue);
+        expect(preCycle.dailyEntries.containsKey('2026-09-28'), isTrue);
+        expect(preCycle.dayNumberFor(sep28), equals(2));
+
+        expect(
+          fakeDb.store[
+            'charts/$chartId/cycles/2026-09-27/dailyEntries/2026-09-27'
+          ],
+          isNotNull,
+        );
+        expect(
+          fakeDb.store[
+            'charts/$chartId/cycles/2026-09-27/dailyEntries/2026-09-28'
+          ],
+          isNotNull,
+        );
+      },
+    );
+
+    test(
+      'saveObservation: reallocates misplaced daily entry to newly created pre-cycle and cleans up old cycle subcollection doc',
+      () async {
+        final sep10 = DateTime(2026, 9, 10);
+        await service.startNewCycle(sep10, ['6C']);
+
+        // Manually place a daily entry with date Sep 5 inside Sep 10 cycle (e.g. legacy data before fix)
+        final sep5 = DateTime(2026, 9, 5);
+        final legacyObs = Observation(
+          id: 'legacy_obs_1',
+          time: sep5,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          bleeding: Bleeding.none,
+          comment: 'Misplaced observation before fix',
+        );
+        final legacyEntry = DailyEntry(
+          date: sep5,
+          observations: [legacyObs],
+        );
+        final sep10Doc = fakeDb.store['charts/$chartId/cycles/2026-09-10']!;
+        final sep10Entries = Map<String, dynamic>.from(
+          sep10Doc['dailyEntries'] as Map? ?? {},
+        );
+        sep10Entries['2026-09-05'] = legacyEntry.toMap();
+        fakeDb.store['charts/$chartId/cycles/2026-09-10'] = {
+          ...sep10Doc,
+          'dailyEntries': sep10Entries,
+        };
+        fakeDb.store[
+          'charts/$chartId/cycles/2026-09-10/dailyEntries/2026-09-05'
+        ] = legacyEntry.toMap();
+
+        // Now save a pre-cycle observation on Sep 1
+        final sep1 = DateTime(2026, 9, 1);
+        await service.saveObservation(
+          date: sep1,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Pre-cycle observation triggering reallocation',
+        );
+
+        final cycles = await service.streamCycles().first;
+        final preCycle = cycles.firstWhere((c) => c.startDate == sep1);
+        final postCycle = cycles.firstWhere((c) => c.startDate == sep10);
+
+        expect(preCycle.dailyEntries.containsKey('2026-09-01'), isTrue);
+        expect(preCycle.dailyEntries.containsKey('2026-09-05'), isTrue);
+        expect(postCycle.dailyEntries.containsKey('2026-09-05'), isFalse);
+
+        expect(
+          fakeDb.store[
+            'charts/$chartId/cycles/2026-09-01/dailyEntries/2026-09-05'
+          ],
+          isNotNull,
+        );
+        expect(
+          fakeDb.store[
+            'charts/$chartId/cycles/2026-09-10/dailyEntries/2026-09-05'
+          ],
+          isNull,
+        );
+      },
+    );
   });
 
   // ===========================================================================

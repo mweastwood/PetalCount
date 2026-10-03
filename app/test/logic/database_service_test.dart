@@ -448,6 +448,34 @@ void main() {
     );
 
     test(
+      'pre-cycle observation falls back to default 6C when earliest existing cycle has empty BIP codes',
+      () async {
+        await db.createChart();
+
+        final sep1 = DateTime(2026, 9, 1);
+        await db.startNewCycle(sep1, []);
+
+        final aug20 = DateTime(2026, 8, 20);
+        await db.saveObservation(
+          date: aug20,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Pre-cycle observation with empty bipCodes',
+        );
+
+        final cycles = await db.streamCycles().first;
+        final preCycle = cycles.firstWhere((c) => c.startDate == aug20);
+        expect(preCycle.bipCodes, equals(['6C']));
+      },
+    );
+
+    test(
       'pre-cycle heavy bleeding observation creates cycle with positive day index',
       () async {
         await db.createChart();
