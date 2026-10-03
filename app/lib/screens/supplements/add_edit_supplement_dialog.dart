@@ -163,9 +163,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
           SnackBar(
             content: Text(
               'Failed to save supplement: $e',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onError,
-              ),
+              style: TextStyle(color: Theme.of(context).colorScheme.onError),
             ),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
