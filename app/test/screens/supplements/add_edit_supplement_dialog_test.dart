@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/logic.dart';
@@ -161,7 +162,9 @@ void main() {
 
       // Error SnackBar should be visible
       expect(
-        find.text('Failed to save supplement: Exception: Firestore write denied'),
+        find.text(
+          'Failed to save supplement: Exception: Firestore write denied',
+        ),
         findsOneWidget,
       );
     });
@@ -209,6 +212,7 @@ void main() {
     testWidgets('save button is disabled while saving is in progress', (
       tester,
     ) async {
+      final completer = Completer<void>();
 
       await tester.pumpWidget(
         MaterialApp(
@@ -217,8 +221,7 @@ void main() {
               builder: (context) => ElevatedButton(
                 onPressed: () =>
                     AddEditSupplementDialog.show(context, null, (item) async {
-                      // Hold the save in progress with a long delay
-                      await Future.delayed(const Duration(seconds: 5));
+                      await completer.future;
                     }),
                 child: const Text('Open Dialog'),
               ),
@@ -253,6 +256,10 @@ void main() {
         find.byType(FilledButton),
       );
       expect(filledButton.onPressed, isNull);
+
+      // Complete save and finish transition
+      completer.complete();
+      await tester.pumpAndSettle();
     });
   });
 }
