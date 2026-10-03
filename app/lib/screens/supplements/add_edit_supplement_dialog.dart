@@ -187,8 +187,9 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
             children: [
               Text(
                 'Person / Assigned Partner',
-                style: Theme.of(context).textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               SegmentedButton<UserRole>(
@@ -255,8 +256,9 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
               const Divider(height: 24),
               Text(
                 'Daily Doses',
-                style: Theme.of(context).textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               _buildDoseRow(
@@ -277,8 +279,9 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
               const Divider(height: 24),
               Text(
                 'Cycle Schedule Rule',
-                style: Theme.of(context).textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<SupplementScheduleRuleType>(
@@ -418,8 +421,9 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
                     height: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Theme.of(context).colorScheme.onSurface
-                          .withOpacity(0.38),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.38),
                     ),
                   )
                 : const Text('Save'),

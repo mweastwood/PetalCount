@@ -700,7 +700,7 @@ void main() {
         );
         expect(
           spinner.color,
-          equals(theme.colorScheme.onSurface.withOpacity(0.38)),
+          equals(theme.colorScheme.onSurface.withValues(alpha: 0.38)),
         );
 
         // Complete save operation
