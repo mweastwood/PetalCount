@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../logic/models/daily_entry.dart';
 import '../theme/baby_svg.dart';
 import '../theme/creighton_theme.dart';
 
@@ -19,12 +20,29 @@ class BabyIcon extends StatelessWidget {
     this.excludeFromSemantics = false,
   });
 
+  /// Creates a [BabyIcon] with color automatically resolved from the Creighton [stampType].
+  factory BabyIcon.forStamp(
+    StampType? stampType, {
+    Key? key,
+    double size = 24.0,
+    String? semanticsLabel = 'Baby icon',
+    bool excludeFromSemantics = false,
+  }) {
+    return BabyIcon(
+      key: key,
+      size: size,
+      color: CreightonTheme.getBabyIconColor(stampType),
+      semanticsLabel: semanticsLabel,
+      excludeFromSemantics: excludeFromSemantics,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final effectiveColor = color ?? CreightonTheme.babyIconGreen;
 
     return SvgPicture.string(
-      BabySvg.getSvg(),
+      BabySvg.rawSvg,
       width: size,
       height: size,
       fit: BoxFit.contain,

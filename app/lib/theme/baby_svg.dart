@@ -13,21 +13,9 @@ class BabySvg {
   /// Relative repository path for the source SVG vector file.
   static const String assetPath = 'assets/images/baby_swaddled.svg';
 
-  /// Raw SVG template with a configurable stroke color.
-  ///
-  /// In Flutter UI widgets (e.g. `BabyIcon`), color tinting is applied via `ColorFilter`
-  /// shader on the default SVG string to utilize Flutter's compiled picture cache and
-  /// preserve alpha transparency. In PDF export (`PdfExportService`), the [strokeColor]
-  /// parameter is supplied directly to interpolate the hex color.
-  static String getSvg({String strokeColor = '#2E7D32'}) {
-    final normalizedColor =
-        strokeColor.startsWith('#') ||
-            strokeColor.startsWith('rgb') ||
-            strokeColor == 'currentColor'
-        ? strokeColor
-        : '#$strokeColor';
-    return '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <g fill="none" stroke="$normalizedColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+  /// Canonical raw SVG template with the default Creighton theme green stroke (`#2E7D32`).
+  static const String rawSvg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <g fill="none" stroke="#2E7D32" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
     <!-- Hair curl -->
     <path d="M 32 10.5 C 32.5 7.5, 36.5 7, 35.5 10 C 35 11.5, 33 12, 32 13" />
     <!-- Head outline -->
@@ -46,5 +34,19 @@ class BabySvg {
     <path d="M 21 41.5 C 27 47, 37 47, 43 41.5" stroke-width="2.4" />
   </g>
 </svg>''';
+
+  /// Raw SVG template with a configurable stroke color.
+  ///
+  /// In Flutter UI widgets (e.g. `BabyIcon`), color tinting is applied via `ColorFilter`
+  /// shader on [rawSvg] to utilize Flutter's compiled picture cache and
+  /// preserve alpha transparency. In PDF export (`PdfExportService`), the [strokeColor]
+  /// parameter is supplied directly to interpolate the hex color.
+  static String getSvg({String strokeColor = '#2E7D32'}) {
+    if (strokeColor == '#2E7D32') {
+      return rawSvg;
+    }
+    final isUnhashedHex = RegExp(r'^[0-9a-fA-F]{3,8}$').hasMatch(strokeColor);
+    final normalizedColor = isUnhashedHex ? '#$strokeColor' : strokeColor;
+    return rawSvg.replaceFirst('stroke="#2E7D32"', 'stroke="$normalizedColor"');
   }
 }

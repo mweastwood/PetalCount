@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:golden_toolkit/golden_toolkit.dart';
+import 'package:petal_count/logic/models/daily_entry.dart';
 import 'package:petal_count/theme/baby_svg.dart';
 import 'package:petal_count/theme/creighton_theme.dart';
 import 'package:petal_count/widgets/baby_icon.dart';
@@ -12,6 +13,10 @@ void main() {
   group('BabySvg Unit Tests', () {
     test('assetPath points to baby_swaddled.svg', () {
       expect(BabySvg.assetPath, 'assets/images/baby_swaddled.svg');
+    });
+
+    test('rawSvg matches default getSvg()', () {
+      expect(BabySvg.rawSvg, BabySvg.getSvg());
     });
 
     test('getSvg matches canonical assets/images/baby_swaddled.svg file', () {
@@ -54,6 +59,19 @@ void main() {
 
         final blackSvg = BabySvg.getSvg(strokeColor: '#000000');
         expect(blackSvg, contains('stroke="#000000"'));
+
+        // Named CSS / SVG colors should be preserved without prepending '#'
+        final namedBlackSvg = BabySvg.getSvg(strokeColor: 'black');
+        expect(namedBlackSvg, contains('stroke="black"'));
+
+        final namedWhiteSvg = BabySvg.getSvg(strokeColor: 'white');
+        expect(namedWhiteSvg, contains('stroke="white"'));
+
+        final namedNoneSvg = BabySvg.getSvg(strokeColor: 'none');
+        expect(namedNoneSvg, contains('stroke="none"'));
+
+        final namedTransparentSvg = BabySvg.getSvg(strokeColor: 'transparent');
+        expect(namedTransparentSvg, contains('stroke="transparent"'));
       },
     );
   });
@@ -154,6 +172,94 @@ void main() {
       expect(svgWidget.excludeFromSemantics, isTrue);
       expect(svgWidget.semanticsLabel, isNull);
     });
+
+    testWidgets(
+      'BabyIcon.forStamp properly resolves Creighton colors for stamp types',
+      (tester) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Column(
+                children: [
+                  BabyIcon.forStamp(
+                    StampType.whiteBaby,
+                    key: const ValueKey('whiteBaby'),
+                  ),
+                  BabyIcon.forStamp(
+                    StampType.greenBaby,
+                    key: const ValueKey('greenBaby'),
+                  ),
+                  BabyIcon.forStamp(
+                    StampType.yellowBaby,
+                    key: const ValueKey('yellowBaby'),
+                  ),
+                  BabyIcon.forStamp(
+                    null,
+                    key: const ValueKey('nullStamp'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+
+        final whiteSvg = tester.widget<SvgPicture>(
+          find.descendant(
+            of: find.byKey(const ValueKey('whiteBaby')),
+            matching: find.byType(SvgPicture),
+          ),
+        );
+        expect(
+          whiteSvg.colorFilter,
+          ColorFilter.mode(
+            CreightonTheme.getBabyIconColor(StampType.whiteBaby),
+            BlendMode.srcIn,
+          ),
+        );
+
+        final greenSvg = tester.widget<SvgPicture>(
+          find.descendant(
+            of: find.byKey(const ValueKey('greenBaby')),
+            matching: find.byType(SvgPicture),
+          ),
+        );
+        expect(
+          greenSvg.colorFilter,
+          ColorFilter.mode(
+            CreightonTheme.getBabyIconColor(StampType.greenBaby),
+            BlendMode.srcIn,
+          ),
+        );
+
+        final yellowSvg = tester.widget<SvgPicture>(
+          find.descendant(
+            of: find.byKey(const ValueKey('yellowBaby')),
+            matching: find.byType(SvgPicture),
+          ),
+        );
+        expect(
+          yellowSvg.colorFilter,
+          ColorFilter.mode(
+            CreightonTheme.getBabyIconColor(StampType.yellowBaby),
+            BlendMode.srcIn,
+          ),
+        );
+
+        final nullSvg = tester.widget<SvgPicture>(
+          find.descendant(
+            of: find.byKey(const ValueKey('nullStamp')),
+            matching: find.byType(SvgPicture),
+          ),
+        );
+        expect(
+          nullSvg.colorFilter,
+          ColorFilter.mode(
+            CreightonTheme.getBabyIconColor(null),
+            BlendMode.srcIn,
+          ),
+        );
+      },
+    );
 
     testGoldens('BabyIcon renders swaddled sleeping baby golden', (
       tester,
