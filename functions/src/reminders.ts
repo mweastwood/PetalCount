@@ -1,7 +1,7 @@
 import * as admin from "firebase-admin";
 
 export interface ChartData {
-  id: string;
+  id?: string;
   userIds?: string[];
   emails?: string[];
   reminderEnabled?: boolean;
@@ -239,12 +239,19 @@ export async function processDailyReminders(
 }> {
   const now = options.now ?? new Date();
   const targetHour = options.targetHour ?? 21; // 9:00 PM (21:00)
+  const forceChartId =
+    typeof options.forceChartId === "string"
+      ? options.forceChartId.trim()
+      : undefined;
 
   let chartDocs: admin.firestore.DocumentSnapshot[];
-  if (options.forceChartId) {
+  if (options.forceChartId !== undefined) {
+    if (!forceChartId) {
+      return { chartsChecked: 0, remindersSent: 0, tokensNotified: 0 };
+    }
     const chartDoc = await db
       .collection("charts")
-      .doc(options.forceChartId)
+      .doc(forceChartId)
       .get();
     if (!chartDoc.exists) {
       return { chartsChecked: 0, remindersSent: 0, tokensNotified: 0 };
@@ -312,6 +319,9 @@ export async function processDailyReminders(
   for (const chartDoc of chartDocs) {
     const chart = (chartDoc.data() || {}) as ChartData;
     const chartId = chartDoc.id || chart.id;
+    if (!chartId) {
+      continue;
+    }
 
     // Skip charts that disabled reminders
     if (chart.reminderEnabled === false) {
@@ -343,7 +353,7 @@ export async function processDailyReminders(
     const { hour, dateKey } = getLocalTimeInfo(now, timezone);
 
     // Only process charts that are currently in their 9:00 PM hour (unless forced)
-    if (!options.forceChartId && hour !== targetHour) {
+    if (!forceChartId && hour !== targetHour) {
       continue;
     }
 
