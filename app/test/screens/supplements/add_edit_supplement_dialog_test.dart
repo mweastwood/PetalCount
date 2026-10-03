@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/logic.dart';
@@ -576,6 +578,198 @@ void main() {
 
       // Dosage error should now be cleared as well
       expect(find.text('Dosage / quantity is required'), findsNothing);
+    });
+
+    testWidgets(
+      'dialog stays open and shows error SnackBar with error styling on failure, and enables retry',
+      (tester) async {
+        int saveAttempts = 0;
+
+        await pumpDialog(
+          tester,
+          onSave: (item) async {
+            saveAttempts++;
+            if (saveAttempts == 1) {
+              throw Exception('Firestore write denied');
+            }
+          },
+        );
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Supplement Name *'),
+          'Vitamin D3',
+        );
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Dosage / Quantity *'),
+          '5000 IU',
+        );
+
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        // Dialog should remain open (not popped)
+        expect(find.text('Add Supplement'), findsWidgets);
+        expect(find.text('Vitamin D3'), findsOneWidget);
+        expect(find.text('5000 IU'), findsOneWidget);
+
+        // Error SnackBar should be visible with theme error color
+        expect(
+          find.text(
+            'Failed to save supplement: Exception: Firestore write denied',
+          ),
+          findsOneWidget,
+        );
+        final snackBar = tester.widget<SnackBar>(find.byType(SnackBar));
+        final theme = Theme.of(tester.element(find.byType(SnackBar)));
+        expect(snackBar.backgroundColor, equals(theme.colorScheme.error));
+        final snackBarText = tester.widget<Text>(
+          find.text(
+            'Failed to save supplement: Exception: Firestore write denied',
+          ),
+        );
+        expect(snackBarText.style?.color, equals(theme.colorScheme.onError));
+
+        // Save button should be re-enabled after failure (retry capability)
+        final saveButtonAfterError = tester.widget<FilledButton>(
+          find.byType(FilledButton),
+        );
+        expect(saveButtonAfterError.onPressed, isNotNull);
+
+        // Retry saving
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        // Dialog should now be closed on successful retry
+        expect(find.text('Add Supplement'), findsNothing);
+        expect(saveAttempts, equals(2));
+      },
+    );
+
+    testWidgets(
+      'prevents back dismissal via PopScope and disables buttons while saving is in-flight',
+      (tester) async {
+        final completer = Completer<void>();
+
+        await pumpDialog(
+          tester,
+          onSave: (item) async {
+            await completer.future;
+          },
+        );
+
+        // Initially canPop is true before saving
+        final initialPopScope = tester.widget<PopScope>(find.byType(PopScope));
+        expect(initialPopScope.canPop, isTrue);
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Supplement Name *'),
+          'Folate',
+        );
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Dosage / Quantity *'),
+          '800 mcg',
+        );
+
+        await tester.tap(find.text('Save'));
+        // Pump a frame so _isSaving becomes true
+        await tester.pump();
+
+        // While saving is in flight, canPop must be false
+        final savingPopScope = tester.widget<PopScope>(find.byType(PopScope));
+        expect(savingPopScope.canPop, isFalse);
+
+        // Attempting to pop via maybePop should not dismiss dialog while saving
+        await Navigator.maybePop(
+          tester.element(find.byType(AddEditSupplementDialog)),
+        );
+        expect(find.text('Add Supplement'), findsWidgets);
+
+        // Cancel button must be disabled
+        final cancelButton = tester.widget<TextButton>(
+          find.widgetWithText(TextButton, 'Cancel'),
+        );
+        expect(cancelButton.onPressed, isNull);
+
+        // Save button must be disabled with theme-adaptive CircularProgressIndicator
+        final filledButton = tester.widget<FilledButton>(
+          find.byType(FilledButton),
+        );
+        expect(filledButton.onPressed, isNull);
+        expect(find.text('Save'), findsNothing);
+
+        final spinner = tester.widget<CircularProgressIndicator>(
+          find.byType(CircularProgressIndicator),
+        );
+        final theme = Theme.of(
+          tester.element(find.byType(CircularProgressIndicator)),
+        );
+        expect(
+          spinner.color,
+          equals(theme.colorScheme.onSurface.withValues(alpha: 0.38)),
+        );
+
+        // Complete save operation
+        completer.complete();
+        // Pump a single frame to start the route pop transition animation
+        await tester.pump();
+
+        // While the dialog route is popping (during exit transition animation),
+        // action buttons must remain disabled and PopScope.canPop must remain false
+        final poppingPopScope = tester.widget<PopScope>(find.byType(PopScope));
+        expect(poppingPopScope.canPop, isFalse);
+
+        final poppingCancelButton = tester.widget<TextButton>(
+          find.widgetWithText(TextButton, 'Cancel'),
+        );
+        expect(poppingCancelButton.onPressed, isNull);
+
+        final poppingSaveButton = tester.widget<FilledButton>(
+          find.byType(FilledButton),
+        );
+        expect(poppingSaveButton.onPressed, isNull);
+
+        // Dialog should be dismissed after save completes and transition settles
+        await tester.pumpAndSettle();
+        expect(find.text('Add Supplement'), findsNothing);
+      },
+    );
+
+    testWidgets('re-entrancy guard prevents concurrent save executions', (
+      tester,
+    ) async {
+      int saveCount = 0;
+      final completer = Completer<void>();
+
+      await pumpDialog(
+        tester,
+        onSave: (item) async {
+          saveCount++;
+          await completer.future;
+        },
+      );
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Supplement Name *'),
+        'CoQ10',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Dosage / Quantity *'),
+        '200 mg',
+      );
+
+      // Rapidly tap Save twice in succession before pump/rebuild
+      await tester.tap(find.text('Save'));
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+
+      // Only one save call should have been initiated
+      expect(saveCount, equals(1));
+
+      completer.complete();
+      await tester.pumpAndSettle();
+
+      expect(saveCount, equals(1));
+      expect(find.text('Add Supplement'), findsNothing);
     });
   });
 }
