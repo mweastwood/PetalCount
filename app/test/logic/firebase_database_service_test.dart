@@ -1343,9 +1343,8 @@ void main() {
         expect(preCycle.dailyEntries.containsKey('2026-08-25'), isTrue);
         expect(preCycle.dayNumberFor(aug25), equals(1));
 
-        final subDoc = fakeDb.store[
-          'charts/$chartId/cycles/2026-08-25/dailyEntries/2026-08-25'
-        ];
+        final subDoc = fakeDb
+            .store['charts/$chartId/cycles/2026-08-25/dailyEntries/2026-08-25'];
         expect(subDoc, isNotNull);
       },
     );
@@ -1479,15 +1478,13 @@ void main() {
         expect(preCycle.dayNumberFor(sep28), equals(2));
 
         expect(
-          fakeDb.store[
-            'charts/$chartId/cycles/2026-09-27/dailyEntries/2026-09-27'
-          ],
+          fakeDb
+              .store['charts/$chartId/cycles/2026-09-27/dailyEntries/2026-09-27'],
           isNotNull,
         );
         expect(
-          fakeDb.store[
-            'charts/$chartId/cycles/2026-09-27/dailyEntries/2026-09-28'
-          ],
+          fakeDb
+              .store['charts/$chartId/cycles/2026-09-27/dailyEntries/2026-09-28'],
           isNotNull,
         );
       },
@@ -1509,10 +1506,7 @@ void main() {
           bleeding: Bleeding.none,
           comment: 'Misplaced observation before fix',
         );
-        final legacyEntry = DailyEntry(
-          date: sep5,
-          observations: [legacyObs],
-        );
+        final legacyEntry = DailyEntry(date: sep5, observations: [legacyObs]);
         final sep10Doc = fakeDb.store['charts/$chartId/cycles/2026-09-10']!;
         final sep10Entries = Map<String, dynamic>.from(
           sep10Doc['dailyEntries'] as Map? ?? {},
@@ -1522,9 +1516,8 @@ void main() {
           ...sep10Doc,
           'dailyEntries': sep10Entries,
         };
-        fakeDb.store[
-          'charts/$chartId/cycles/2026-09-10/dailyEntries/2026-09-05'
-        ] = legacyEntry.toMap();
+        fakeDb.store['charts/$chartId/cycles/2026-09-10/dailyEntries/2026-09-05'] =
+            legacyEntry.toMap();
 
         // Now save a pre-cycle observation on Sep 1
         final sep1 = DateTime(2026, 9, 1);
@@ -1550,15 +1543,13 @@ void main() {
         expect(postCycle.dailyEntries.containsKey('2026-09-05'), isFalse);
 
         expect(
-          fakeDb.store[
-            'charts/$chartId/cycles/2026-09-01/dailyEntries/2026-09-05'
-          ],
+          fakeDb
+              .store['charts/$chartId/cycles/2026-09-01/dailyEntries/2026-09-05'],
           isNotNull,
         );
         expect(
-          fakeDb.store[
-            'charts/$chartId/cycles/2026-09-10/dailyEntries/2026-09-05'
-          ],
+          fakeDb
+              .store['charts/$chartId/cycles/2026-09-10/dailyEntries/2026-09-05'],
           isNull,
         );
       },

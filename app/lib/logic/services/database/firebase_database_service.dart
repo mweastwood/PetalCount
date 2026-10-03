@@ -1150,14 +1150,13 @@ class FirebaseDatabaseService implements DatabaseService {
 
       if (eligibleSnap.docs.isEmpty) {
         final anySnap = await cyclesCol.orderBy('startDate').limit(1).get();
-        final inheritedBipCodes = anySnap.docs.isNotEmpty
-            ? () {
-                final codes = List<String>.from(
-                  Cycle.fromMap(anySnap.docs.first.data()).bipCodes,
-                );
-                return codes.isNotEmpty ? codes : const <String>['6C'];
-              }()
-            : const <String>['6C'];
+        final earliestCycle = anySnap.docs.isNotEmpty
+            ? Cycle.fromMap(anySnap.docs.first.data())
+            : null;
+        final inheritedBipCodes =
+            (earliestCycle != null && earliestCycle.bipCodes.isNotEmpty)
+                ? earliestCycle.bipCodes
+                : const <String>['6C'];
         final newCycle = Cycle(
           id: dateStr,
           startDate: date,
