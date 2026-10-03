@@ -180,257 +180,254 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
       canPop: !_isSaving,
       child: AlertDialog(
         title: Text(existing == null ? 'Add Supplement' : 'Edit Supplement'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Person / Assigned Partner',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            SegmentedButton<UserRole>(
-              key: const Key('supplement_role_segmented_button'),
-              segments: const [
-                ButtonSegment<UserRole>(
-                  value: UserRole.wife,
-                  label: Text('👩 Wife'),
-                  icon: Icon(Icons.female),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Person / Assigned Partner',
+                style: Theme.of(context).textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<UserRole>(
+                key: const Key('supplement_role_segmented_button'),
+                segments: const [
+                  ButtonSegment<UserRole>(
+                    value: UserRole.wife,
+                    label: Text('👩 Wife'),
+                    icon: Icon(Icons.female),
+                  ),
+                  ButtonSegment<UserRole>(
+                    value: UserRole.husband,
+                    label: Text('👨 Husband'),
+                    icon: Icon(Icons.male),
+                  ),
+                ],
+                selected: {_targetRole},
+                onSelectionChanged: (Set<UserRole> newSelection) {
+                  setState(() {
+                    _targetRole = newSelection.first;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _nameCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Supplement Name *',
+                  hintText: 'e.g. CoQ10, Prenatal, Clomid',
+                  errorText: _nameError,
                 ),
-                ButtonSegment<UserRole>(
-                  value: UserRole.husband,
-                  label: Text('👨 Husband'),
-                  icon: Icon(Icons.male),
+                onChanged: (_) {
+                  if (_nameError != null) {
+                    setState(() => _nameError = null);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _quantityCtrl,
+                decoration: InputDecoration(
+                  labelText: 'Dosage / Quantity *',
+                  hintText: 'e.g. 200 mg, 1 tablet, 2 g',
+                  errorText: _quantityError,
+                ),
+                onChanged: (_) {
+                  if (_quantityError != null) {
+                    setState(() => _quantityError = null);
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Take with food?'),
+                subtitle: const Text('Required with meals for absorption'),
+                value: _takeWithFood,
+                onChanged: (val) {
+                  setState(() {
+                    _takeWithFood = val;
+                  });
+                },
+              ),
+              const Divider(height: 24),
+              Text(
+                'Daily Doses',
+                style: Theme.of(context).textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              _buildDoseRow(
+                label: '🌅 Morning Dose',
+                count: _morningDose,
+                onChanged: (val) => setState(() => _morningDose = val),
+              ),
+              _buildDoseRow(
+                label: '☀️ Afternoon Dose',
+                count: _afternoonDose,
+                onChanged: (val) => setState(() => _afternoonDose = val),
+              ),
+              _buildDoseRow(
+                label: '🌙 Evening Dose',
+                count: _eveningDose,
+                onChanged: (val) => setState(() => _eveningDose = val),
+              ),
+              const Divider(height: 24),
+              Text(
+                'Cycle Schedule Rule',
+                style: Theme.of(context).textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<SupplementScheduleRuleType>(
+                initialValue: _ruleType,
+                decoration: const InputDecoration(labelText: 'Schedule Window'),
+                items: SupplementScheduleRuleType.values.map((type) {
+                  return DropdownMenuItem(value: type, child: Text(type.label));
+                }).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() {
+                      _ruleType = val;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 12),
+              if (_ruleType == SupplementScheduleRuleType.cycleDays) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _startDayCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Start Cycle Day',
+                          hintText: 'e.g. 4',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _endDayCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'End Cycle Day',
+                          hintText: 'e.g. 8',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ] else if (_ruleType ==
+                  SupplementScheduleRuleType.peakOffset) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _startPeakCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Peak Offset (e.g. 3 for P+3)',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _durationCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Duration (Days)',
+                          hintText: 'e.g. 10',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _startDayCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Fallback Start Cycle Day (if no peak)',
+                    hintText: 'e.g. 21',
+                  ),
+                ),
+              ] else if (_ruleType ==
+                  SupplementScheduleRuleType.cycleDaysOrPeak) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _startDayCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Start Cycle Day',
+                          hintText: 'e.g. 8',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _endPeakCtrl,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'End Peak Offset',
+                          hintText: 'e.g. 1 for P+1',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _endDayCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Fallback End Cycle Day (if no peak)',
+                    hintText: 'e.g. 19',
+                  ),
                 ),
               ],
-              selected: {_targetRole},
-              onSelectionChanged: (Set<UserRole> newSelection) {
-                setState(() {
-                  _targetRole = newSelection.first;
-                });
-              },
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _nameCtrl,
-              decoration: InputDecoration(
-                labelText: 'Supplement Name *',
-                hintText: 'e.g. CoQ10, Prenatal, Clomid',
-                errorText: _nameError,
-              ),
-              onChanged: (_) {
-                if (_nameError != null) {
-                  setState(() => _nameError = null);
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _quantityCtrl,
-              decoration: InputDecoration(
-                labelText: 'Dosage / Quantity *',
-                hintText: 'e.g. 200 mg, 1 tablet, 2 g',
-                errorText: _quantityError,
-              ),
-              onChanged: (_) {
-                if (_quantityError != null) {
-                  setState(() => _quantityError = null);
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Take with food?'),
-              subtitle: const Text('Required with meals for absorption'),
-              value: _takeWithFood,
-              onChanged: (val) {
-                setState(() {
-                  _takeWithFood = val;
-                });
-              },
-            ),
-            const Divider(height: 24),
-            Text(
-              'Daily Doses',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            _buildDoseRow(
-              label: '🌅 Morning Dose',
-              count: _morningDose,
-              onChanged: (val) => setState(() => _morningDose = val),
-            ),
-            _buildDoseRow(
-              label: '☀️ Afternoon Dose',
-              count: _afternoonDose,
-              onChanged: (val) => setState(() => _afternoonDose = val),
-            ),
-            _buildDoseRow(
-              label: '🌙 Evening Dose',
-              count: _eveningDose,
-              onChanged: (val) => setState(() => _eveningDose = val),
-            ),
-            const Divider(height: 24),
-            Text(
-              'Cycle Schedule Rule',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<SupplementScheduleRuleType>(
-              initialValue: _ruleType,
-              decoration: const InputDecoration(labelText: 'Schedule Window'),
-              items: SupplementScheduleRuleType.values.map((type) {
-                return DropdownMenuItem(value: type, child: Text(type.label));
-              }).toList(),
-              onChanged: (val) {
-                if (val != null) {
-                  setState(() {
-                    _ruleType = val;
-                  });
-                }
-              },
-            ),
-            const SizedBox(height: 12),
-            if (_ruleType == SupplementScheduleRuleType.cycleDays) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _startDayCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Start Cycle Day',
-                        hintText: 'e.g. 4',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _endDayCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'End Cycle Day',
-                        hintText: 'e.g. 8',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ] else if (_ruleType == SupplementScheduleRuleType.peakOffset) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _startPeakCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Peak Offset (e.g. 3 for P+3)',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _durationCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Duration (Days)',
-                        hintText: 'e.g. 10',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               TextField(
-                controller: _startDayCtrl,
-                keyboardType: TextInputType.number,
+                controller: _instructionsCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Fallback Start Cycle Day (if no peak)',
-                  hintText: 'e.g. 21',
-                ),
-              ),
-            ] else if (_ruleType ==
-                SupplementScheduleRuleType.cycleDaysOrPeak) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _startDayCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'Start Cycle Day',
-                        hintText: 'e.g. 8',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextField(
-                      controller: _endPeakCtrl,
-                      keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
-                        labelText: 'End Peak Offset',
-                        hintText: 'e.g. 1 for P+1',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _endDayCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Fallback End Cycle Day (if no peak)',
-                  hintText: 'e.g. 19',
+                  labelText: 'Clinical Notes / Instructions',
+                  hintText: 'e.g. Take with dinner, sustained release',
                 ),
               ),
             ],
-            const SizedBox(height: 12),
-            TextField(
-              controller: _instructionsCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Clinical Notes / Instructions',
-                hintText: 'e.g. Take with dinner, sustained release',
-              ),
-            ),
-          ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: _isSaving ? null : () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: _isSaving ? null : _handleSave,
+            child: _isSaving
+                ? SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Theme.of(context).colorScheme.onSurface
+                          .withOpacity(0.38),
+                    ),
+                  )
+                : const Text('Save'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: _isSaving ? null : () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _isSaving ? null : _handleSave,
-          child: _isSaving
-              ? SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withOpacity(0.38),
-                  ),
-                )
-              : const Text('Save'),
-        ),
-      ],
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildDoseRow({
     required String label,
