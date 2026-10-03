@@ -14,7 +14,8 @@ class BabySvg {
   static const String assetPath = 'assets/images/baby_swaddled.svg';
 
   /// Canonical raw SVG template with the default Creighton theme green stroke (`#2E7D32`).
-  static const String rawSvg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  static const String rawSvg =
+      '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <g fill="none" stroke="#2E7D32" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
     <!-- Hair curl -->
     <path d="M 32 10.5 C 32.5 7.5, 36.5 7, 35.5 10 C 35 11.5, 33 12, 32 13" />

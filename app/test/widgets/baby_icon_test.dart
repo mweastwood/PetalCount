@@ -193,10 +193,7 @@ void main() {
                     StampType.yellowBaby,
                     key: const ValueKey('yellowBaby'),
                   ),
-                  BabyIcon.forStamp(
-                    null,
-                    key: const ValueKey('nullStamp'),
-                  ),
+                  BabyIcon.forStamp(null, key: const ValueKey('nullStamp')),
                 ],
               ),
             ),
