@@ -168,79 +168,81 @@ class _SupplementScreenState extends State<SupplementScreen>
           builder: (context, suppSnapshot) {
             final supplements = suppSnapshot.data ?? [];
 
-            return StreamBuilder<Map<String, DailySupplementLog>>(
-              stream: _supplementLogsStream,
-              builder: (context, logSnapshot) {
-                final logs = logSnapshot.data ?? {};
-                final dateKey = _selectedDate.dateKey;
-                final dailyLog =
-                    logs[dateKey] ??
-                    DailySupplementLog(date: _selectedDate, takenDoses: {});
-
-                return Scaffold(
-                  appBar: AppBar(
-                    title: const Text('Supplements & Protocols'),
-                    bottom: TabBar(
-                      controller: _tabController,
-                      tabs: const [
-                        Tab(
-                          icon: Icon(Icons.check_circle_outline),
-                          text: 'Daily Intake',
-                        ),
-                        Tab(
-                          icon: Icon(Icons.calendar_view_week),
-                          text: 'Cycle Plan',
-                        ),
-                        Tab(
-                          icon: Icon(Icons.medication_outlined),
-                          text: 'Formulary',
-                        ),
-                      ],
+            return Scaffold(
+              appBar: AppBar(
+                title: const Text('Supplements & Protocols'),
+                bottom: TabBar(
+                  controller: _tabController,
+                  tabs: const [
+                    Tab(
+                      icon: Icon(Icons.check_circle_outline),
+                      text: 'Daily Intake',
                     ),
-                    actions: [
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.more_vert),
-                        onSelected: (value) {
-                          if (value == 'reset') {
-                            _showResetPresetsConfirmation(context);
-                          } else if (value == 'add') {
-                            AddEditSupplementDialog.show(
-                              context,
-                              null,
-                              null,
-                              _activeRole,
-                            );
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          const PopupMenuItem(
-                            value: 'add',
-                            child: Row(
-                              children: [
-                                Icon(Icons.add, size: 20),
-                                SizedBox(width: 8),
-                                Text('Add Supplement'),
-                              ],
-                            ),
-                          ),
-                          const PopupMenuItem(
-                            value: 'reset',
-                            child: Row(
-                              children: [
-                                Icon(Icons.restore, size: 20),
-                                SizedBox(width: 8),
-                                Text('Reset Default Presets'),
-                              ],
-                            ),
-                          ),
-                        ],
+                    Tab(
+                      icon: Icon(Icons.calendar_view_week),
+                      text: 'Cycle Plan',
+                    ),
+                    Tab(
+                      icon: Icon(Icons.medication_outlined),
+                      text: 'Formulary',
+                    ),
+                  ],
+                ),
+                actions: [
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    onSelected: (value) {
+                      if (value == 'reset') {
+                        _showResetPresetsConfirmation(context);
+                      } else if (value == 'add') {
+                        AddEditSupplementDialog.show(
+                          context,
+                          null,
+                          null,
+                          _activeRole,
+                        );
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'add',
+                        child: Row(
+                          children: [
+                            Icon(Icons.add, size: 20),
+                            SizedBox(width: 8),
+                            Text('Add Supplement'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'reset',
+                        child: Row(
+                          children: [
+                            Icon(Icons.restore, size: 20),
+                            SizedBox(width: 8),
+                            Text('Reset Default Presets'),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                  body: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      DailyIntakeTab(
+                ],
+              ),
+              body: TabBarView(
+                controller: _tabController,
+                children: [
+                  StreamBuilder<Map<String, DailySupplementLog>>(
+                    stream: _supplementLogsStream,
+                    builder: (context, logSnapshot) {
+                      final logs = logSnapshot.data ?? {};
+                      final dateKey = _selectedDate.dateKey;
+                      final dailyLog =
+                          logs[dateKey] ??
+                          DailySupplementLog(
+                            date: _selectedDate,
+                            takenDoses: {},
+                          );
+                      return DailyIntakeTab(
                         selectedDate: _selectedDate,
                         cycle: activeCycle,
                         cycleDay: cycleDay,
@@ -256,42 +258,42 @@ class _SupplementScreenState extends State<SupplementScreen>
                         },
                         onDateChanged: _changeDate,
                         onGoToToday: _goToToday,
-                      ),
-                      CyclePlanTab(
-                        supplements: supplements,
-                        cycle: activeCycle,
-                        initialRole: _activeRole,
-                        onRoleChanged: (role) {
-                          setState(() {
-                            _activeRole = role;
-                          });
-                        },
-                      ),
-                      FormularyTab(
-                        supplements: supplements,
-                        initialRoleFilter: null,
-                        onEdit: (item) =>
-                            AddEditSupplementDialog.show(context, item),
-                        onDelete: (item) =>
-                            _showDeleteSupplementDialog(context, item),
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                  floatingActionButton: _tabController.index == 2
-                      ? FloatingActionButton.extended(
-                          key: const Key('btn_add_supplement_fab'),
-                          onPressed: () => AddEditSupplementDialog.show(
-                            context,
-                            null,
-                            null,
-                            _activeRole,
-                          ),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add Supplement'),
-                        )
-                      : null,
-                );
-              },
+                  CyclePlanTab(
+                    supplements: supplements,
+                    cycle: activeCycle,
+                    initialRole: _activeRole,
+                    onRoleChanged: (role) {
+                      setState(() {
+                        _activeRole = role;
+                      });
+                    },
+                  ),
+                  FormularyTab(
+                    supplements: supplements,
+                    initialRoleFilter: null,
+                    onEdit: (item) =>
+                        AddEditSupplementDialog.show(context, item),
+                    onDelete: (item) =>
+                        _showDeleteSupplementDialog(context, item),
+                  ),
+                ],
+              ),
+              floatingActionButton: _tabController.index == 2
+                  ? FloatingActionButton.extended(
+                      key: const Key('btn_add_supplement_fab'),
+                      onPressed: () => AddEditSupplementDialog.show(
+                        context,
+                        null,
+                        null,
+                        _activeRole,
+                      ),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Supplement'),
+                    )
+                  : null,
             );
           },
         );

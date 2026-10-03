@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:golden_toolkit/golden_toolkit.dart';
 import 'package:petal_count/logic/logic.dart';
 import 'package:petal_count/screens/supplement_screen.dart';
+import 'package:petal_count/screens/supplements/supplements.dart';
 
 void main() {
   setUp(() async {
@@ -505,6 +506,10 @@ void main() {
         await tester.tap(find.text('Cycle Plan'));
         await tester.pumpAndSettle();
 
+        // 4. Return to Daily Intake tab to inspect stream instances after all rebuilds
+        await tester.tap(find.text('Daily Intake'));
+        await tester.pumpAndSettle();
+
         final cycleStreamAfter = tester
             .widget<StreamBuilder<List<Cycle>>>(
               find.byWidgetPredicate((w) => w is StreamBuilder<List<Cycle>>),
@@ -529,6 +534,49 @@ void main() {
         expect(identical(cycleStreamAfter, cycleStreamBefore), isTrue);
         expect(identical(suppStreamAfter, suppStreamBefore), isTrue);
         expect(identical(logStreamAfter, logStreamBefore), isTrue);
+      },
+    );
+
+    testWidgets(
+      'DailySupplementLog StreamBuilder is localized to DailyIntakeTab inside TabBarView',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
+
+        final logStreamBuilderFinder = find.byWidgetPredicate(
+          (w) => w is StreamBuilder<Map<String, DailySupplementLog>>,
+        );
+
+        // DailySupplementLog StreamBuilder is localized inside TabBarView
+        expect(
+          find.descendant(
+            of: find.byType(TabBarView),
+            matching: logStreamBuilderFinder,
+          ),
+          findsOneWidget,
+        );
+
+        // DailySupplementLog StreamBuilder is an ancestor of DailyIntakeTab
+        expect(
+          find.ancestor(
+            of: find.byType(DailyIntakeTab),
+            matching: logStreamBuilderFinder,
+          ),
+          findsOneWidget,
+        );
+
+        // Scaffold is NOT wrapped by DailySupplementLog StreamBuilder
+        expect(
+          find.ancestor(
+            of: find.byType(Scaffold),
+            matching: logStreamBuilderFinder,
+          ),
+          findsNothing,
+        );
       },
     );
   });
