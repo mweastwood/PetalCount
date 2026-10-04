@@ -341,13 +341,8 @@ void main() {
           ),
         );
         expect(stack.children.length, equals(2));
-        expect(
-          find.descendant(
-            of: find.byWidget(stack.children[0]),
-            matching: find.byType(BabyIcon),
-          ),
-          findsOneWidget,
-        );
+        expect(stack.children[0], isA<Positioned>());
+        expect((stack.children[0] as Positioned).child, isA<BabyIcon>());
         expect(
           find.descendant(
             of: find.byWidget(stack.children[1]),
@@ -374,13 +369,8 @@ void main() {
           ),
         );
         expect(stack.children.length, equals(2));
-        expect(
-          find.descendant(
-            of: find.byWidget(stack.children[0]),
-            matching: find.byType(BabyIcon),
-          ),
-          findsOneWidget,
-        );
+        expect(stack.children[0], isA<Center>());
+        expect((stack.children[0] as Center).child, isA<BabyIcon>());
         expect(
           find.descendant(
             of: find.byWidget(stack.children[1]),
@@ -407,13 +397,7 @@ void main() {
           ),
         );
         expect(stack.children.length, equals(2));
-        expect(
-          find.descendant(
-            of: find.byWidget(stack.children[0]),
-            matching: find.byType(BabyIcon),
-          ),
-          findsOneWidget,
-        );
+        expect(stack.children[0], isA<BabyIcon>());
         expect(
           find.descendant(
             of: find.byWidget(stack.children[1]),
