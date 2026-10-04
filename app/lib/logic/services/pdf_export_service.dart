@@ -10,9 +10,18 @@ import '../models/cycle.dart';
 import '../models/daily_entry.dart';
 import '../utils/date_utils.dart';
 import '../../theme/baby_svg.dart';
+import '../../theme/creighton_theme.dart';
 import 'web_download_helper.dart';
 
 class PdfExportService {
+  /// Dimensions of the Creighton stamp cell in PDF export.
+  static const double stampCellWidth = 48.0;
+  static const double stampCellHeight = 38.0;
+
+  /// Default size of the baby symbol in PDF export, derived from [stampCellHeight] and [CreightonTheme.babyIconFraction].
+  static const double babySymbolSize =
+      stampCellHeight * CreightonTheme.babyIconFraction;
+
   static Future<Uint8List> generatePdfBytes(
     List<Cycle> cycles, {
     DateTime? generatedAt,
@@ -255,8 +264,8 @@ class PdfExportService {
 
           // 2. The Stamp with inset cycle day number in top-left
           pw.Container(
-            width: 48,
-            height: 38,
+            width: stampCellWidth,
+            height: stampCellHeight,
             decoration: pw.BoxDecoration(
               color: cellColor,
               border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
@@ -275,22 +284,25 @@ class PdfExportService {
                     ),
                   ),
                 ),
-                pw.Center(
-                  child: drawBaby
-                      ? _buildBabySymbol(PdfColors.black)
-                      : (drawGreenBaby
-                            ? _buildBabySymbol(PdfColors.white)
-                            : (entry == null
-                                  ? pw.Text(
-                                      '?',
-                                      style: pw.TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: pw.FontWeight.bold,
-                                        color: PdfColors.grey600,
-                                      ),
-                                    )
-                                  : pw.SizedBox())),
-                ),
+                if (drawBaby || drawGreenBaby)
+                  pw.Positioned(
+                    top: (stampCellHeight - babySymbolSize) / 2,
+                    right: 3,
+                    child: buildBabySymbol(
+                      drawBaby ? PdfColors.black : PdfColors.white,
+                    ),
+                  )
+                else if (entry == null)
+                  pw.Center(
+                    child: pw.Text(
+                      '?',
+                      style: pw.TextStyle(
+                        fontSize: 12,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.grey600,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -397,12 +409,14 @@ class PdfExportService {
   }
 
   // Draw the swaddled sleeping baby symbol as an SVG vector
-  static pw.Widget _buildBabySymbol(PdfColor color, {double size = 28.5}) {
+  @visibleForTesting
+  static pw.Widget buildBabySymbol(PdfColor color, {double? size}) {
+    final effectiveSize = size ?? babySymbolSize;
     final hex = color.toHex();
     return pw.SvgImage(
       svg: BabySvg.getSvg(strokeColor: hex),
-      width: size,
-      height: size,
+      width: effectiveSize,
+      height: effectiveSize,
     );
   }
 }

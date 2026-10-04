@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:petal_count/logic/logic.dart';
+import 'package:petal_count/theme/creighton_theme.dart';
 
 void main() {
   group('PdfExportService Unit Tests', () {
@@ -496,6 +499,39 @@ void main() {
         '10K x2',
       );
     });
+
+    test(
+      'derives baby symbol size from stamp cell height and shared fraction',
+      () {
+        expect(CreightonTheme.babyIconFraction, equals(0.75));
+        expect(PdfExportService.stampCellHeight, equals(38.0));
+        expect(PdfExportService.stampCellWidth, equals(48.0));
+        expect(
+          PdfExportService.babySymbolSize,
+          equals(
+            PdfExportService.stampCellHeight * CreightonTheme.babyIconFraction,
+          ),
+        );
+        expect(PdfExportService.babySymbolSize, equals(28.5));
+
+        final defaultBabyWidget = PdfExportService.buildBabySymbol(
+          PdfColors.black,
+        );
+        expect(defaultBabyWidget, isA<pw.SvgImage>());
+        final defaultSvg = defaultBabyWidget as pw.SvgImage;
+        expect(defaultSvg.width, equals(28.5));
+        expect(defaultSvg.height, equals(28.5));
+
+        final customBabyWidget = PdfExportService.buildBabySymbol(
+          PdfColors.white,
+          size: 20.0,
+        );
+        expect(customBabyWidget, isA<pw.SvgImage>());
+        final customSvg = customBabyWidget as pw.SvgImage;
+        expect(customSvg.width, equals(20.0));
+        expect(customSvg.height, equals(20.0));
+      },
+    );
   });
 }
 

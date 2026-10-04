@@ -6,9 +6,14 @@ import 'baby_icon.dart';
 
 enum _StampWidgetMode { badge, gridSticker, timelineNode }
 
+const double _babyIconFraction = CreightonTheme.babyIconFraction;
+
 /// A unified widget for rendering Creighton Model FertilityCare stamps across
 /// badges, grid spreadsheet sticker headers, and timeline nodes.
 class CreightonStampWidget extends StatelessWidget {
+  /// Fraction of stamp container height occupied by the baby icon.
+  static const double babyIconFraction = _babyIconFraction;
+
   final StampType? stampType;
   final String? peakDayLabel;
   final int? dayNumber;
@@ -102,7 +107,16 @@ class CreightonStampWidget extends StatelessWidget {
         );
     final hasBaby = CreightonTheme.hasBabyIcon(stampType);
     final effectiveHeight = height ?? 48.0;
-    final babySize = effectiveHeight * 0.75;
+    final hasPeakLabel = peakDayLabel != null && peakDayLabel!.isNotEmpty;
+
+    // When peakDayLabel is present at top: 2 (height ~10-12pt), reserve vertical space
+    // (top margin 2 + label height ~10 + gap 2 + bottom margin 2 = 16) to prevent overlap.
+    const labelReservedHeight = 16.0;
+    final maxIconHeight = effectiveHeight - labelReservedHeight;
+    final defaultBabySize = effectiveHeight * _babyIconFraction;
+    final babySize = hasPeakLabel
+        ? defaultBabySize.clamp(0.0, maxIconHeight)
+        : defaultBabySize;
 
     return Container(
       width: width ?? 44.0,
@@ -116,7 +130,7 @@ class CreightonStampWidget extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          if (peakDayLabel != null && peakDayLabel!.isNotEmpty)
+          if (hasPeakLabel)
             Positioned(
               top: 2,
               child: Text(
@@ -130,9 +144,7 @@ class CreightonStampWidget extends StatelessWidget {
             ),
           if (hasBaby)
             Positioned(
-              bottom: (peakDayLabel != null && peakDayLabel!.isNotEmpty)
-                  ? 2
-                  : (effectiveHeight - babySize) / 2,
+              bottom: hasPeakLabel ? 2 : (effectiveHeight - babySize) / 2,
               child: BabyIcon.forStamp(stampType, size: babySize),
             ),
         ],
@@ -147,7 +159,8 @@ class CreightonStampWidget extends StatelessWidget {
     );
     final hasBaby = CreightonTheme.hasBabyIcon(stampType);
     final effectiveHeight = height ?? 46.0;
-    final babySize = effectiveHeight * 0.75;
+    final babySize = effectiveHeight * _babyIconFraction;
+    final hasPeakLabel = peakDayLabel != null && peakDayLabel!.isNotEmpty;
 
     return Container(
       width: width ?? double.infinity,
@@ -163,7 +176,7 @@ class CreightonStampWidget extends StatelessWidget {
       child: Stack(
         children: [
           // Peak Day Badge at top-left
-          if (peakDayLabel != null && peakDayLabel!.isNotEmpty)
+          if (hasPeakLabel)
             Positioned(
               top: 2,
               left: 4,
@@ -216,7 +229,8 @@ class CreightonStampWidget extends StatelessWidget {
         : theme.colorScheme.outlineVariant;
     final hasBaby = CreightonTheme.hasBabyIcon(stampType);
     final effectiveHeight = height ?? 52.0;
-    final babySize = effectiveHeight * 0.75;
+    final babySize = effectiveHeight * _babyIconFraction;
+    final hasPeakLabel = peakDayLabel != null && peakDayLabel!.isNotEmpty;
 
     return Container(
       width: width ?? 52.0,
@@ -238,7 +252,7 @@ class CreightonStampWidget extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          if (peakDayLabel != null && peakDayLabel!.isNotEmpty)
+          if (hasPeakLabel)
             Positioned(
               top: 2,
               right: 4,
