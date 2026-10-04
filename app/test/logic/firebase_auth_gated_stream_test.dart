@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/services/database/firebase_database_service.dart';
@@ -173,6 +174,75 @@ void main() {
             ),
           ),
         );
+      },
+    );
+
+    test(
+      'invokes onAccessLost callback when data stream errors with permission-denied FirebaseException',
+      () async {
+        final authController = StreamController<dynamic>.broadcast();
+        final dataController = StreamController<List<String>>.broadcast();
+        addTearDown(authController.close);
+        addTearDown(dataController.close);
+
+        String? lostChartId;
+        final stream =
+            FirebaseDatabaseService.buildAuthGatedStreamHelper<List<String>>(
+              getCurrentChartId: () => 'chart_lost',
+              authStateChanges: authController.stream,
+              emptyValue: const [],
+              subscribe: (_) => dataController.stream,
+              onAccessLost: (chartId) async {
+                lostChartId = chartId;
+              },
+            );
+
+        final emitted = <List<String>>[];
+        final sub = stream.listen(emitted.add);
+        addTearDown(sub.cancel);
+
+        dataController.addError(
+          FirebaseException(
+            plugin: 'firestore',
+            code: 'permission-denied',
+          ),
+        );
+        await pumpEventQueue();
+
+        expect(emitted, [isEmpty]);
+        expect(lostChartId, equals('chart_lost'));
+      },
+    );
+
+    test(
+      'does not invoke onAccessLost callback for standard non-permission errors',
+      () async {
+        final authController = StreamController<dynamic>.broadcast();
+        final dataController = StreamController<List<String>>.broadcast();
+        addTearDown(authController.close);
+        addTearDown(dataController.close);
+
+        String? lostChartId;
+        final stream =
+            FirebaseDatabaseService.buildAuthGatedStreamHelper<List<String>>(
+              getCurrentChartId: () => 'chart_normal',
+              authStateChanges: authController.stream,
+              emptyValue: const [],
+              subscribe: (_) => dataController.stream,
+              onAccessLost: (chartId) async {
+                lostChartId = chartId;
+              },
+            );
+
+        final emitted = <List<String>>[];
+        final sub = stream.listen(emitted.add);
+        addTearDown(sub.cancel);
+
+        dataController.addError(Exception('Network socket error'));
+        await pumpEventQueue();
+
+        expect(emitted, [isEmpty]);
+        expect(lostChartId, isNull);
       },
     );
 

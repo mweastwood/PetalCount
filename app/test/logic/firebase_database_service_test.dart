@@ -55,6 +55,8 @@ class FakeFirebaseAuth extends Fake implements FirebaseAuth {
 
 class FakeFirebaseFirestore extends Fake implements FirebaseFirestore {
   final Map<String, Map<String, dynamic>> store = {};
+  final Map<String, FirebaseException> getDocErrors = {};
+  final Map<String, FirebaseException> snapshotErrors = {};
   int _autoIdCounter = 1;
 
   final Map<
@@ -473,6 +475,9 @@ class FakeDocumentReference extends Fake
   Future<DocumentSnapshot<Map<String, dynamic>>> get([
     GetOptions? options,
   ]) async {
+    if (firestoreInstance.getDocErrors.containsKey(path)) {
+      throw firestoreInstance.getDocErrors[path]!;
+    }
     final data = firestoreInstance.store[path];
     return FakeDocumentSnapshot<Map<String, dynamic>>(
       id: id,
@@ -506,6 +511,10 @@ class FakeDocumentReference extends Fake
         StreamController<DocumentSnapshot<Map<String, dynamic>>>.broadcast(
           onListen: () {
             firestoreInstance.registerDocListener(path, controller);
+            if (firestoreInstance.snapshotErrors.containsKey(path)) {
+              controller.addError(firestoreInstance.snapshotErrors[path]!);
+              return;
+            }
             final data = firestoreInstance.store[path];
             controller.add(
               FakeDocumentSnapshot<Map<String, dynamic>>(
@@ -1536,5 +1545,172 @@ void main() {
         );
       },
     );
+
+    group('Deleted chart and access loss handling (Issue #266)', () {
+      const testChartId = 'chart_deleted_test';
+      const partnerUid = 'partner_456';
+
+      test(
+        '_fetchChartId returns null and resets users/{uid}.chartId when chart document does not exist',
+        () async {
+          fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
+          // charts/chart_deleted_test does not exist in store
+
+          final result = await service.fetchChartId(partnerUid);
+
+          expect(result, isNull);
+          expect(fakeDb.store['users/$partnerUid']?['chartId'], isNull);
+        },
+      );
+
+      test(
+        '_fetchChartId returns null and resets users/{uid}.chartId when uid is absent from userIds',
+        () async {
+          fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
+          fakeDb.store['charts/$testChartId'] = {
+            'userIds': ['other_user_789'],
+          };
+
+          final result = await service.fetchChartId(partnerUid);
+
+          expect(result, isNull);
+          expect(fakeDb.store['users/$partnerUid']?['chartId'], isNull);
+        },
+      );
+
+      test(
+        '_fetchChartId returns chartId when chart exists and uid is in userIds',
+        () async {
+          fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
+          fakeDb.store['charts/$testChartId'] = {
+            'userIds': ['other_user_789', partnerUid],
+          };
+
+          final result = await service.fetchChartId(partnerUid);
+
+          expect(result, equals(testChartId));
+          expect(
+            fakeDb.store['users/$partnerUid']?['chartId'],
+            equals(testChartId),
+          );
+        },
+      );
+
+      test(
+        '_fetchChartId returns null and resets Firestore when fetching chart throws permission-denied',
+        () async {
+          fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
+          fakeDb.getDocErrors['charts/$testChartId'] = FirebaseException(
+            plugin: 'firestore',
+            code: 'permission-denied',
+            message: 'Permission denied for deleted chart',
+          );
+
+          final result = await service.fetchChartId(partnerUid);
+
+          expect(result, isNull);
+          expect(fakeDb.store['users/$partnerUid']?['chartId'], isNull);
+        },
+      );
+
+      test(
+        '_handleChartAccessLost clears cached state, updates Firestore, and emits auth event',
+        () async {
+          service.cachedChartId = testChartId;
+          fakeDb.store['users/user_123'] = {'chartId': testChartId};
+
+          final authEmitted = <User?>[];
+          final sub = service.authStateChanges.listen(authEmitted.add);
+          addTearDown(sub.cancel);
+          await pumpEventQueue();
+
+          await service.handleChartAccessLost(testChartId);
+          await pumpEventQueue();
+
+          expect(service.currentChartId, isNull);
+          expect(fakeDb.store['users/user_123']?['chartId'], isNull);
+          expect(authEmitted, contains(currentUser));
+        },
+      );
+
+      test(
+        'streamChartReminderEnabled handles permission-denied gracefully and invalidates access',
+        () async {
+          service.cachedChartId = testChartId;
+          fakeDb.store['users/user_123'] = {'chartId': testChartId};
+          fakeDb.snapshotErrors['charts/$testChartId'] = FirebaseException(
+            plugin: 'firestore',
+            code: 'permission-denied',
+          );
+
+          final emitted = <bool>[];
+          final sub = service
+              .streamChartReminderEnabled(testChartId)
+              .listen(emitted.add);
+          addTearDown(sub.cancel);
+          await pumpEventQueue();
+
+          // Should not throw an unhandled exception, and should have triggered access lost
+          expect(service.currentChartId, isNull);
+          expect(fakeDb.store['users/user_123']?['chartId'], isNull);
+        },
+      );
+
+      test(
+        'streamNotificationPreferences handles permission-denied gracefully and invalidates access',
+        () async {
+          service.cachedChartId = testChartId;
+          fakeDb.store['users/user_123'] = {'chartId': testChartId};
+          fakeDb.snapshotErrors['charts/$testChartId'] = FirebaseException(
+            plugin: 'firestore',
+            code: 'permission-denied',
+          );
+
+          final emitted = <NotificationPreferences>[];
+          final sub = service
+              .streamNotificationPreferences(testChartId)
+              .listen(emitted.add);
+          addTearDown(sub.cancel);
+          await pumpEventQueue();
+
+          // Should not throw an unhandled exception, and should have triggered access lost
+          expect(service.currentChartId, isNull);
+          expect(fakeDb.store['users/user_123']?['chartId'], isNull);
+        },
+      );
+
+      test(
+        'streamCycles handles permission-denied in gated stream by clearing cached chart and resetting profile',
+        () async {
+          service.cachedChartId = testChartId;
+          fakeDb.store['users/user_123'] = {'chartId': testChartId};
+
+          final stream =
+              FirebaseDatabaseService.buildAuthGatedStreamHelper<List<String>>(
+                getCurrentChartId: () => service.currentChartId,
+                authStateChanges: service.authStateChanges,
+                emptyValue: const [],
+                subscribe: (chartId) {
+                  return Stream.error(
+                    FirebaseException(
+                      plugin: 'firestore',
+                      code: 'permission-denied',
+                    ),
+                  );
+                },
+                onAccessLost: service.handleChartAccessLost,
+              );
+
+          final emitted = <List<String>>[];
+          final sub = stream.listen(emitted.add);
+          addTearDown(sub.cancel);
+          await pumpEventQueue();
+
+          expect(emitted, [isEmpty]);
+          expect(service.currentChartId, isNull);
+          expect(fakeDb.store['users/user_123']?['chartId'], isNull);
+        },
+      );
+    });
   });
 }

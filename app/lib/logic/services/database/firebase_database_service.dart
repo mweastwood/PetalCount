@@ -68,6 +68,16 @@ class FirebaseDatabaseService implements DatabaseService {
   Future<void> reallocateAndRecalculate(String chartId) =>
       _reallocateAndRecalculate(chartId);
 
+  @visibleForTesting
+  Future<String?> fetchChartId(String uid) => _fetchChartId(uid);
+
+  @visibleForTesting
+  Future<void> handleChartAccessLost(String chartId) =>
+      _handleChartAccessLost(chartId);
+
+  @visibleForTesting
+  static bool isAccessLostError(dynamic e) => _isAccessLostError(e);
+
   @override
   User? get currentUser => _auth.currentUser;
 
@@ -88,11 +98,82 @@ class FirebaseDatabaseService implements DatabaseService {
     yield* _authController.stream;
   }
 
+  static bool _isAccessLostError(dynamic e) {
+    if (e is FirebaseException) {
+      return e.code == 'permission-denied' || e.code == 'not-found';
+    }
+    try {
+      final dynamic code = (e as dynamic).code;
+      if (code == 'permission-denied' || code == 'not-found') {
+        return true;
+      }
+    } catch (_) {}
+    final message = e.toString().toLowerCase();
+    if (message.contains('permission-denied') ||
+        message.contains('not-found')) {
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _handleChartAccessLost(String chartId) async {
+    final user = currentUser;
+    if (user != null && _cachedChartId == chartId) {
+      _cachedChartId = null;
+      _cachedPreferencesByChart.remove(chartId);
+      try {
+        await _db.collection('users').doc(user.uid).set({
+          'chartId': null,
+        }, SetOptions(merge: true));
+      } catch (_) {}
+      _authController.add(user);
+    }
+  }
+
+  Future<void> _cleanupStaleChartReference(String uid, String chartId) async {
+    try {
+      await _db.collection('users').doc(uid).set({
+        'chartId': null,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Error clearing stale chartId in Firestore: $e');
+    }
+    if (_cachedChartId == chartId) {
+      _cachedChartId = null;
+    }
+    _cachedPreferencesByChart.remove(chartId);
+  }
+
   Future<String?> _fetchChartId(String uid) async {
     try {
       final doc = await _db.collection('users').doc(uid).get();
-      if (doc.exists) {
-        return doc.data()?['chartId'] as String?;
+      if (!doc.exists) {
+        return null;
+      }
+      final chartId = doc.data()?['chartId'] as String?;
+      if (chartId == null || chartId.isEmpty) {
+        return null;
+      }
+
+      try {
+        final chartDoc = await _db.collection('charts').doc(chartId).get();
+        if (!chartDoc.exists) {
+          await _cleanupStaleChartReference(uid, chartId);
+          return null;
+        }
+
+        final userIds =
+            (chartDoc.data()?['userIds'] as List?)?.cast<dynamic>();
+        if (userIds == null || !userIds.contains(uid)) {
+          await _cleanupStaleChartReference(uid, chartId);
+          return null;
+        }
+
+        return chartId;
+      } catch (e) {
+        debugPrint('Error verifying chart $chartId for user $uid: $e');
+        await _cleanupStaleChartReference(uid, chartId);
+        return null;
       }
     } catch (e) {
       debugPrint('Error fetching chartId: $e');
@@ -575,7 +656,13 @@ class FirebaseDatabaseService implements DatabaseService {
         .collection('charts')
         .doc(chartId)
         .snapshots()
-        .map((doc) => (doc.data()?['reminderEnabled'] as bool?) ?? true);
+        .map((doc) => (doc.data()?['reminderEnabled'] as bool?) ?? true)
+        .handleError((e) {
+          debugPrint('Error streaming chart reminder enabled for $chartId: $e');
+          if (_isAccessLostError(e)) {
+            _handleChartAccessLost(chartId);
+          }
+        });
   }
 
   @override
@@ -594,26 +681,38 @@ class FirebaseDatabaseService implements DatabaseService {
   Stream<NotificationPreferences> streamNotificationPreferences(
     String chartId,
   ) {
-    return _db.collection('charts').doc(chartId).snapshots().map((doc) {
-      final data = doc.data();
-      if (data == null) {
-        const prefs = NotificationPreferences();
-        _cachedPreferencesByChart[chartId] = prefs;
-        return prefs;
-      }
-      final raw = data['notificationPreferences'];
-      if (raw != null) {
-        final prefs = NotificationPreferences.fromMap(
-          Map<String, dynamic>.from(raw),
-        );
-        _cachedPreferencesByChart[chartId] = prefs;
-        return prefs;
-      }
-      final reminder = (data['reminderEnabled'] as bool?) ?? true;
-      final prefs = NotificationPreferences(dailyLoggingReminder: reminder);
-      _cachedPreferencesByChart[chartId] = prefs;
-      return prefs;
-    });
+    return _db
+        .collection('charts')
+        .doc(chartId)
+        .snapshots()
+        .map((doc) {
+          final data = doc.data();
+          if (data == null) {
+            const prefs = NotificationPreferences();
+            _cachedPreferencesByChart[chartId] = prefs;
+            return prefs;
+          }
+          final raw = data['notificationPreferences'];
+          if (raw != null) {
+            final prefs = NotificationPreferences.fromMap(
+              Map<String, dynamic>.from(raw),
+            );
+            _cachedPreferencesByChart[chartId] = prefs;
+            return prefs;
+          }
+          final reminder = (data['reminderEnabled'] as bool?) ?? true;
+          final prefs = NotificationPreferences(dailyLoggingReminder: reminder);
+          _cachedPreferencesByChart[chartId] = prefs;
+          return prefs;
+        })
+        .handleError((e) {
+          debugPrint(
+            'Error streaming notification preferences for $chartId: $e',
+          );
+          if (_isAccessLostError(e)) {
+            _handleChartAccessLost(chartId);
+          }
+        });
   }
 
   @override
@@ -732,6 +831,7 @@ class FirebaseDatabaseService implements DatabaseService {
       emptyValue: emptyValue,
       subscribe: subscribe,
       debugLabel: debugLabel,
+      onAccessLost: _handleChartAccessLost,
     );
   }
 
@@ -742,6 +842,7 @@ class FirebaseDatabaseService implements DatabaseService {
     required T emptyValue,
     required Stream<T> Function(String key) subscribe,
     String? debugLabel,
+    Future<void> Function(String key)? onAccessLost,
   }) {
     late StreamController<T> controller;
     StreamSubscription<dynamic>? authSub;
@@ -760,6 +861,9 @@ class FirebaseDatabaseService implements DatabaseService {
         onError: (e) {
           if (debugLabel != null) {
             debugPrint('Error streaming $debugLabel: $e');
+          }
+          if (_isAccessLostError(e)) {
+            onAccessLost?.call(key);
           }
           controller.add(emptyValue);
         },
@@ -789,6 +893,7 @@ class FirebaseDatabaseService implements DatabaseService {
     required T emptyValue,
     required Stream<T> Function(String uid) subscribe,
     String? debugLabel,
+    Future<void> Function(String uid)? onAccessLost,
   }) {
     return buildGatedStreamHelper<T>(
       getKey: getCurrentUserId,
@@ -796,6 +901,7 @@ class FirebaseDatabaseService implements DatabaseService {
       emptyValue: emptyValue,
       subscribe: subscribe,
       debugLabel: debugLabel,
+      onAccessLost: onAccessLost,
     );
   }
 
@@ -806,6 +912,7 @@ class FirebaseDatabaseService implements DatabaseService {
     required T emptyValue,
     required Stream<T> Function(String chartId) subscribe,
     String? debugLabel,
+    Future<void> Function(String chartId)? onAccessLost,
   }) {
     return buildGatedStreamHelper<T>(
       getKey: getCurrentChartId,
@@ -813,6 +920,7 @@ class FirebaseDatabaseService implements DatabaseService {
       emptyValue: emptyValue,
       subscribe: subscribe,
       debugLabel: debugLabel,
+      onAccessLost: onAccessLost,
     );
   }
 
