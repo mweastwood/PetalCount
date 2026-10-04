@@ -301,25 +301,24 @@ void main() {
       },
     );
 
-    testWidgets(
-      'Badge with small height does not throw ArgumentError',
-      (tester) async {
-        await tester.pumpWidget(
-          const MaterialApp(
-            home: Scaffold(
-              body: CreightonStampWidget.badge(
-                stampType: StampType.whiteBaby,
-                peakDayLabel: 'P',
-                height: 12.0,
-              ),
+    testWidgets('Badge with small height does not throw ArgumentError', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: CreightonStampWidget.badge(
+              stampType: StampType.whiteBaby,
+              peakDayLabel: 'P',
+              height: 12.0,
             ),
           ),
-        );
-        expect(tester.takeException(), isNull);
-        final babyIcon = tester.widget<BabyIcon>(find.byType(BabyIcon));
-        expect(babyIcon.size, equals(0.0));
-      },
-    );
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      final babyIcon = tester.widget<BabyIcon>(find.byType(BabyIcon));
+      expect(babyIcon.size, equals(0.0));
+    });
 
     testWidgets(
       'Stack children order ensures peakDayLabel renders on top of BabyIcon across modes',

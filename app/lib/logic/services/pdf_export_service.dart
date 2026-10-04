@@ -135,7 +135,7 @@ class PdfExportService {
 
       final rowColumns = <pw.Widget>[];
       for (int i = startIndex; i < endIndex; i++) {
-        rowColumns.add(_buildDayColumn(cycle, i));
+        rowColumns.add(buildDayColumn(cycle, i));
       }
 
       if (chunkRows.isNotEmpty) {
@@ -170,7 +170,8 @@ class PdfExportService {
     );
   }
 
-  static pw.Widget _buildDayColumn(Cycle cycle, int dayIndex) {
+  @visibleForTesting
+  static pw.Widget buildDayColumn(Cycle cycle, int dayIndex) {
     final dayDate = cycle.startDate.addCalendarDays(dayIndex);
     final dateKey = dayDate.dateKey;
     final entry = cycle.dailyEntries[dateKey];
@@ -272,18 +273,6 @@ class PdfExportService {
             ),
             child: pw.Stack(
               children: [
-                pw.Positioned(
-                  top: 2,
-                  left: 3,
-                  child: pw.Text(
-                    '$dayNum',
-                    style: pw.TextStyle(
-                      fontSize: 10,
-                      fontWeight: pw.FontWeight.bold,
-                      color: numColor,
-                    ),
-                  ),
-                ),
                 if (drawBaby || drawGreenBaby)
                   pw.Positioned(
                     top: (stampCellHeight - babySymbolSize) / 2,
@@ -303,6 +292,18 @@ class PdfExportService {
                       ),
                     ),
                   ),
+                pw.Positioned(
+                  top: 2,
+                  left: 3,
+                  child: pw.Text(
+                    '$dayNum',
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                      fontWeight: pw.FontWeight.bold,
+                      color: numColor,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
