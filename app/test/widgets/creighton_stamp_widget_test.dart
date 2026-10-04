@@ -154,4 +154,41 @@ void main() {
       expect(find.byType(BabyIcon), findsNothing);
     });
   });
+
+  testWidgets('BabyIcon size scales to 75% of container height across modes', (
+    tester,
+  ) async {
+    // Badge mode (48.0 height -> 36.0 icon size)
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CreightonStampWidget.badge(stampType: StampType.greenBaby),
+        ),
+      ),
+    );
+    var babyIcon = tester.widget<BabyIcon>(find.byType(BabyIcon));
+    expect(babyIcon.size, equals(36.0));
+
+    // Grid sticker mode (46.0 height -> 34.5 icon size)
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CreightonStampWidget.gridSticker(stampType: StampType.whiteBaby),
+        ),
+      ),
+    );
+    babyIcon = tester.widget<BabyIcon>(find.byType(BabyIcon));
+    expect(babyIcon.size, equals(34.5));
+
+    // Timeline node mode (52.0 height -> 39.0 icon size)
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: CreightonStampWidget.timelineNode(stampType: StampType.yellowBaby),
+        ),
+      ),
+    );
+    babyIcon = tester.widget<BabyIcon>(find.byType(BabyIcon));
+    expect(babyIcon.size, equals(39.0));
+  });
 }

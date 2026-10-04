@@ -101,10 +101,12 @@ class CreightonStampWidget extends StatelessWidget {
           width: 2,
         );
     final hasBaby = CreightonTheme.hasBabyIcon(stampType);
+    final effectiveHeight = height ?? 48.0;
+    final babySize = effectiveHeight * 0.75;
 
     return Container(
       width: width ?? 44.0,
-      height: height ?? 48.0,
+      height: effectiveHeight,
       decoration: BoxDecoration(
         color: bg,
         borderRadius: borderRadius ?? BorderRadius.circular(6),
@@ -130,11 +132,8 @@ class CreightonStampWidget extends StatelessWidget {
             Positioned(
               bottom: (peakDayLabel != null && peakDayLabel!.isNotEmpty)
                   ? 2
-                  : ((height ?? 48.0) - (height ?? 48.0) * 0.75) / 2,
-              child: BabyIcon.forStamp(
-                stampType,
-                size: (height ?? 48.0) * 0.75,
-              ),
+                  : (effectiveHeight - babySize) / 2,
+              child: BabyIcon.forStamp(stampType, size: babySize),
             ),
         ],
       ),
@@ -147,10 +146,12 @@ class CreightonStampWidget extends StatelessWidget {
       defaultColor: theme.colorScheme.surfaceContainerLowest,
     );
     final hasBaby = CreightonTheme.hasBabyIcon(stampType);
+    final effectiveHeight = height ?? 46.0;
+    final babySize = effectiveHeight * 0.75;
 
     return Container(
       width: width ?? double.infinity,
-      height: height ?? 46.0,
+      height: effectiveHeight,
       decoration: BoxDecoration(
         color: stampColor,
         borderRadius:
@@ -186,12 +187,7 @@ class CreightonStampWidget extends StatelessWidget {
             ),
           // Baby Icon in center for fertile stamps, or '?' for unlogged days
           if (hasBaby)
-            Center(
-              child: BabyIcon.forStamp(
-                stampType,
-                size: (height ?? 46.0) * 0.75,
-              ),
-            )
+            Center(child: BabyIcon.forStamp(stampType, size: babySize))
           else if (stampType == null)
             Center(
               child: Text(
@@ -219,10 +215,12 @@ class CreightonStampWidget extends StatelessWidget {
               : Colors.grey.shade400)
         : theme.colorScheme.outlineVariant;
     final hasBaby = CreightonTheme.hasBabyIcon(stampType);
+    final effectiveHeight = height ?? 52.0;
+    final babySize = effectiveHeight * 0.75;
 
     return Container(
       width: width ?? 52.0,
-      height: height ?? 52.0,
+      height: effectiveHeight,
       decoration: BoxDecoration(
         color: stampColor,
         borderRadius: borderRadius ?? BorderRadius.circular(10),
@@ -254,10 +252,7 @@ class CreightonStampWidget extends StatelessWidget {
               ),
             ),
           if (hasBaby)
-            BabyIcon.forStamp(
-              stampType,
-              size: (height ?? 52.0) * 0.75,
-            )
+            BabyIcon.forStamp(stampType, size: babySize)
           else if (dayNumber != null)
             Text(
               '$dayNumber',
