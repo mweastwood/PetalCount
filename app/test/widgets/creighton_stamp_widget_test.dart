@@ -300,5 +300,114 @@ void main() {
         expect(find.text('1'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'Badge with small height does not throw ArgumentError',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: CreightonStampWidget.badge(
+                stampType: StampType.whiteBaby,
+                peakDayLabel: 'P',
+                height: 12.0,
+              ),
+            ),
+          ),
+        );
+        expect(tester.takeException(), isNull);
+        final babyIcon = tester.widget<BabyIcon>(find.byType(BabyIcon));
+        expect(babyIcon.size, equals(0.0));
+      },
+    );
+
+    testWidgets(
+      'Stack children order ensures peakDayLabel renders on top of BabyIcon across modes',
+      (tester) async {
+        // Badge mode: BabyIcon at index 0, peakDayLabel at index 1
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: CreightonStampWidget.badge(
+                stampType: StampType.whiteBaby,
+                peakDayLabel: 'P',
+              ),
+            ),
+          ),
+        );
+        var stack = tester.widget<Stack>(find.byType(Stack));
+        expect(stack.children.length, equals(2));
+        expect(
+          find.descendant(
+            of: find.byWidget(stack.children[0]),
+            matching: find.byType(BabyIcon),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byWidget(stack.children[1]),
+            matching: find.text('P'),
+          ),
+          findsOneWidget,
+        );
+
+        // Grid sticker mode: BabyIcon at index 0, peakDayLabel at index 1
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: CreightonStampWidget.gridSticker(
+                stampType: StampType.greenBaby,
+                peakDayLabel: '1',
+              ),
+            ),
+          ),
+        );
+        stack = tester.widget<Stack>(find.byType(Stack));
+        expect(stack.children.length, equals(2));
+        expect(
+          find.descendant(
+            of: find.byWidget(stack.children[0]),
+            matching: find.byType(BabyIcon),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byWidget(stack.children[1]),
+            matching: find.text('1'),
+          ),
+          findsOneWidget,
+        );
+
+        // Timeline node mode: BabyIcon at index 0, peakDayLabel at index 1
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: CreightonStampWidget.timelineNode(
+                stampType: StampType.yellowBaby,
+                peakDayLabel: '2',
+              ),
+            ),
+          ),
+        );
+        stack = tester.widget<Stack>(find.byType(Stack));
+        expect(stack.children.length, equals(2));
+        expect(
+          find.descendant(
+            of: find.byWidget(stack.children[0]),
+            matching: find.byType(BabyIcon),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byWidget(stack.children[1]),
+            matching: find.text('2'),
+          ),
+          findsOneWidget,
+        );
+      },
+    );
   });
 }

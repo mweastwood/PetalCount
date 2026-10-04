@@ -112,7 +112,10 @@ class CreightonStampWidget extends StatelessWidget {
     // When peakDayLabel is present at top: 2 (height ~10-12pt), reserve vertical space
     // (top margin 2 + label height ~10 + gap 2 + bottom margin 2 = 16) to prevent overlap.
     const labelReservedHeight = 16.0;
-    final maxIconHeight = effectiveHeight - labelReservedHeight;
+    final maxIconHeight = (effectiveHeight - labelReservedHeight).clamp(
+      0.0,
+      double.infinity,
+    );
     final defaultBabySize = effectiveHeight * _babyIconFraction;
     final babySize = hasPeakLabel
         ? defaultBabySize.clamp(0.0, maxIconHeight)
@@ -130,6 +133,11 @@ class CreightonStampWidget extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
+          if (hasBaby)
+            Positioned(
+              bottom: hasPeakLabel ? 2 : (effectiveHeight - babySize) / 2,
+              child: BabyIcon.forStamp(stampType, size: babySize),
+            ),
           if (hasPeakLabel)
             Positioned(
               top: 2,
@@ -141,11 +149,6 @@ class CreightonStampWidget extends StatelessWidget {
                   color: Colors.black87,
                 ),
               ),
-            ),
-          if (hasBaby)
-            Positioned(
-              bottom: hasPeakLabel ? 2 : (effectiveHeight - babySize) / 2,
-              child: BabyIcon.forStamp(stampType, size: babySize),
             ),
         ],
       ),
@@ -175,6 +178,20 @@ class CreightonStampWidget extends StatelessWidget {
       ),
       child: Stack(
         children: [
+          // Baby Icon in center for fertile stamps, or '?' for unlogged days
+          if (hasBaby)
+            Center(child: BabyIcon.forStamp(stampType, size: babySize))
+          else if (stampType == null)
+            Center(
+              child: Text(
+                '?',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.outline.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
           // Peak Day Badge at top-left
           if (hasPeakLabel)
             Positioned(
@@ -195,20 +212,6 @@ class CreightonStampWidget extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
-                ),
-              ),
-            ),
-          // Baby Icon in center for fertile stamps, or '?' for unlogged days
-          if (hasBaby)
-            Center(child: BabyIcon.forStamp(stampType, size: babySize))
-          else if (stampType == null)
-            Center(
-              child: Text(
-                '?',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.outline.withValues(alpha: 0.7),
                 ),
               ),
             ),
@@ -252,19 +255,6 @@ class CreightonStampWidget extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          if (hasPeakLabel)
-            Positioned(
-              top: 2,
-              right: 4,
-              child: Text(
-                peakDayLabel!,
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.bold,
-                  color: peakDayLabel == 'P' ? Colors.red : Colors.black87,
-                ),
-              ),
-            ),
           if (hasBaby)
             BabyIcon.forStamp(stampType, size: babySize)
           else if (dayNumber != null)
@@ -276,6 +266,19 @@ class CreightonStampWidget extends StatelessWidget {
                 color: stampType != null && stampType != StampType.whiteBaby
                     ? Colors.white
                     : Colors.grey.shade800,
+              ),
+            ),
+          if (hasPeakLabel)
+            Positioned(
+              top: 2,
+              right: 4,
+              child: Text(
+                peakDayLabel!,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  color: peakDayLabel == 'P' ? Colors.red : Colors.black87,
+                ),
               ),
             ),
         ],
