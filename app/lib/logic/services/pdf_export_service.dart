@@ -397,7 +397,7 @@ class PdfExportService {
   }
 
   // Draw the swaddled sleeping baby symbol as an SVG vector
-  static pw.Widget _buildBabySymbol(PdfColor color, {double size = 14}) {
+  static pw.Widget _buildBabySymbol(PdfColor color, {double size = 28.5}) {
     final hex = color.toHex();
     return pw.SvgImage(
       svg: BabySvg.getSvg(strokeColor: hex),

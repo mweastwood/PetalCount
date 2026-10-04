@@ -128,8 +128,13 @@ class CreightonStampWidget extends StatelessWidget {
             ),
           if (hasBaby)
             Positioned(
-              bottom: 4,
-              child: BabyIcon.forStamp(stampType, size: 20),
+              bottom: (peakDayLabel != null && peakDayLabel!.isNotEmpty)
+                  ? 2
+                  : ((height ?? 48.0) - (height ?? 48.0) * 0.75) / 2,
+              child: BabyIcon.forStamp(
+                stampType,
+                size: (height ?? 48.0) * 0.75,
+              ),
             ),
         ],
       ),
@@ -181,7 +186,12 @@ class CreightonStampWidget extends StatelessWidget {
             ),
           // Baby Icon in center for fertile stamps, or '?' for unlogged days
           if (hasBaby)
-            Center(child: BabyIcon.forStamp(stampType, size: 26))
+            Center(
+              child: BabyIcon.forStamp(
+                stampType,
+                size: (height ?? 46.0) * 0.75,
+              ),
+            )
           else if (stampType == null)
             Center(
               child: Text(
@@ -244,7 +254,10 @@ class CreightonStampWidget extends StatelessWidget {
               ),
             ),
           if (hasBaby)
-            BabyIcon.forStamp(stampType, size: 24)
+            BabyIcon.forStamp(
+              stampType,
+              size: (height ?? 52.0) * 0.75,
+            )
           else if (dayNumber != null)
             Text(
               '$dayNumber',
