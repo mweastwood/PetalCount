@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/logic.dart';
@@ -887,9 +889,48 @@ void main() {
 
   group('LocalNotificationService - FCM Push Notifications & Tokens', () {
     test(
+      'computeFcmNotificationId masks hash codes to non-negative 31-bit integers',
+      () {
+        expect(LocalNotificationService.computeFcmNotificationId(0), 0);
+        expect(
+          LocalNotificationService.computeFcmNotificationId(12345),
+          12345,
+        );
+        expect(
+          LocalNotificationService.computeFcmNotificationId(0x7FFFFFFF),
+          0x7FFFFFFF,
+        );
+        // Bit 31 set: in 32-bit signed int this would be negative, masked to 0
+        expect(
+          LocalNotificationService.computeFcmNotificationId(0x80000000),
+          0,
+        );
+        // Negative number masked to positive 31-bit integer
+        expect(
+          LocalNotificationService.computeFcmNotificationId(-1),
+          0x7FFFFFFF,
+        );
+        expect(
+          LocalNotificationService.computeFcmNotificationId(
+            -9223372036854775808,
+          ),
+          0,
+        );
+        // 64-bit Dart VM hash
+        final masked = LocalNotificationService.computeFcmNotificationId(
+          0x7FFFFFFFFFFFFFFF,
+        );
+        expect(masked >= 0, isTrue);
+        expect(masked <= 0x7FFFFFFF, isTrue);
+      },
+    );
+
+    test(
       'setupFcmPushNotifications safely completes when Firebase is uninitialized',
       () async {
+        expect(service.isFcmConfigured, isFalse);
         await expectLater(service.setupFcmPushNotifications(), completes);
+        expect(service.isFcmConfigured, isFalse);
       },
     );
 
@@ -898,6 +939,200 @@ void main() {
       () async {
         final token = await service.getFcmToken();
         expect(token, isNull);
+      },
+    );
+
+    test(
+      'setupFcmPushNotifications configures listeners and handles incoming messages',
+      () async {
+        final inMemoryDb = InMemoryDatabaseService();
+        Services.db = inMemoryDb;
+
+        final tokenController = StreamController<String>.broadcast();
+        final messageController = StreamController<RemoteMessage>.broadcast();
+
+        expect(service.isFcmConfigured, isFalse);
+
+        await service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: () async => 'initial_token_abc',
+          requestPermission: () async {},
+        );
+
+        expect(service.isFcmConfigured, isTrue);
+        expect(inMemoryDb.fcmTokens, contains('initial_token_abc'));
+
+        // Token refresh stream
+        tokenController.add('refreshed_token_xyz');
+        await pumpEventQueue();
+        expect(inMemoryDb.fcmTokens, contains('refreshed_token_xyz'));
+
+        // Remote message stream
+        const msg = RemoteMessage(
+          notification: RemoteNotification(
+            title: 'Fertile Window Notice',
+            body: 'Phase updated today',
+          ),
+        );
+        messageController.add(msg);
+        await pumpEventQueue();
+
+        expect(fakePlugin.shownNotifications.length, 1);
+        final shown = fakePlugin.shownNotifications.first;
+        expect(
+          shown.id,
+          LocalNotificationService.computeFcmNotificationId(msg.hashCode),
+        );
+        expect(shown.id >= 0, isTrue);
+        expect(shown.id <= 0x7FFFFFFF, isTrue);
+        expect(shown.title, 'Fertile Window Notice');
+        expect(shown.body, 'Phase updated today');
+
+        await service.resetFcmForTesting();
+        await tokenController.close();
+        await messageController.close();
+      },
+    );
+
+    test(
+      'setupFcmPushNotifications is idempotent and does not duplicate listeners when re-invoked',
+      () async {
+        final inMemoryDb = InMemoryDatabaseService();
+        Services.db = inMemoryDb;
+
+        final tokenController = StreamController<String>.broadcast();
+        final messageController = StreamController<RemoteMessage>.broadcast();
+
+        int getTokenCallCount = 0;
+        int requestPermissionCallCount = 0;
+
+        Future<String?> mockGetToken() async {
+          getTokenCallCount++;
+          return 'token_test';
+        }
+
+        Future<void> mockRequestPermission() async {
+          requestPermissionCallCount++;
+        }
+
+        // Initial setup
+        await service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: mockGetToken,
+          requestPermission: mockRequestPermission,
+        );
+
+        expect(service.isFcmConfigured, isTrue);
+        expect(getTokenCallCount, 1);
+        expect(requestPermissionCallCount, 1);
+
+        // Multiple subsequent calls (simulating dashboard screen re-mounts)
+        await service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: mockGetToken,
+          requestPermission: mockRequestPermission,
+        );
+        await service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: mockGetToken,
+          requestPermission: mockRequestPermission,
+        );
+
+        // Should NOT have run setup logic again
+        expect(getTokenCallCount, 1);
+        expect(requestPermissionCallCount, 1);
+
+        // Emit single message and assert only 1 notification is dispatched
+        const msg = RemoteMessage(
+          notification: RemoteNotification(
+            title: 'Cycle Alert Single',
+            body: 'Only once',
+          ),
+        );
+        messageController.add(msg);
+        await pumpEventQueue();
+
+        expect(fakePlugin.shownNotifications.length, 1);
+        expect(fakePlugin.shownNotifications.first.title, 'Cycle Alert Single');
+
+        await service.resetFcmForTesting();
+        await tokenController.close();
+        await messageController.close();
+      },
+    );
+
+    test(
+      'resetFcmForTesting cancels active subscriptions and resets configured state',
+      () async {
+        final inMemoryDb = InMemoryDatabaseService();
+        Services.db = inMemoryDb;
+
+        final tokenController = StreamController<String>.broadcast();
+        final messageController = StreamController<RemoteMessage>.broadcast();
+
+        await service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: () async => 'token_1',
+          requestPermission: () async {},
+        );
+
+        expect(service.isFcmConfigured, isTrue);
+
+        // Reset FCM
+        await service.resetFcmForTesting();
+        expect(service.isFcmConfigured, isFalse);
+
+        // Further message emissions on old stream should NOT trigger notifications
+        const msg = RemoteMessage(
+          notification: RemoteNotification(
+            title: 'After Reset',
+            body: 'Should not show',
+          ),
+        );
+        messageController.add(msg);
+        await pumpEventQueue();
+
+        expect(fakePlugin.shownNotifications, isEmpty);
+
+        await tokenController.close();
+        await messageController.close();
+      },
+    );
+
+    test(
+      'setupFcmPushNotifications catches errors gracefully and leaves isFcmConfigured false for retry',
+      () async {
+        final tokenController = StreamController<String>.broadcast();
+        final messageController = StreamController<RemoteMessage>.broadcast();
+
+        // Setup fails on first attempt
+        await service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: () async => throw Exception('FCM token network failure'),
+          requestPermission: () async {},
+        );
+
+        expect(service.isFcmConfigured, isFalse);
+
+        // Retry succeeds
+        await service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: () async => 'recovered_token',
+          requestPermission: () async {},
+        );
+
+        expect(service.isFcmConfigured, isTrue);
+
+        await service.resetFcmForTesting();
+        await tokenController.close();
+        await messageController.close();
       },
     );
   });

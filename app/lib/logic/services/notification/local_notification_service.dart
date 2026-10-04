@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -34,11 +35,28 @@ class LocalNotificationService implements NotificationService {
   bool _isReminderScheduled = false;
   DateTime? _scheduledReminderTime;
   final Set<String> _sentNotificationKeys = {};
+  bool _fcmConfigured = false;
+  StreamSubscription<String>? _tokenRefreshSubscription;
+  StreamSubscription<RemoteMessage>? _onMessageSubscription;
 
   LocalNotificationService({
     FlutterLocalNotificationsPlugin? notificationsPlugin,
   }) : _notificationsPlugin =
            notificationsPlugin ?? FlutterLocalNotificationsPlugin();
+
+  bool get isFcmConfigured => _fcmConfigured;
+
+  @visibleForTesting
+  static int computeFcmNotificationId(int hashCode) => hashCode & 0x7FFFFFFF;
+
+  @visibleForTesting
+  Future<void> resetFcmForTesting() async {
+    await _tokenRefreshSubscription?.cancel();
+    _tokenRefreshSubscription = null;
+    await _onMessageSubscription?.cancel();
+    _onMessageSubscription = null;
+    _fcmConfigured = false;
+  }
 
   @override
   bool get isReminderScheduled => _isReminderScheduled;
@@ -364,42 +382,71 @@ class LocalNotificationService implements NotificationService {
   }
 
   @override
-  Future<void> setupFcmPushNotifications() async {
+  Future<void> setupFcmPushNotifications({
+    @visibleForTesting Stream<String>? tokenRefreshStream,
+    @visibleForTesting Stream<RemoteMessage>? onMessageStream,
+    @visibleForTesting Future<String?> Function()? getToken,
+    @visibleForTesting Future<void> Function()? requestPermission,
+  }) async {
     if (kIsWeb) return;
-    if (Firebase.apps.isEmpty) return;
+    if (_fcmConfigured) return;
+
+    final isCustomSetup = tokenRefreshStream != null || onMessageStream != null;
+    if (!isCustomSetup && Firebase.apps.isEmpty) return;
 
     try {
-      final messaging = FirebaseMessaging.instance;
-      await messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
-      );
+      if (requestPermission != null) {
+        await requestPermission();
+      } else {
+        final messaging = FirebaseMessaging.instance;
+        await messaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+          provisional: false,
+        );
+      }
 
-      final token = await messaging.getToken();
+      final token = getToken != null
+          ? await getToken()
+          : await FirebaseMessaging.instance.getToken();
       if (token != null && token.isNotEmpty) {
         await Services.db.saveFcmToken(token);
       }
 
-      messaging.onTokenRefresh.listen((newToken) {
+      await _tokenRefreshSubscription?.cancel();
+      final effectiveTokenStream =
+          tokenRefreshStream ?? FirebaseMessaging.instance.onTokenRefresh;
+      _tokenRefreshSubscription = effectiveTokenStream.listen((newToken) {
         if (newToken.isNotEmpty) {
           Services.db.saveFcmToken(newToken);
         }
       });
 
       // Handle notifications received when the app is in the foreground
-      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      await _onMessageSubscription?.cancel();
+      final effectiveOnMessageStream =
+          onMessageStream ?? FirebaseMessaging.onMessage;
+      _onMessageSubscription = effectiveOnMessageStream.listen((
+        RemoteMessage message,
+      ) {
         final notification = message.notification;
         if (notification != null) {
           showNotification(
-            id: message.hashCode,
+            id: computeFcmNotificationId(message.hashCode),
             title: notification.title ?? 'Cycle Alert',
             body: notification.body ?? '',
           );
         }
       });
+
+      _fcmConfigured = true;
     } catch (e) {
+      await _tokenRefreshSubscription?.cancel();
+      _tokenRefreshSubscription = null;
+      await _onMessageSubscription?.cancel();
+      _onMessageSubscription = null;
+      _fcmConfigured = false;
       debugPrint('Warning: setupFcmPushNotifications failed: $e');
     }
   }
