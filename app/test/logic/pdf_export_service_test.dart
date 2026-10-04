@@ -548,6 +548,7 @@ void main() {
               painLevel: 0,
               painTypes: [],
               comments: '',
+              observations: const [],
             ),
             '2026-06-02': DailyEntry(
               date: start.addCalendarDays(1),
@@ -556,6 +557,7 @@ void main() {
               painLevel: 0,
               painTypes: [],
               comments: '',
+              observations: const [],
             ),
           },
         );
