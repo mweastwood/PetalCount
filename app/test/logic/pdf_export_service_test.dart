@@ -574,7 +574,7 @@ void main() {
         expect(baby0.child, isA<pw.SvgImage>());
         final num0 = stack0.children[1] as pw.Positioned;
         expect(num0.child, isA<pw.Text>());
-        expect((num0.child as pw.Text).text, equals('1'));
+        expect((num0.child as pw.Text).text.toPlainText(), equals('1'));
 
         // Check greenBaby stamp cell: baby symbol at index 0, day number at index 1
         final day1Column =
@@ -588,7 +588,7 @@ void main() {
         expect(baby1.child, isA<pw.SvgImage>());
         final num1 = stack1.children[1] as pw.Positioned;
         expect(num1.child, isA<pw.Text>());
-        expect((num1.child as pw.Text).text, equals('2'));
+        expect((num1.child as pw.Text).text.toPlainText(), equals('2'));
 
         // Check unlogged day stamp cell: '?' at index 0, day number at index 1
         final day2Column =
@@ -600,10 +600,13 @@ void main() {
         expect(stack2.children.length, equals(2));
         final unloggedCenter = stack2.children[0] as pw.Center;
         expect(unloggedCenter.child, isA<pw.Text>());
-        expect((unloggedCenter.child as pw.Text).text, equals('?'));
+        expect(
+          (unloggedCenter.child as pw.Text).text.toPlainText(),
+          equals('?'),
+        );
         final num2 = stack2.children[1] as pw.Positioned;
         expect(num2.child, isA<pw.Text>());
-        expect((num2.child as pw.Text).text, equals('3'));
+        expect((num2.child as pw.Text).text.toPlainText(), equals('3'));
       },
     );
   });

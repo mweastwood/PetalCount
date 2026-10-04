@@ -334,7 +334,12 @@ void main() {
             ),
           ),
         );
-        var stack = tester.widget<Stack>(find.byType(Stack));
+        var stack = tester.widget<Stack>(
+          find.descendant(
+            of: find.byType(CreightonStampWidget),
+            matching: find.byType(Stack),
+          ),
+        );
         expect(stack.children.length, equals(2));
         expect(
           find.descendant(
@@ -362,7 +367,12 @@ void main() {
             ),
           ),
         );
-        stack = tester.widget<Stack>(find.byType(Stack));
+        stack = tester.widget<Stack>(
+          find.descendant(
+            of: find.byType(CreightonStampWidget),
+            matching: find.byType(Stack),
+          ),
+        );
         expect(stack.children.length, equals(2));
         expect(
           find.descendant(
@@ -390,7 +400,12 @@ void main() {
             ),
           ),
         );
-        stack = tester.widget<Stack>(find.byType(Stack));
+        stack = tester.widget<Stack>(
+          find.descendant(
+            of: find.byType(CreightonStampWidget),
+            matching: find.byType(Stack),
+          ),
+        );
         expect(stack.children.length, equals(2));
         expect(
           find.descendant(
