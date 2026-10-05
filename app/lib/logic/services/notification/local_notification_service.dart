@@ -427,14 +427,15 @@ class LocalNotificationService implements NotificationService {
       final token = getToken != null
           ? await getToken()
           : (Firebase.apps.isNotEmpty
-              ? await FirebaseMessaging.instance.getToken()
-              : null);
+                ? await FirebaseMessaging.instance.getToken()
+                : null);
       if (token != null && token.isNotEmpty) {
         await Services.db.saveFcmToken(token);
       }
 
       await _tokenRefreshSubscription?.cancel();
-      final effectiveTokenStream = tokenRefreshStream ??
+      final effectiveTokenStream =
+          tokenRefreshStream ??
           (Firebase.apps.isNotEmpty
               ? FirebaseMessaging.instance.onTokenRefresh
               : null);
@@ -453,10 +454,9 @@ class LocalNotificationService implements NotificationService {
 
       // Handle notifications received when the app is in the foreground
       await _onMessageSubscription?.cancel();
-      final effectiveOnMessageStream = onMessageStream ??
-          (Firebase.apps.isNotEmpty
-              ? FirebaseMessaging.onMessage
-              : null);
+      final effectiveOnMessageStream =
+          onMessageStream ??
+          (Firebase.apps.isNotEmpty ? FirebaseMessaging.onMessage : null);
       if (effectiveOnMessageStream != null) {
         _onMessageSubscription = effectiveOnMessageStream.listen(
           (RemoteMessage message) async {
