@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io' show Platform;
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -36,8 +37,12 @@ class LocalNotificationService implements NotificationService {
   DateTime? _scheduledReminderTime;
   final Set<String> _sentNotificationKeys = {};
   bool _fcmConfigured = false;
+  bool _isConfiguringFcm = false;
   StreamSubscription<String>? _tokenRefreshSubscription;
   StreamSubscription<RemoteMessage>? _onMessageSubscription;
+
+  static const int fcmNotificationIdOffset = 10000;
+  static const int fcmNotificationIdRange = 1000000;
 
   LocalNotificationService({
     FlutterLocalNotificationsPlugin? notificationsPlugin,
@@ -47,7 +52,10 @@ class LocalNotificationService implements NotificationService {
   bool get isFcmConfigured => _fcmConfigured;
 
   @visibleForTesting
-  static int computeFcmNotificationId(int hashCode) => hashCode & 0x7FFFFFFF;
+  static int computeFcmNotificationId(int hashCode) {
+    final positiveHash = hashCode & 0x7FFFFFFF;
+    return fcmNotificationIdOffset + (positiveHash % fcmNotificationIdRange);
+  }
 
   @visibleForTesting
   Future<void> resetFcmForTesting() async {
@@ -56,6 +64,7 @@ class LocalNotificationService implements NotificationService {
     await _onMessageSubscription?.cancel();
     _onMessageSubscription = null;
     _fcmConfigured = false;
+    _isConfiguringFcm = false;
   }
 
   @override
@@ -389,10 +398,14 @@ class LocalNotificationService implements NotificationService {
     @visibleForTesting Future<void> Function()? requestPermission,
   }) async {
     if (kIsWeb) return;
-    if (_fcmConfigured) return;
+    if (_fcmConfigured || _isConfiguringFcm) return;
+    _isConfiguringFcm = true;
 
     final isCustomSetup = tokenRefreshStream != null || onMessageStream != null;
-    if (!isCustomSetup && Firebase.apps.isEmpty) return;
+    if (!isCustomSetup && Firebase.apps.isEmpty) {
+      _isConfiguringFcm = false;
+      return;
+    }
 
     try {
       if (requestPermission != null) {
@@ -448,6 +461,8 @@ class LocalNotificationService implements NotificationService {
       _onMessageSubscription = null;
       _fcmConfigured = false;
       debugPrint('Warning: setupFcmPushNotifications failed: $e');
+    } finally {
+      _isConfiguringFcm = false;
     }
   }
 
