@@ -401,7 +401,11 @@ class LocalNotificationService implements NotificationService {
     if (_fcmConfigured || _isConfiguringFcm) return;
     _isConfiguringFcm = true;
 
-    final isCustomSetup = tokenRefreshStream != null || onMessageStream != null;
+    final isCustomSetup =
+        tokenRefreshStream != null ||
+        onMessageStream != null ||
+        getToken != null ||
+        requestPermission != null;
     if (!isCustomSetup && Firebase.apps.isEmpty) {
       _isConfiguringFcm = false;
       return;
@@ -430,28 +434,36 @@ class LocalNotificationService implements NotificationService {
       await _tokenRefreshSubscription?.cancel();
       final effectiveTokenStream =
           tokenRefreshStream ?? FirebaseMessaging.instance.onTokenRefresh;
-      _tokenRefreshSubscription = effectiveTokenStream.listen((newToken) {
-        if (newToken.isNotEmpty) {
-          Services.db.saveFcmToken(newToken);
-        }
-      });
+      _tokenRefreshSubscription = effectiveTokenStream.listen(
+        (newToken) {
+          if (newToken.isNotEmpty) {
+            Services.db.saveFcmToken(newToken);
+          }
+        },
+        onError: (Object error) {
+          debugPrint('Warning: FCM tokenRefreshStream error: $error');
+        },
+      );
 
       // Handle notifications received when the app is in the foreground
       await _onMessageSubscription?.cancel();
       final effectiveOnMessageStream =
           onMessageStream ?? FirebaseMessaging.onMessage;
-      _onMessageSubscription = effectiveOnMessageStream.listen((
-        RemoteMessage message,
-      ) {
-        final notification = message.notification;
-        if (notification != null) {
-          showNotification(
-            id: computeFcmNotificationId(message.hashCode),
-            title: notification.title ?? 'Cycle Alert',
-            body: notification.body ?? '',
-          );
-        }
-      });
+      _onMessageSubscription = effectiveOnMessageStream.listen(
+        (RemoteMessage message) async {
+          final notification = message.notification;
+          if (notification != null) {
+            await showNotification(
+              id: computeFcmNotificationId(message.hashCode),
+              title: notification.title ?? 'Cycle Alert',
+              body: notification.body ?? '',
+            );
+          }
+        },
+        onError: (Object error) {
+          debugPrint('Warning: FCM onMessageStream error: $error');
+        },
+      );
 
       _fcmConfigured = true;
     } catch (e) {

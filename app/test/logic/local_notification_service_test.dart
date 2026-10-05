@@ -1204,5 +1204,47 @@ void main() {
         await messageController.close();
       },
     );
+
+    test(
+      'setupFcmPushNotifications safely handles stream errors and keeps processing',
+      () async {
+        final inMemoryDb = InMemoryDatabaseService();
+        Services.db = inMemoryDb;
+
+        final tokenController = StreamController<String>.broadcast();
+        final messageController = StreamController<RemoteMessage>.broadcast();
+
+        await service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: () async => 'initial_token',
+          requestPermission: () async {},
+        );
+        expect(service.isFcmConfigured, isTrue);
+
+        tokenController.addError(Exception('token stream failure'));
+        messageController.addError(Exception('message stream failure'));
+        await pumpEventQueue();
+
+        // Subsequent events are still handled.
+        tokenController.add('token_after_error');
+        messageController.add(
+          const RemoteMessage(
+            notification: RemoteNotification(
+              title: 'After Error',
+              body: 'Still works',
+            ),
+          ),
+        );
+        await pumpEventQueue();
+
+        expect(fakePlugin.shownNotifications.length, 1);
+        expect(fakePlugin.shownNotifications.first.title, 'After Error');
+
+        await service.resetFcmForTesting();
+        await tokenController.close();
+        await messageController.close();
+      },
+    );
   });
 }
