@@ -865,17 +865,25 @@ class FirebaseDatabaseService implements DatabaseService {
     late StreamController<T> controller;
     StreamSubscription<dynamic>? authSub;
     StreamSubscription<T>? dataSub;
+    bool emittedEmptyOnError = false;
 
     void updateListener() {
       final key = getKey();
       dataSub?.cancel();
       if (key == null) {
         dataSub = null;
-        controller.add(emptyValue);
+        if (!emittedEmptyOnError) {
+          controller.add(emptyValue);
+        }
+        emittedEmptyOnError = false;
         return;
       }
+      emittedEmptyOnError = false;
       dataSub = subscribe(key).listen(
-        (data) => controller.add(data),
+        (data) {
+          emittedEmptyOnError = false;
+          controller.add(data);
+        },
         onError: (e) {
           if (debugLabel != null) {
             debugPrint('Error streaming $debugLabel: $e');
@@ -883,6 +891,7 @@ class FirebaseDatabaseService implements DatabaseService {
           if (_isAccessLostError(e)) {
             onAccessLost?.call(key);
           }
+          emittedEmptyOnError = true;
           controller.add(emptyValue);
         },
       );
