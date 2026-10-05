@@ -324,10 +324,13 @@ void main() {
       expect(resolved, same(fakeMacOs));
     });
 
-    test('requestPermissions returns false on non-mobile/desktop test runner or unconfigured platform', () async {
-      final result = await service.requestPermissions();
-      expect(result, isFalse);
-    });
+    test(
+      'requestPermissions returns false on non-mobile/desktop test runner or unconfigured platform',
+      () async {
+        final result = await service.requestPermissions();
+        expect(result, isFalse);
+      },
+    );
   });
 
   group('LocalNotificationService - calculateNextReminderTime', () {
@@ -386,62 +389,70 @@ void main() {
   group(
     'LocalNotificationService - Daily Reminder Scheduling & Cancellation',
     () {
-      test('schedules daily reminder for wife with exact channel and payload details', () async {
-        final triggerTime = DateTime(2026, 8, 17, 21, 0);
+      test(
+        'schedules daily reminder for wife with exact channel and payload details',
+        () async {
+          final triggerTime = DateTime(2026, 8, 17, 21, 0);
 
-        await service.scheduleDailyReminder(
-          triggerTime: triggerTime,
-          role: UserRole.wife,
-        );
+          await service.scheduleDailyReminder(
+            triggerTime: triggerTime,
+            role: UserRole.wife,
+          );
 
-        expect(service.isReminderScheduled, isTrue);
-        expect(service.scheduledReminderTime, triggerTime);
-        expect(fakePlugin.scheduledNotifications.length, 1);
+          expect(service.isReminderScheduled, isTrue);
+          expect(service.scheduledReminderTime, triggerTime);
+          expect(fakePlugin.scheduledNotifications.length, 1);
 
-        final record = fakePlugin.scheduledNotifications.first;
-        expect(record.id, LocalNotificationService.dailyReminderNotificationId);
-        expect(record.id, 900);
-        expect(
-          record.title,
-          CycleNotificationFormatter.dailyLoggingReminder(UserRole.wife).title,
-        );
-        expect(
-          record.body,
-          CycleNotificationFormatter.dailyLoggingReminder(UserRole.wife).body,
-        );
-        expect(record.scheduledDate.year, 2026);
-        expect(record.scheduledDate.month, 8);
-        expect(record.scheduledDate.day, 17);
-        expect(record.scheduledDate.hour, 21);
-        expect(record.scheduledDate.minute, 0);
-        expect(
-          record.androidScheduleMode,
-          AndroidScheduleMode.exactAllowWhileIdle,
-        );
+          final record = fakePlugin.scheduledNotifications.first;
+          expect(
+            record.id,
+            LocalNotificationService.dailyReminderNotificationId,
+          );
+          expect(record.id, 900);
+          expect(
+            record.title,
+            CycleNotificationFormatter.dailyLoggingReminder(
+              UserRole.wife,
+            ).title,
+          );
+          expect(
+            record.body,
+            CycleNotificationFormatter.dailyLoggingReminder(UserRole.wife).body,
+          );
+          expect(record.scheduledDate.year, 2026);
+          expect(record.scheduledDate.month, 8);
+          expect(record.scheduledDate.day, 17);
+          expect(record.scheduledDate.hour, 21);
+          expect(record.scheduledDate.minute, 0);
+          expect(
+            record.androidScheduleMode,
+            AndroidScheduleMode.exactAllowWhileIdle,
+          );
 
-        final androidDetails = record.notificationDetails.android;
-        expect(androidDetails, isNotNull);
-        expect(
-          androidDetails!.channelId,
-          LocalNotificationService.notificationChannelId,
-        );
-        expect(
-          androidDetails.channelName,
-          LocalNotificationService.notificationChannelName,
-        );
-        expect(
-          androidDetails.channelDescription,
-          LocalNotificationService.notificationChannelDescription,
-        );
-        expect(androidDetails.importance, Importance.high);
-        expect(androidDetails.priority, Priority.high);
+          final androidDetails = record.notificationDetails.android;
+          expect(androidDetails, isNotNull);
+          expect(
+            androidDetails!.channelId,
+            LocalNotificationService.notificationChannelId,
+          );
+          expect(
+            androidDetails.channelName,
+            LocalNotificationService.notificationChannelName,
+          );
+          expect(
+            androidDetails.channelDescription,
+            LocalNotificationService.notificationChannelDescription,
+          );
+          expect(androidDetails.importance, Importance.high);
+          expect(androidDetails.priority, Priority.high);
 
-        final iosDetails = record.notificationDetails.iOS;
-        expect(iosDetails, isNotNull);
-        expect(iosDetails!.presentAlert, isTrue);
-        expect(iosDetails.presentBadge, isTrue);
-        expect(iosDetails.presentSound, isTrue);
-      });
+          final iosDetails = record.notificationDetails.iOS;
+          expect(iosDetails, isNotNull);
+          expect(iosDetails!.presentAlert, isTrue);
+          expect(iosDetails.presentBadge, isTrue);
+          expect(iosDetails.presentSound, isTrue);
+        },
+      );
 
       test(
         'schedules daily reminder for husband with partner-specific message',
@@ -461,13 +472,15 @@ void main() {
           expect(record.id, 900);
           expect(
             record.title,
-            CycleNotificationFormatter.dailyLoggingReminder(UserRole.husband)
-                .title,
+            CycleNotificationFormatter.dailyLoggingReminder(
+              UserRole.husband,
+            ).title,
           );
           expect(
             record.body,
-            CycleNotificationFormatter.dailyLoggingReminder(UserRole.husband)
-                .body,
+            CycleNotificationFormatter.dailyLoggingReminder(
+              UserRole.husband,
+            ).body,
           );
         },
       );
@@ -516,84 +529,92 @@ void main() {
     },
   );
 
-  group('LocalNotificationService - Reminder Schedule Sync (syncReminderSchedule)', () {
-    test('cancels daily reminder when chartId is null', () async {
-      final triggerTime = DateTime(2026, 8, 17, 21, 0);
-      await service.scheduleDailyReminder(triggerTime: triggerTime);
-      expect(service.isReminderScheduled, isTrue);
+  group(
+    'LocalNotificationService - Reminder Schedule Sync (syncReminderSchedule)',
+    () {
+      test('cancels daily reminder when chartId is null', () async {
+        final triggerTime = DateTime(2026, 8, 17, 21, 0);
+        await service.scheduleDailyReminder(triggerTime: triggerTime);
+        expect(service.isReminderScheduled, isTrue);
 
-      await service.syncReminderSchedule(
-        chartId: null,
-        reminderEnabled: true,
-        isTodayLogged: false,
-      );
+        await service.syncReminderSchedule(
+          chartId: null,
+          reminderEnabled: true,
+          isTodayLogged: false,
+        );
 
-      expect(service.isReminderScheduled, isFalse);
-      expect(service.scheduledReminderTime, isNull);
-      expect(
-        fakePlugin.cancelledNotificationIds,
-        contains(LocalNotificationService.dailyReminderNotificationId),
-      );
-    });
+        expect(service.isReminderScheduled, isFalse);
+        expect(service.scheduledReminderTime, isNull);
+        expect(
+          fakePlugin.cancelledNotificationIds,
+          contains(LocalNotificationService.dailyReminderNotificationId),
+        );
+      });
 
-    test('cancels daily reminder when reminderEnabled is false', () async {
-      final triggerTime = DateTime(2026, 8, 17, 21, 0);
-      await service.scheduleDailyReminder(triggerTime: triggerTime);
-      expect(service.isReminderScheduled, isTrue);
-
-      await service.syncReminderSchedule(
-        chartId: 'chart_abc',
-        reminderEnabled: false,
-        isTodayLogged: false,
-      );
-
-      expect(service.isReminderScheduled, isFalse);
-      expect(service.scheduledReminderTime, isNull);
-      expect(
-        fakePlugin.cancelledNotificationIds,
-        contains(LocalNotificationService.dailyReminderNotificationId),
-      );
-    });
-
-    test(
-      'computes and schedules next reminder when enabled and not logged today',
-      () async {
-        final now = DateTime(2026, 8, 17, 15, 0);
+      test('cancels daily reminder when reminderEnabled is false', () async {
+        final triggerTime = DateTime(2026, 8, 17, 21, 0);
+        await service.scheduleDailyReminder(triggerTime: triggerTime);
+        expect(service.isReminderScheduled, isTrue);
 
         await service.syncReminderSchedule(
           chartId: 'chart_abc',
-          reminderEnabled: true,
+          reminderEnabled: false,
           isTodayLogged: false,
-          now: now,
-          role: UserRole.wife,
         );
 
-        expect(service.isReminderScheduled, isTrue);
-        expect(service.scheduledReminderTime, DateTime(2026, 8, 17, 21, 0));
-        expect(fakePlugin.scheduledNotifications.length, 1);
-      },
-    );
+        expect(service.isReminderScheduled, isFalse);
+        expect(service.scheduledReminderTime, isNull);
+        expect(
+          fakePlugin.cancelledNotificationIds,
+          contains(LocalNotificationService.dailyReminderNotificationId),
+        );
+      });
 
-    test('computes and schedules next reminder for tomorrow when already logged today', () async {
-      final now = DateTime(2026, 8, 17, 15, 0);
+      test(
+        'computes and schedules next reminder when enabled and not logged today',
+        () async {
+          final now = DateTime(2026, 8, 17, 15, 0);
 
-      await service.syncReminderSchedule(
-        chartId: 'chart_abc',
-        reminderEnabled: true,
-        isTodayLogged: true,
-        now: now,
-        role: UserRole.husband,
+          await service.syncReminderSchedule(
+            chartId: 'chart_abc',
+            reminderEnabled: true,
+            isTodayLogged: false,
+            now: now,
+            role: UserRole.wife,
+          );
+
+          expect(service.isReminderScheduled, isTrue);
+          expect(service.scheduledReminderTime, DateTime(2026, 8, 17, 21, 0));
+          expect(fakePlugin.scheduledNotifications.length, 1);
+        },
       );
 
-      expect(service.isReminderScheduled, isTrue);
-      expect(service.scheduledReminderTime, DateTime(2026, 8, 18, 21, 0));
-      expect(fakePlugin.scheduledNotifications.length, 1);
-      expect(
-        fakePlugin.scheduledNotifications.first.body,
-        CycleNotificationFormatter.dailyLoggingReminder(UserRole.husband).body,
+      test(
+        'computes and schedules next reminder for tomorrow when already logged today',
+        () async {
+          final now = DateTime(2026, 8, 17, 15, 0);
+
+          await service.syncReminderSchedule(
+            chartId: 'chart_abc',
+            reminderEnabled: true,
+            isTodayLogged: true,
+            now: now,
+            role: UserRole.husband,
+          );
+
+          expect(service.isReminderScheduled, isTrue);
+          expect(service.scheduledReminderTime, DateTime(2026, 8, 18, 21, 0));
+          expect(fakePlugin.scheduledNotifications.length, 1);
+          expect(
+            fakePlugin.scheduledNotifications.first.body,
+            CycleNotificationFormatter.dailyLoggingReminder(
+              UserRole.husband,
+            ).body,
+          );
+        },
       );
-    });
-  });
+    },
+  );
 
   group('LocalNotificationService - Immediate & Cycle Phase Notifications', () {
     test(
@@ -645,113 +666,122 @@ void main() {
       );
     });
 
-    test('notifyFertilePattern dispatches notification 901 and deduplicates per day', () async {
-      final now = DateTime(2026, 8, 20);
+    test(
+      'notifyFertilePattern dispatches notification 901 and deduplicates per day',
+      () async {
+        final now = DateTime(2026, 8, 20);
 
-      // First dispatch for wife
-      await service.notifyFertilePattern(role: UserRole.wife, now: now);
-      expect(fakePlugin.shownNotifications.length, 1);
-      expect(
-        fakePlugin.shownNotifications.first.id,
-        LocalNotificationService.fertilePatternNotificationId,
-      );
-      expect(
-        fakePlugin.shownNotifications.first.title,
-        CycleNotificationFormatter.fertilePatternMessage(UserRole.wife).title,
-      );
-      expect(
-        fakePlugin.shownNotifications.first.body,
-        CycleNotificationFormatter.fertilePatternMessage(UserRole.wife).body,
-      );
+        // First dispatch for wife
+        await service.notifyFertilePattern(role: UserRole.wife, now: now);
+        expect(fakePlugin.shownNotifications.length, 1);
+        expect(
+          fakePlugin.shownNotifications.first.id,
+          LocalNotificationService.fertilePatternNotificationId,
+        );
+        expect(
+          fakePlugin.shownNotifications.first.title,
+          CycleNotificationFormatter.fertilePatternMessage(UserRole.wife).title,
+        );
+        expect(
+          fakePlugin.shownNotifications.first.body,
+          CycleNotificationFormatter.fertilePatternMessage(UserRole.wife).body,
+        );
 
-      // Duplicate dispatch on same day should be skipped
-      await service.notifyFertilePattern(role: UserRole.wife, now: now);
-      expect(fakePlugin.shownNotifications.length, 1);
+        // Duplicate dispatch on same day should be skipped
+        await service.notifyFertilePattern(role: UserRole.wife, now: now);
+        expect(fakePlugin.shownNotifications.length, 1);
 
-      // Force dispatch bypasses deduplication
-      await service.notifyFertilePattern(
-        role: UserRole.wife,
-        now: now,
-        force: true,
-      );
-      expect(fakePlugin.shownNotifications.length, 2);
+        // Force dispatch bypasses deduplication
+        await service.notifyFertilePattern(
+          role: UserRole.wife,
+          now: now,
+          force: true,
+        );
+        expect(fakePlugin.shownNotifications.length, 2);
 
-      // Dispatch for husband has distinct deduplication key and message
-      await service.notifyFertilePattern(role: UserRole.husband, now: now);
-      expect(fakePlugin.shownNotifications.length, 3);
-      expect(
-        fakePlugin.shownNotifications.last.title,
-        CycleNotificationFormatter.fertilePatternMessage(UserRole.husband)
-            .title,
-      );
-      expect(
-        fakePlugin.shownNotifications.last.body,
-        CycleNotificationFormatter.fertilePatternMessage(UserRole.husband).body,
-      );
-    });
+        // Dispatch for husband has distinct deduplication key and message
+        await service.notifyFertilePattern(role: UserRole.husband, now: now);
+        expect(fakePlugin.shownNotifications.length, 3);
+        expect(
+          fakePlugin.shownNotifications.last.title,
+          CycleNotificationFormatter.fertilePatternMessage(
+            UserRole.husband,
+          ).title,
+        );
+        expect(
+          fakePlugin.shownNotifications.last.body,
+          CycleNotificationFormatter.fertilePatternMessage(
+            UserRole.husband,
+          ).body,
+        );
+      },
+    );
 
-    test('notifyPeakDay dispatches notification 902 with custom/fallback label and deduplicates', () async {
-      final now = DateTime(2026, 8, 22);
+    test(
+      'notifyPeakDay dispatches notification 902 with custom/fallback label and deduplicates',
+      () async {
+        final now = DateTime(2026, 8, 22);
 
-      // Fallback label 'P' for wife
-      await service.notifyPeakDay(role: UserRole.wife, now: now);
-      expect(fakePlugin.shownNotifications.length, 1);
-      expect(
-        fakePlugin.shownNotifications.first.id,
-        LocalNotificationService.peakDayNotificationId,
-      );
-      expect(
-        fakePlugin.shownNotifications.first.title,
-        CycleNotificationFormatter.peakDayMessage(UserRole.wife).title,
-      );
-      expect(
-        fakePlugin.shownNotifications.first.body,
-        CycleNotificationFormatter.peakDayMessage(UserRole.wife).body,
-      );
+        // Fallback label 'P' for wife
+        await service.notifyPeakDay(role: UserRole.wife, now: now);
+        expect(fakePlugin.shownNotifications.length, 1);
+        expect(
+          fakePlugin.shownNotifications.first.id,
+          LocalNotificationService.peakDayNotificationId,
+        );
+        expect(
+          fakePlugin.shownNotifications.first.title,
+          CycleNotificationFormatter.peakDayMessage(UserRole.wife).title,
+        );
+        expect(
+          fakePlugin.shownNotifications.first.body,
+          CycleNotificationFormatter.peakDayMessage(UserRole.wife).body,
+        );
 
-      // Duplicate call with same label is deduplicated
-      await service.notifyPeakDay(role: UserRole.wife, now: now);
-      expect(fakePlugin.shownNotifications.length, 1);
+        // Duplicate call with same label is deduplicated
+        await service.notifyPeakDay(role: UserRole.wife, now: now);
+        expect(fakePlugin.shownNotifications.length, 1);
 
-      // Different label 'P+1' is not deduplicated
-      await service.notifyPeakDay(
-        role: UserRole.wife,
-        peakLabel: 'P+1',
-        now: now,
-      );
-      expect(fakePlugin.shownNotifications.length, 2);
+        // Different label 'P+1' is not deduplicated
+        await service.notifyPeakDay(
+          role: UserRole.wife,
+          peakLabel: 'P+1',
+          now: now,
+        );
+        expect(fakePlugin.shownNotifications.length, 2);
 
-      // Force flag bypasses deduplication
-      await service.notifyPeakDay(
-        role: UserRole.wife,
-        peakLabel: 'P+1',
-        now: now,
-        force: true,
-      );
-      expect(fakePlugin.shownNotifications.length, 3);
+        // Force flag bypasses deduplication
+        await service.notifyPeakDay(
+          role: UserRole.wife,
+          peakLabel: 'P+1',
+          now: now,
+          force: true,
+        );
+        expect(fakePlugin.shownNotifications.length, 3);
 
-      // Husband message
-      await service.notifyPeakDay(
-        role: UserRole.husband,
-        peakLabel: 'P+2',
-        now: now,
-      );
-      expect(fakePlugin.shownNotifications.length, 4);
-      expect(
-        fakePlugin.shownNotifications.last.title,
-        CycleNotificationFormatter.peakDayMessage(
-          UserRole.husband,
+        // Husband message
+        await service.notifyPeakDay(
+          role: UserRole.husband,
           peakLabel: 'P+2',
-        ).title,
-      );
-      expect(
-        fakePlugin.shownNotifications.last.body,
-        CycleNotificationFormatter.peakDayMessage(
-          UserRole.husband,
-          peakLabel: 'P+2',
-        ).body,
-      );
-    });
+          now: now,
+        );
+        expect(fakePlugin.shownNotifications.length, 4);
+        expect(
+          fakePlugin.shownNotifications.last.title,
+          CycleNotificationFormatter.peakDayMessage(
+            UserRole.husband,
+            peakLabel: 'P+2',
+          ).title,
+        );
+        expect(
+          fakePlugin.shownNotifications.last.body,
+          CycleNotificationFormatter.peakDayMessage(
+            UserRole.husband,
+            peakLabel: 'P+2',
+          ).body,
+        );
+      },
+    );
 
     test(
       'notifyKindnessSupport dispatches notification 903 and deduplicates',
@@ -767,8 +797,9 @@ void main() {
         );
         expect(
           fakePlugin.shownNotifications.first.title,
-          CycleNotificationFormatter.kindnessSupportMessage(UserRole.wife)
-              .title,
+          CycleNotificationFormatter.kindnessSupportMessage(
+            UserRole.wife,
+          ).title,
         );
         expect(
           fakePlugin.shownNotifications.first.body,
@@ -792,13 +823,15 @@ void main() {
         expect(fakePlugin.shownNotifications.length, 3);
         expect(
           fakePlugin.shownNotifications.last.title,
-          CycleNotificationFormatter.kindnessSupportMessage(UserRole.husband)
-              .title,
+          CycleNotificationFormatter.kindnessSupportMessage(
+            UserRole.husband,
+          ).title,
         );
         expect(
           fakePlugin.shownNotifications.last.body,
-          CycleNotificationFormatter.kindnessSupportMessage(UserRole.husband)
-              .body,
+          CycleNotificationFormatter.kindnessSupportMessage(
+            UserRole.husband,
+          ).body,
         );
       },
     );
@@ -841,54 +874,64 @@ void main() {
         expect(fakePlugin.shownNotifications.length, 3);
         expect(
           fakePlugin.shownNotifications.last.title,
-          CycleNotificationFormatter.breastSelfExamMessage(UserRole.husband)
-              .title,
+          CycleNotificationFormatter.breastSelfExamMessage(
+            UserRole.husband,
+          ).title,
         );
         expect(
           fakePlugin.shownNotifications.last.body,
-          CycleNotificationFormatter.breastSelfExamMessage(UserRole.husband)
-              .body,
+          CycleNotificationFormatter.breastSelfExamMessage(
+            UserRole.husband,
+          ).body,
         );
       },
     );
   });
 
   group('LocalNotificationService - FCM Push Notifications & Tokens', () {
-    test('computeFcmNotificationId masks hash codes to distinct isolated range avoiding static IDs', () {
-      expect(LocalNotificationService.computeFcmNotificationId(0), 10000);
-      expect(LocalNotificationService.computeFcmNotificationId(12345), 22345);
-      // Bit 31 set: in 32-bit signed int this would be negative, masked to 0
-      expect(
-        LocalNotificationService.computeFcmNotificationId(0x80000000),
-        10000,
-      );
-      // Negative number masked to positive 31-bit integer
-      expect(
-        LocalNotificationService.computeFcmNotificationId(-1),
-        10000 + (0x7FFFFFFF % 1000000),
-      );
-      expect(
-        LocalNotificationService.computeFcmNotificationId(-9223372036854775808),
-        10000,
-      );
-      // 64-bit Dart VM hash
-      final masked = LocalNotificationService.computeFcmNotificationId(
-        0x7FFFFFFFFFFFFFFF,
-      );
-      expect(masked >= 10000, isTrue);
-      expect(masked < 1010000, isTrue);
+    test(
+      'computeFcmNotificationId masks hash codes to distinct isolated range avoiding static IDs',
+      () {
+        expect(LocalNotificationService.computeFcmNotificationId(0), 10000);
+        expect(LocalNotificationService.computeFcmNotificationId(12345), 22345);
+        // Bit 31 set: in 32-bit signed int this would be negative, masked to 0
+        expect(
+          LocalNotificationService.computeFcmNotificationId(0x80000000),
+          10000,
+        );
+        // Negative number masked to positive 31-bit integer
+        expect(
+          LocalNotificationService.computeFcmNotificationId(-1),
+          10000 + (0x7FFFFFFF % 1000000),
+        );
+        expect(
+          LocalNotificationService.computeFcmNotificationId(
+            -9223372036854775808,
+          ),
+          10000,
+        );
+        // 64-bit Dart VM hash
+        final masked = LocalNotificationService.computeFcmNotificationId(
+          0x7FFFFFFFFFFFFFFF,
+        );
+        expect(masked >= 10000, isTrue);
+        expect(masked < 1010000, isTrue);
 
-      // Verify collision avoidance with static IDs (900-904)
-      for (final staticId in [900, 901, 902, 903, 904]) {
-        expect(masked != staticId, isTrue);
-      }
-    });
+        // Verify collision avoidance with static IDs (900-904)
+        for (final staticId in [900, 901, 902, 903, 904]) {
+          expect(masked != staticId, isTrue);
+        }
+      },
+    );
 
-    test('setupFcmPushNotifications safely completes when Firebase is uninitialized', () async {
-      expect(service.isFcmConfigured, isFalse);
-      await expectLater(service.setupFcmPushNotifications(), completes);
-      expect(service.isFcmConfigured, isFalse);
-    });
+    test(
+      'setupFcmPushNotifications safely completes when Firebase is uninitialized',
+      () async {
+        expect(service.isFcmConfigured, isFalse);
+        await expectLater(service.setupFcmPushNotifications(), completes);
+        expect(service.isFcmConfigured, isFalse);
+      },
+    );
 
     test(
       'getFcmToken returns null safely when Firebase is uninitialized',
@@ -898,250 +941,268 @@ void main() {
       },
     );
 
-    test('setupFcmPushNotifications configures listeners and handles incoming messages', () async {
-      final inMemoryDb = InMemoryDatabaseService();
-      Services.db = inMemoryDb;
+    test(
+      'setupFcmPushNotifications configures listeners and handles incoming messages',
+      () async {
+        final inMemoryDb = InMemoryDatabaseService();
+        Services.db = inMemoryDb;
 
-      final tokenController = StreamController<String>.broadcast();
-      final messageController = StreamController<RemoteMessage>.broadcast();
+        final tokenController = StreamController<String>.broadcast();
+        final messageController = StreamController<RemoteMessage>.broadcast();
 
-      expect(service.isFcmConfigured, isFalse);
+        expect(service.isFcmConfigured, isFalse);
 
-      await service.setupFcmPushNotifications(
-        tokenRefreshStream: tokenController.stream,
-        onMessageStream: messageController.stream,
-        getToken: () async => 'initial_token_abc',
-        requestPermission: () async {},
-      );
+        await service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: () async => 'initial_token_abc',
+          requestPermission: () async {},
+        );
 
-      expect(service.isFcmConfigured, isTrue);
-      expect(inMemoryDb.fcmTokens, contains('initial_token_abc'));
+        expect(service.isFcmConfigured, isTrue);
+        expect(inMemoryDb.fcmTokens, contains('initial_token_abc'));
 
-      // Token refresh stream
-      tokenController.add('refreshed_token_xyz');
-      await pumpEventQueue();
-      expect(inMemoryDb.fcmTokens, contains('refreshed_token_xyz'));
+        // Token refresh stream
+        tokenController.add('refreshed_token_xyz');
+        await pumpEventQueue();
+        expect(inMemoryDb.fcmTokens, contains('refreshed_token_xyz'));
 
-      // Remote message stream
-      const msg = RemoteMessage(
-        notification: RemoteNotification(
-          title: 'Fertile Window Notice',
-          body: 'Phase updated today',
-        ),
-      );
-      messageController.add(msg);
-      await pumpEventQueue();
+        // Remote message stream
+        const msg = RemoteMessage(
+          notification: RemoteNotification(
+            title: 'Fertile Window Notice',
+            body: 'Phase updated today',
+          ),
+        );
+        messageController.add(msg);
+        await pumpEventQueue();
 
-      expect(fakePlugin.shownNotifications.length, 1);
-      final shown = fakePlugin.shownNotifications.first;
-      expect(
-        shown.id,
-        LocalNotificationService.computeFcmNotificationId(msg.hashCode),
-      );
-      expect(shown.id >= 10000, isTrue);
-      expect(shown.id < 1010000, isTrue);
-      expect(shown.title, 'Fertile Window Notice');
-      expect(shown.body, 'Phase updated today');
+        expect(fakePlugin.shownNotifications.length, 1);
+        final shown = fakePlugin.shownNotifications.first;
+        expect(
+          shown.id,
+          LocalNotificationService.computeFcmNotificationId(msg.hashCode),
+        );
+        expect(shown.id >= 10000, isTrue);
+        expect(shown.id < 1010000, isTrue);
+        expect(shown.title, 'Fertile Window Notice');
+        expect(shown.body, 'Phase updated today');
 
-      await service.resetFcmForTesting();
-      await tokenController.close();
-      await messageController.close();
-    });
+        await service.resetFcmForTesting();
+        await tokenController.close();
+        await messageController.close();
+      },
+    );
 
-    test('setupFcmPushNotifications is idempotent and does not duplicate listeners when re-invoked', () async {
-      final inMemoryDb = InMemoryDatabaseService();
-      Services.db = inMemoryDb;
+    test(
+      'setupFcmPushNotifications is idempotent and does not duplicate listeners when re-invoked',
+      () async {
+        final inMemoryDb = InMemoryDatabaseService();
+        Services.db = inMemoryDb;
 
-      final tokenController = StreamController<String>.broadcast();
-      final messageController = StreamController<RemoteMessage>.broadcast();
+        final tokenController = StreamController<String>.broadcast();
+        final messageController = StreamController<RemoteMessage>.broadcast();
 
-      int getTokenCallCount = 0;
-      int requestPermissionCallCount = 0;
+        int getTokenCallCount = 0;
+        int requestPermissionCallCount = 0;
 
-      Future<String?> mockGetToken() async {
-        getTokenCallCount++;
-        return 'token_test';
-      }
+        Future<String?> mockGetToken() async {
+          getTokenCallCount++;
+          return 'token_test';
+        }
 
-      Future<void> mockRequestPermission() async {
-        requestPermissionCallCount++;
-      }
+        Future<void> mockRequestPermission() async {
+          requestPermissionCallCount++;
+        }
 
-      // Initial setup
-      await service.setupFcmPushNotifications(
-        tokenRefreshStream: tokenController.stream,
-        onMessageStream: messageController.stream,
-        getToken: mockGetToken,
-        requestPermission: mockRequestPermission,
-      );
+        // Initial setup
+        await service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: mockGetToken,
+          requestPermission: mockRequestPermission,
+        );
 
-      expect(service.isFcmConfigured, isTrue);
-      expect(getTokenCallCount, 1);
-      expect(requestPermissionCallCount, 1);
+        expect(service.isFcmConfigured, isTrue);
+        expect(getTokenCallCount, 1);
+        expect(requestPermissionCallCount, 1);
 
-      // Multiple subsequent calls (simulating dashboard screen re-mounts)
-      await service.setupFcmPushNotifications(
-        tokenRefreshStream: tokenController.stream,
-        onMessageStream: messageController.stream,
-        getToken: mockGetToken,
-        requestPermission: mockRequestPermission,
-      );
-      await service.setupFcmPushNotifications(
-        tokenRefreshStream: tokenController.stream,
-        onMessageStream: messageController.stream,
-        getToken: mockGetToken,
-        requestPermission: mockRequestPermission,
-      );
+        // Multiple subsequent calls (simulating dashboard screen re-mounts)
+        await service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: mockGetToken,
+          requestPermission: mockRequestPermission,
+        );
+        await service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: mockGetToken,
+          requestPermission: mockRequestPermission,
+        );
 
-      // Should NOT have run setup logic again
-      expect(getTokenCallCount, 1);
-      expect(requestPermissionCallCount, 1);
+        // Should NOT have run setup logic again
+        expect(getTokenCallCount, 1);
+        expect(requestPermissionCallCount, 1);
 
-      // Emit single message and assert only 1 notification is dispatched
-      const msg = RemoteMessage(
-        notification: RemoteNotification(
-          title: 'Cycle Alert Single',
-          body: 'Only once',
-        ),
-      );
-      messageController.add(msg);
-      await pumpEventQueue();
+        // Emit single message and assert only 1 notification is dispatched
+        const msg = RemoteMessage(
+          notification: RemoteNotification(
+            title: 'Cycle Alert Single',
+            body: 'Only once',
+          ),
+        );
+        messageController.add(msg);
+        await pumpEventQueue();
 
-      expect(fakePlugin.shownNotifications.length, 1);
-      expect(fakePlugin.shownNotifications.first.title, 'Cycle Alert Single');
+        expect(fakePlugin.shownNotifications.length, 1);
+        expect(fakePlugin.shownNotifications.first.title, 'Cycle Alert Single');
 
-      await service.resetFcmForTesting();
-      await tokenController.close();
-      await messageController.close();
-    });
+        await service.resetFcmForTesting();
+        await tokenController.close();
+        await messageController.close();
+      },
+    );
 
-    test('setupFcmPushNotifications handles concurrent in-flight invocations without duplicate registration', () async {
-      final inMemoryDb = InMemoryDatabaseService();
-      Services.db = inMemoryDb;
+    test(
+      'setupFcmPushNotifications handles concurrent in-flight invocations without duplicate registration',
+      () async {
+        final inMemoryDb = InMemoryDatabaseService();
+        Services.db = inMemoryDb;
 
-      final tokenController = StreamController<String>.broadcast();
-      final messageController = StreamController<RemoteMessage>.broadcast();
+        final tokenController = StreamController<String>.broadcast();
+        final messageController = StreamController<RemoteMessage>.broadcast();
 
-      int getTokenCallCount = 0;
-      int requestPermissionCallCount = 0;
-      final completer = Completer<String?>();
+        int getTokenCallCount = 0;
+        int requestPermissionCallCount = 0;
+        final completer = Completer<String?>();
 
-      Future<String?> mockGetToken() async {
-        getTokenCallCount++;
-        return completer.future;
-      }
+        Future<String?> mockGetToken() async {
+          getTokenCallCount++;
+          return completer.future;
+        }
 
-      Future<void> mockRequestPermission() async {
-        requestPermissionCallCount++;
-      }
+        Future<void> mockRequestPermission() async {
+          requestPermissionCallCount++;
+        }
 
-      // Launch concurrent in-flight calls
-      final future1 = service.setupFcmPushNotifications(
-        tokenRefreshStream: tokenController.stream,
-        onMessageStream: messageController.stream,
-        getToken: mockGetToken,
-        requestPermission: mockRequestPermission,
-      );
-      final future2 = service.setupFcmPushNotifications(
-        tokenRefreshStream: tokenController.stream,
-        onMessageStream: messageController.stream,
-        getToken: mockGetToken,
-        requestPermission: mockRequestPermission,
-      );
+        // Launch concurrent in-flight calls
+        final future1 = service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: mockGetToken,
+          requestPermission: mockRequestPermission,
+        );
+        final future2 = service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: mockGetToken,
+          requestPermission: mockRequestPermission,
+        );
 
-      // While future1 is waiting on completer, future2 is invoked concurrently
-      expect(getTokenCallCount, 1);
-      expect(requestPermissionCallCount, 1);
+        // Pump event queue so future1 advances through requestPermission to getToken
+        await pumpEventQueue();
 
-      completer.complete('concurrent_token');
-      await Future.wait([future1, future2]);
+        // While future1 is waiting on completer, future2 was invoked and returned early
+        expect(getTokenCallCount, 1);
+        expect(requestPermissionCallCount, 1);
 
-      expect(service.isFcmConfigured, isTrue);
-      expect(getTokenCallCount, 1);
-      expect(requestPermissionCallCount, 1);
-      expect(inMemoryDb.fcmTokens, contains('concurrent_token'));
+        completer.complete('concurrent_token');
+        await Future.wait([future1, future2]);
 
-      // Emit single message and assert only 1 notification is dispatched
-      const msg = RemoteMessage(
-        notification: RemoteNotification(
-          title: 'Concurrent Test',
-          body: 'Only once',
-        ),
-      );
-      messageController.add(msg);
-      await pumpEventQueue();
+        expect(service.isFcmConfigured, isTrue);
+        expect(getTokenCallCount, 1);
+        expect(requestPermissionCallCount, 1);
+        expect(inMemoryDb.fcmTokens, contains('concurrent_token'));
 
-      expect(fakePlugin.shownNotifications.length, 1);
-      expect(fakePlugin.shownNotifications.first.title, 'Concurrent Test');
+        // Emit single message and assert only 1 notification is dispatched
+        const msg = RemoteMessage(
+          notification: RemoteNotification(
+            title: 'Concurrent Test',
+            body: 'Only once',
+          ),
+        );
+        messageController.add(msg);
+        await pumpEventQueue();
 
-      await service.resetFcmForTesting();
-      await tokenController.close();
-      await messageController.close();
-    });
+        expect(fakePlugin.shownNotifications.length, 1);
+        expect(fakePlugin.shownNotifications.first.title, 'Concurrent Test');
 
-    test('resetFcmForTesting cancels active subscriptions and resets configured state', () async {
-      final inMemoryDb = InMemoryDatabaseService();
-      Services.db = inMemoryDb;
+        await service.resetFcmForTesting();
+        await tokenController.close();
+        await messageController.close();
+      },
+    );
 
-      final tokenController = StreamController<String>.broadcast();
-      final messageController = StreamController<RemoteMessage>.broadcast();
+    test(
+      'resetFcmForTesting cancels active subscriptions and resets configured state',
+      () async {
+        final inMemoryDb = InMemoryDatabaseService();
+        Services.db = inMemoryDb;
 
-      await service.setupFcmPushNotifications(
-        tokenRefreshStream: tokenController.stream,
-        onMessageStream: messageController.stream,
-        getToken: () async => 'token_1',
-        requestPermission: () async {},
-      );
+        final tokenController = StreamController<String>.broadcast();
+        final messageController = StreamController<RemoteMessage>.broadcast();
 
-      expect(service.isFcmConfigured, isTrue);
+        await service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: () async => 'token_1',
+          requestPermission: () async {},
+        );
 
-      // Reset FCM
-      await service.resetFcmForTesting();
-      expect(service.isFcmConfigured, isFalse);
+        expect(service.isFcmConfigured, isTrue);
 
-      // Further message emissions on old stream should NOT trigger notifications
-      const msg = RemoteMessage(
-        notification: RemoteNotification(
-          title: 'After Reset',
-          body: 'Should not show',
-        ),
-      );
-      messageController.add(msg);
-      await pumpEventQueue();
+        // Reset FCM
+        await service.resetFcmForTesting();
+        expect(service.isFcmConfigured, isFalse);
 
-      expect(fakePlugin.shownNotifications, isEmpty);
+        // Further message emissions on old stream should NOT trigger notifications
+        const msg = RemoteMessage(
+          notification: RemoteNotification(
+            title: 'After Reset',
+            body: 'Should not show',
+          ),
+        );
+        messageController.add(msg);
+        await pumpEventQueue();
 
-      await tokenController.close();
-      await messageController.close();
-    });
+        expect(fakePlugin.shownNotifications, isEmpty);
 
-    test('setupFcmPushNotifications catches errors gracefully and leaves isFcmConfigured false for retry', () async {
-      final tokenController = StreamController<String>.broadcast();
-      final messageController = StreamController<RemoteMessage>.broadcast();
+        await tokenController.close();
+        await messageController.close();
+      },
+    );
 
-      // Setup fails on first attempt
-      await service.setupFcmPushNotifications(
-        tokenRefreshStream: tokenController.stream,
-        onMessageStream: messageController.stream,
-        getToken: () async => throw Exception('FCM token network failure'),
-        requestPermission: () async {},
-      );
+    test(
+      'setupFcmPushNotifications catches errors gracefully and leaves isFcmConfigured false for retry',
+      () async {
+        final tokenController = StreamController<String>.broadcast();
+        final messageController = StreamController<RemoteMessage>.broadcast();
 
-      expect(service.isFcmConfigured, isFalse);
+        // Setup fails on first attempt
+        await service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: () async => throw Exception('FCM token network failure'),
+          requestPermission: () async {},
+        );
 
-      // Retry succeeds
-      await service.setupFcmPushNotifications(
-        tokenRefreshStream: tokenController.stream,
-        onMessageStream: messageController.stream,
-        getToken: () async => 'recovered_token',
-        requestPermission: () async {},
-      );
+        expect(service.isFcmConfigured, isFalse);
 
-      expect(service.isFcmConfigured, isTrue);
+        // Retry succeeds
+        await service.setupFcmPushNotifications(
+          tokenRefreshStream: tokenController.stream,
+          onMessageStream: messageController.stream,
+          getToken: () async => 'recovered_token',
+          requestPermission: () async {},
+        );
 
-      await service.resetFcmForTesting();
-      await tokenController.close();
-      await messageController.close();
-    });
+        expect(service.isFcmConfigured, isTrue);
+
+        await service.resetFcmForTesting();
+        await tokenController.close();
+        await messageController.close();
+      },
+    );
   });
 }
