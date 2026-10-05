@@ -99,16 +99,21 @@ class FirebaseDatabaseService implements DatabaseService {
   }
 
   static bool _isAccessLostError(dynamic e) {
+    bool matches(String s) {
+      final n = s.toLowerCase().replaceAll('_', '-');
+      return n == 'permission-denied' || n == 'not-found';
+    }
+
     if (e is FirebaseException) {
-      return e.code == 'permission-denied' || e.code == 'not-found';
+      return matches(e.code);
     }
     try {
       final dynamic code = (e as dynamic).code;
-      if (code == 'permission-denied' || code == 'not-found') {
+      if (code is String && matches(code)) {
         return true;
       }
     } catch (_) {}
-    final message = e.toString().toLowerCase();
+    final message = e.toString().toLowerCase().replaceAll('_', '-');
     if (message.contains('permission-denied') ||
         message.contains('not-found')) {
       return true;
@@ -131,6 +136,10 @@ class FirebaseDatabaseService implements DatabaseService {
   }
 
   Future<void> _cleanupStaleChartReference(String uid, String chartId) async {
+    if (_cachedChartId == chartId) {
+      _cachedChartId = null;
+    }
+    _cachedPreferencesByChart.remove(chartId);
     try {
       await _db.collection('users').doc(uid).set({
         'chartId': null,
@@ -138,10 +147,6 @@ class FirebaseDatabaseService implements DatabaseService {
     } catch (e) {
       debugPrint('Error clearing stale chartId in Firestore: $e');
     }
-    if (_cachedChartId == chartId) {
-      _cachedChartId = null;
-    }
-    _cachedPreferencesByChart.remove(chartId);
   }
 
   Future<String?> _fetchChartId(String uid) async {
@@ -889,9 +894,9 @@ class FirebaseDatabaseService implements DatabaseService {
             debugPrint('Error streaming $debugLabel: $e');
           }
           if (_isAccessLostError(e)) {
+            emittedEmptyOnError = true;
             onAccessLost?.call(key);
           }
-          emittedEmptyOnError = true;
           controller.add(emptyValue);
         },
       );
@@ -903,6 +908,7 @@ class FirebaseDatabaseService implements DatabaseService {
         authSub = authStateChanges.listen((_) => updateListener());
       },
       onCancel: () {
+        emittedEmptyOnError = false;
         dataSub?.cancel();
         dataSub = null;
         authSub?.cancel();
