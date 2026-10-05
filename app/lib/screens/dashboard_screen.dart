@@ -49,7 +49,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _cyclesStream = Services.db.streamCycles();
     _cyclesSubscription = _cyclesStream.listen((cycles) {
       _syncReminderStatus(cycles);
-    });
+    }, onError: (_) {});
     _routeManager = AppRouteManager(mockUri: widget.mockUri);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _routeManager.handleUrlParameters(
