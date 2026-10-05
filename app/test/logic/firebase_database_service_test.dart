@@ -703,22 +703,19 @@ void main() {
       };
     });
 
-    test(
-      'invitePartner: creates document in invitations with pending status and normalized email',
-      () async {
-        const partnerEmail = '  Partner@Example.COM ';
-        await service.invitePartner(partnerEmail);
+    test('invitePartner: creates document in invitations with pending status and normalized email', () async {
+      const partnerEmail = '  Partner@Example.COM ';
+      await service.invitePartner(partnerEmail);
 
-        final expectedDoc = fakeDb.store['invitations/partner@example.com'];
-        expect(expectedDoc, isNotNull);
-        expect(expectedDoc!['invitationId'], equals('partner@example.com'));
-        expect(expectedDoc['senderUid'], equals('user_123'));
-        expect(expectedDoc['senderEmail'], equals('user@example.com'));
-        expect(expectedDoc['chartId'], equals(chartId));
-        expect(expectedDoc['status'], equals('pending'));
-        expect(expectedDoc['createdAt'], isNotNull);
-      },
-    );
+      final expectedDoc = fakeDb.store['invitations/partner@example.com'];
+      expect(expectedDoc, isNotNull);
+      expect(expectedDoc!['invitationId'], equals('partner@example.com'));
+      expect(expectedDoc['senderUid'], equals('user_123'));
+      expect(expectedDoc['senderEmail'], equals('user@example.com'));
+      expect(expectedDoc['chartId'], equals(chartId));
+      expect(expectedDoc['status'], equals('pending'));
+      expect(expectedDoc['createdAt'], isNotNull);
+    });
 
     test(
       'invitePartner: throws exception when active session or chart is missing',
@@ -767,68 +764,59 @@ void main() {
       },
     );
 
-    test(
-      'getPendingInvitations: returns empty list if user is null or email is null',
-      () async {
-        fakeAuth.currentUser = null;
-        expect(await service.getPendingInvitations(), isEmpty);
+    test('getPendingInvitations: returns empty list if user is null or email is null', () async {
+      fakeAuth.currentUser = null;
+      expect(await service.getPendingInvitations(), isEmpty);
 
-        fakeAuth.currentUser = FakeUser(uid: 'no_email');
-        expect(await service.getPendingInvitations(), isEmpty);
-      },
-    );
+      fakeAuth.currentUser = FakeUser(uid: 'no_email');
+      expect(await service.getPendingInvitations(), isEmpty);
+    });
 
-    test(
-      'acceptInvitation: updates status, appends user to chart userIds, updates profile, and emits auth',
-      () async {
-        const inviteeEmail = 'user@example.com';
-        const targetChartId = 'invited_chart_789';
+    test('acceptInvitation: updates status, appends user to chart userIds, updates profile, and emits auth', () async {
+      const inviteeEmail = 'user@example.com';
+      const targetChartId = 'invited_chart_789';
 
-        fakeDb.store['charts/$targetChartId'] = {
-          'id': targetChartId,
-          'userIds': ['original_owner'],
-          'emails': ['owner@example.com'],
-        };
-        fakeDb.store['invitations/$inviteeEmail'] = {
-          'invitationId': inviteeEmail,
-          'chartId': targetChartId,
-          'status': 'pending',
-        };
+      fakeDb.store['charts/$targetChartId'] = {
+        'id': targetChartId,
+        'userIds': ['original_owner'],
+        'emails': ['owner@example.com'],
+      };
+      fakeDb.store['invitations/$inviteeEmail'] = {
+        'invitationId': inviteeEmail,
+        'chartId': targetChartId,
+        'status': 'pending',
+      };
 
-        final authStream = service.authStateChanges;
-        final emittedUsers = <User?>[];
-        final sub = authStream.listen(emittedUsers.add);
-        addTearDown(sub.cancel);
+      final authStream = service.authStateChanges;
+      final emittedUsers = <User?>[];
+      final sub = authStream.listen(emittedUsers.add);
+      addTearDown(sub.cancel);
 
-        await service.acceptInvitation(inviteeEmail);
+      await service.acceptInvitation(inviteeEmail);
 
-        // Invitation status updated
-        expect(
-          fakeDb.store['invitations/$inviteeEmail']!['status'],
-          equals('accepted'),
-        );
+      // Invitation status updated
+      expect(
+        fakeDb.store['invitations/$inviteeEmail']!['status'],
+        equals('accepted'),
+      );
 
-        // Chart collaborators updated
-        final chartData = fakeDb.store['charts/$targetChartId']!;
-        expect(
-          chartData['userIds'],
-          containsAll(['original_owner', 'user_123']),
-        );
-        expect(
-          chartData['emails'],
-          containsAll(['owner@example.com', 'user@example.com']),
-        );
+      // Chart collaborators updated
+      final chartData = fakeDb.store['charts/$targetChartId']!;
+      expect(chartData['userIds'], containsAll(['original_owner', 'user_123']));
+      expect(
+        chartData['emails'],
+        containsAll(['owner@example.com', 'user@example.com']),
+      );
 
-        // User profile linked
-        final userData = fakeDb.store['users/user_123']!;
-        expect(userData['chartId'], equals(targetChartId));
+      // User profile linked
+      final userData = fakeDb.store['users/user_123']!;
+      expect(userData['chartId'], equals(targetChartId));
 
-        // Cached chartId updated
-        expect(service.currentChartId, equals(targetChartId));
-        await pumpEventQueue();
-        expect(emittedUsers.isNotEmpty, isTrue);
-      },
-    );
+      // Cached chartId updated
+      expect(service.currentChartId, equals(targetChartId));
+      await pumpEventQueue();
+      expect(emittedUsers.isNotEmpty, isTrue);
+    });
 
     test(
       'acceptInvitation: throws exception when invitation is not found',
@@ -881,42 +869,39 @@ void main() {
   // Group 2: Chart CRUD and Membership Management
   // ===========================================================================
   group('Group 2: Chart CRUD & Membership Management', () {
-    test(
-      'createChart: creates chart doc with default reminderEnabled, presets, and links user',
-      () async {
-        fakeDb.store['users/user_123'] = {
-          'uid': 'user_123',
-          'email': 'user@example.com',
-          'timezone': 'America/New_York',
-        };
+    test('createChart: creates chart doc with default reminderEnabled, presets, and links user', () async {
+      fakeDb.store['users/user_123'] = {
+        'uid': 'user_123',
+        'email': 'user@example.com',
+        'timezone': 'America/New_York',
+      };
 
-        await service.createChart();
+      await service.createChart();
 
-        final createdChartId = service.currentChartId;
-        expect(createdChartId, isNotNull);
+      final createdChartId = service.currentChartId;
+      expect(createdChartId, isNotNull);
 
-        final chartData = fakeDb.store['charts/$createdChartId'];
-        expect(chartData, isNotNull);
-        expect(chartData!['id'], equals(createdChartId));
-        expect(chartData['userIds'], equals(['user_123']));
-        expect(chartData['emails'], equals(['user@example.com']));
-        expect(chartData['reminderEnabled'], isTrue);
-        expect(chartData['timezone'], equals('America/New_York'));
+      final chartData = fakeDb.store['charts/$createdChartId'];
+      expect(chartData, isNotNull);
+      expect(chartData!['id'], equals(createdChartId));
+      expect(chartData['userIds'], equals(['user_123']));
+      expect(chartData['emails'], equals(['user@example.com']));
+      expect(chartData['reminderEnabled'], isTrue);
+      expect(chartData['timezone'], equals('America/New_York'));
 
-        // Supplements populated
-        final defaultPresets = SupplementPresets.defaultList;
-        for (final preset in defaultPresets) {
-          final suppDoc =
-              fakeDb.store['charts/$createdChartId/supplements/${preset.id}'];
-          expect(suppDoc, isNotNull);
-          expect(suppDoc!['name'], equals(preset.name));
-        }
+      // Supplements populated
+      final defaultPresets = SupplementPresets.defaultList;
+      for (final preset in defaultPresets) {
+        final suppDoc =
+            fakeDb.store['charts/$createdChartId/supplements/${preset.id}'];
+        expect(suppDoc, isNotNull);
+        expect(suppDoc!['name'], equals(preset.name));
+      }
 
-        // User document updated
-        final userDoc = fakeDb.store['users/user_123'];
-        expect(userDoc!['chartId'], equals(createdChartId));
-      },
-    );
+      // User document updated
+      final userDoc = fakeDb.store['users/user_123'];
+      expect(userDoc!['chartId'], equals(createdChartId));
+    });
 
     test(
       'unlinkChart: unlinks chart from user doc and emits null currentChartId',
@@ -1082,121 +1067,111 @@ void main() {
       },
     );
 
-    test(
-      'updateCycleStartDate: deletes old cycle and creates new with updated start date',
-      () async {
-        final oldStart = DateTime(2026, 9, 1);
-        final newStart = DateTime(2026, 9, 5);
-        final cycle = Cycle(
-          id: oldStart.dateKey,
-          startDate: oldStart,
-          bipCodes: ['6C'],
-        );
-        fakeDb.store['charts/$chartId/cycles/${oldStart.dateKey}'] = cycle
-            .toMap();
-        fakeDb.store['charts/$chartId/cycles/${oldStart.dateKey}/dailyEntries/${oldStart.dateKey}'] =
-            {'date': oldStart.dateKey};
+    test('updateCycleStartDate: deletes old cycle and creates new with updated start date', () async {
+      final oldStart = DateTime(2026, 9, 1);
+      final newStart = DateTime(2026, 9, 5);
+      final cycle = Cycle(
+        id: oldStart.dateKey,
+        startDate: oldStart,
+        bipCodes: ['6C'],
+      );
+      fakeDb.store['charts/$chartId/cycles/${oldStart.dateKey}'] = cycle
+          .toMap();
+      fakeDb.store['charts/$chartId/cycles/${oldStart.dateKey}/dailyEntries/${oldStart.dateKey}'] =
+          {'date': oldStart.dateKey};
 
-        await service.updateCycleStartDate(oldStart.dateKey, newStart);
+      await service.updateCycleStartDate(oldStart.dateKey, newStart);
 
-        expect(
-          fakeDb.store['charts/$chartId/cycles/${oldStart.dateKey}'],
-          isNull,
-        );
-        expect(
-          fakeDb
-              .store['charts/$chartId/cycles/${oldStart.dateKey}/dailyEntries/${oldStart.dateKey}'],
-          isNull,
-        );
-        final newDoc =
-            fakeDb.store['charts/$chartId/cycles/${newStart.dateKey}'];
-        expect(newDoc, isNotNull);
-        expect(newDoc!['startDate'], equals(newStart.dateKey));
-      },
-    );
+      expect(
+        fakeDb.store['charts/$chartId/cycles/${oldStart.dateKey}'],
+        isNull,
+      );
+      expect(
+        fakeDb
+            .store['charts/$chartId/cycles/${oldStart.dateKey}/dailyEntries/${oldStart.dateKey}'],
+        isNull,
+      );
+      final newDoc = fakeDb.store['charts/$chartId/cycles/${newStart.dateKey}'];
+      expect(newDoc, isNotNull);
+      expect(newDoc!['startDate'], equals(newStart.dateKey));
+    });
 
-    test(
-      'mergeCycleWithPrevious: merges entries into previous cycle and deletes target',
-      () async {
-        final c1Start = DateTime(2026, 8, 1);
-        final c2Start = DateTime(2026, 9, 1);
+    test('mergeCycleWithPrevious: merges entries into previous cycle and deletes target', () async {
+      final c1Start = DateTime(2026, 8, 1);
+      final c2Start = DateTime(2026, 9, 1);
 
-        final c1 = Cycle(
-          id: c1Start.dateKey,
-          startDate: c1Start,
-          bipCodes: ['6C'],
-        );
-        final c2 = Cycle(
-          id: c2Start.dateKey,
-          startDate: c2Start,
-          bipCodes: ['6C'],
-          dailyEntries: {
-            c2Start.dateKey: DailyEntry(
-              date: c2Start,
-              resolvedVdrsCode: '',
-              stampType: StampType.green,
-              observations: [],
-              painLevel: 0,
-              painTypes: [],
-              comments: '',
-            ),
-          },
-        );
+      final c1 = Cycle(
+        id: c1Start.dateKey,
+        startDate: c1Start,
+        bipCodes: ['6C'],
+      );
+      final c2 = Cycle(
+        id: c2Start.dateKey,
+        startDate: c2Start,
+        bipCodes: ['6C'],
+        dailyEntries: {
+          c2Start.dateKey: DailyEntry(
+            date: c2Start,
+            resolvedVdrsCode: '',
+            stampType: StampType.green,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        },
+      );
 
-        fakeDb.store['charts/$chartId/cycles/${c1.id}'] = c1.toMap();
-        fakeDb.store['charts/$chartId/cycles/${c2.id}'] = c2.toMap();
-        fakeDb.store['charts/$chartId/cycles/${c2.id}/dailyEntries/${c2Start.dateKey}'] =
-            c2.dailyEntries[c2Start.dateKey]!.toMap();
+      fakeDb.store['charts/$chartId/cycles/${c1.id}'] = c1.toMap();
+      fakeDb.store['charts/$chartId/cycles/${c2.id}'] = c2.toMap();
+      fakeDb.store['charts/$chartId/cycles/${c2.id}/dailyEntries/${c2Start.dateKey}'] =
+          c2.dailyEntries[c2Start.dateKey]!.toMap();
 
-        await service.mergeCycleWithPrevious(c2.id);
+      await service.mergeCycleWithPrevious(c2.id);
 
-        expect(fakeDb.store['charts/$chartId/cycles/${c2.id}'], isNull);
-        expect(
-          fakeDb
-              .store['charts/$chartId/cycles/${c2.id}/dailyEntries/${c2Start.dateKey}'],
-          isNull,
-        );
+      expect(fakeDb.store['charts/$chartId/cycles/${c2.id}'], isNull);
+      expect(
+        fakeDb
+            .store['charts/$chartId/cycles/${c2.id}/dailyEntries/${c2Start.dateKey}'],
+        isNull,
+      );
 
-        final prevDoc = fakeDb.store['charts/$chartId/cycles/${c1.id}'];
-        expect(prevDoc, isNotNull);
-        final dailyEntries = prevDoc!['dailyEntries'] as Map;
-        expect(dailyEntries.containsKey(c2Start.dateKey), isTrue);
-      },
-    );
+      final prevDoc = fakeDb.store['charts/$chartId/cycles/${c1.id}'];
+      expect(prevDoc, isNotNull);
+      final dailyEntries = prevDoc!['dailyEntries'] as Map;
+      expect(dailyEntries.containsKey(c2Start.dateKey), isTrue);
+    });
 
-    test(
-      'updateBipCodes: recalculates cycle entries and updates cycle doc and dailyEntries',
-      () async {
-        final dateKey = startDate.dateKey;
-        final entry = DailyEntry(
-          date: startDate,
-          resolvedVdrsCode: '',
-          stampType: StampType.green,
-          observations: [],
-          painLevel: 0,
-          painTypes: [],
-          comments: '',
-        );
-        final cycle = Cycle(
-          id: dateKey,
-          startDate: startDate,
-          bipCodes: ['6C'],
-          dailyEntries: {dateKey: entry},
-        );
+    test('updateBipCodes: recalculates cycle entries and updates cycle doc and dailyEntries', () async {
+      final dateKey = startDate.dateKey;
+      final entry = DailyEntry(
+        date: startDate,
+        resolvedVdrsCode: '',
+        stampType: StampType.green,
+        observations: [],
+        painLevel: 0,
+        painTypes: [],
+        comments: '',
+      );
+      final cycle = Cycle(
+        id: dateKey,
+        startDate: startDate,
+        bipCodes: ['6C'],
+        dailyEntries: {dateKey: entry},
+      );
 
-        fakeDb.store['charts/$chartId/cycles/$dateKey'] = cycle.toMap();
-        fakeDb.store['charts/$chartId/cycles/$dateKey/dailyEntries/$dateKey'] =
-            entry.toMap();
+      fakeDb.store['charts/$chartId/cycles/$dateKey'] = cycle.toMap();
+      fakeDb.store['charts/$chartId/cycles/$dateKey/dailyEntries/$dateKey'] =
+          entry.toMap();
 
-        await service.updateBipCodes(dateKey, ['8Y']);
+      await service.updateBipCodes(dateKey, ['8Y']);
 
-        final cycleDoc = fakeDb.store['charts/$chartId/cycles/$dateKey'];
-        expect(cycleDoc!['bipCodes'], equals(['8Y']));
-        final subDoc = fakeDb
-            .store['charts/$chartId/cycles/$dateKey/dailyEntries/$dateKey'];
-        expect(subDoc, isNotNull);
-      },
-    );
+      final cycleDoc = fakeDb.store['charts/$chartId/cycles/$dateKey'];
+      expect(cycleDoc!['bipCodes'], equals(['8Y']));
+      final subDoc =
+          fakeDb.store['charts/$chartId/cycles/$dateKey/dailyEntries/$dateKey'];
+      expect(subDoc, isNotNull);
+    });
 
     test(
       'streamCycles: emits cycles ordered descending by startDate',
@@ -1232,36 +1207,33 @@ void main() {
       fakeDb.store['users/user_123'] = {'uid': 'user_123', 'role': 'wife'};
     });
 
-    test(
-      'saveObservation: creates initial cycle if none exists and persists daily entry in subcollection',
-      () async {
-        await service.saveObservation(
-          date: testDate,
-          sensation: Sensation.dry,
-          stretch: Stretch.none,
-          colors: [MucusColor.clear],
-          consistencies: [],
-          bleeding: Bleeding.none,
-          bleedingColor: 'none',
-          painLevel: 0,
-          painTypes: [],
-          comment: 'Testing observation',
-        );
+    test('saveObservation: creates initial cycle if none exists and persists daily entry in subcollection', () async {
+      await service.saveObservation(
+        date: testDate,
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [MucusColor.clear],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        bleedingColor: 'none',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Testing observation',
+      );
 
-        final cycleDoc = fakeDb.store['charts/$chartId/cycles/$dateKey'];
-        expect(cycleDoc, isNotNull);
-        final dailyEntries = cycleDoc!['dailyEntries'] as Map;
-        expect(dailyEntries.containsKey(dateKey), isTrue);
+      final cycleDoc = fakeDb.store['charts/$chartId/cycles/$dateKey'];
+      expect(cycleDoc, isNotNull);
+      final dailyEntries = cycleDoc!['dailyEntries'] as Map;
+      expect(dailyEntries.containsKey(dateKey), isTrue);
 
-        final subDoc = fakeDb
-            .store['charts/$chartId/cycles/$dateKey/dailyEntries/$dateKey'];
-        expect(subDoc, isNotNull);
-        final obsList = subDoc!['observations'] as List;
-        expect(obsList.length, equals(1));
-        expect(obsList.first['comment'], equals('Testing observation'));
-        expect(obsList.first['userRole'], equals('wife'));
-      },
-    );
+      final subDoc =
+          fakeDb.store['charts/$chartId/cycles/$dateKey/dailyEntries/$dateKey'];
+      expect(subDoc, isNotNull);
+      final obsList = subDoc!['observations'] as List;
+      expect(obsList.length, equals(1));
+      expect(obsList.first['comment'], equals('Testing observation'));
+      expect(obsList.first['userRole'], equals('wife'));
+    });
 
     test(
       'deleteObservation: deletes observation and cleans up empty daily entry',
@@ -1302,25 +1274,22 @@ void main() {
       },
     );
 
-    test(
-      'saveObservation: returns early when currentUser or currentChartId is null',
-      () async {
-        service.cachedChartId = null;
-        await service.saveObservation(
-          date: testDate,
-          sensation: Sensation.dry,
-          stretch: Stretch.none,
-          colors: [],
-          consistencies: [],
-          bleeding: Bleeding.none,
-          bleedingColor: 'none',
-          painLevel: 0,
-          painTypes: [],
-          comment: 'No chart',
-        );
-        expect(fakeDb.store['charts/$chartId/cycles/$dateKey'], isNull);
-      },
-    );
+    test('saveObservation: returns early when currentUser or currentChartId is null', () async {
+      service.cachedChartId = null;
+      await service.saveObservation(
+        date: testDate,
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        bleedingColor: 'none',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'No chart',
+      );
+      expect(fakeDb.store['charts/$chartId/cycles/$dateKey'], isNull);
+    });
   });
 
   // ===========================================================================
@@ -1367,25 +1336,22 @@ void main() {
       expect(supplements.first.name, equals('Item 1'));
     });
 
-    test(
-      'resetDefaultSupplements: replaces existing supplements with default presets',
-      () async {
-        fakeDb.store['charts/$chartId/supplements/custom_supp'] = {
-          'id': 'custom_supp',
-          'name': 'Custom',
-        };
+    test('resetDefaultSupplements: replaces existing supplements with default presets', () async {
+      fakeDb.store['charts/$chartId/supplements/custom_supp'] = {
+        'id': 'custom_supp',
+        'name': 'Custom',
+      };
 
-        await service.resetDefaultSupplements();
+      await service.resetDefaultSupplements();
 
-        expect(fakeDb.store['charts/$chartId/supplements/custom_supp'], isNull);
-        for (final preset in SupplementPresets.defaultList) {
-          expect(
-            fakeDb.store['charts/$chartId/supplements/${preset.id}'],
-            isNotNull,
-          );
-        }
-      },
-    );
+      expect(fakeDb.store['charts/$chartId/supplements/custom_supp'], isNull);
+      for (final preset in SupplementPresets.defaultList) {
+        expect(
+          fakeDb.store['charts/$chartId/supplements/${preset.id}'],
+          isNotNull,
+        );
+      }
+    });
 
     test(
       'logSupplementDose: toggles dose in supplementLogs transaction',
@@ -1550,33 +1516,27 @@ void main() {
       const testChartId = 'chart_deleted_test';
       const partnerUid = 'partner_456';
 
-      test(
-        '_fetchChartId returns null and resets users/{uid}.chartId when chart document does not exist',
-        () async {
-          fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
-          // charts/chart_deleted_test does not exist in store
+      test('_fetchChartId returns null and resets users/{uid}.chartId when chart document does not exist', () async {
+        fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
+        // charts/chart_deleted_test does not exist in store
 
-          final result = await service.fetchChartId(partnerUid);
+        final result = await service.fetchChartId(partnerUid);
 
-          expect(result, isNull);
-          expect(fakeDb.store['users/$partnerUid']?['chartId'], isNull);
-        },
-      );
+        expect(result, isNull);
+        expect(fakeDb.store['users/$partnerUid']?['chartId'], isNull);
+      });
 
-      test(
-        '_fetchChartId returns null and resets users/{uid}.chartId when uid is absent from userIds',
-        () async {
-          fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
-          fakeDb.store['charts/$testChartId'] = {
-            'userIds': ['other_user_789'],
-          };
+      test('_fetchChartId returns null and resets users/{uid}.chartId when uid is absent from userIds', () async {
+        fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
+        fakeDb.store['charts/$testChartId'] = {
+          'userIds': ['other_user_789'],
+        };
 
-          final result = await service.fetchChartId(partnerUid);
+        final result = await service.fetchChartId(partnerUid);
 
-          expect(result, isNull);
-          expect(fakeDb.store['users/$partnerUid']?['chartId'], isNull);
-        },
-      );
+        expect(result, isNull);
+        expect(fakeDb.store['users/$partnerUid']?['chartId'], isNull);
+      });
 
       test(
         '_fetchChartId returns chartId when chart exists and uid is in userIds',
@@ -1596,121 +1556,137 @@ void main() {
         },
       );
 
-      test(
-        '_fetchChartId returns null and resets Firestore when fetching chart throws permission-denied',
-        () async {
-          fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
-          fakeDb.getDocErrors['charts/$testChartId'] = FirebaseException(
-            plugin: 'firestore',
-            code: 'permission-denied',
-            message: 'Permission denied for deleted chart',
-          );
+      test('_fetchChartId returns null and resets Firestore when fetching chart throws permission-denied', () async {
+        fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
+        fakeDb.getDocErrors['charts/$testChartId'] = FirebaseException(
+          plugin: 'firestore',
+          code: 'permission-denied',
+          message: 'Permission denied for deleted chart',
+        );
 
-          final result = await service.fetchChartId(partnerUid);
+        final result = await service.fetchChartId(partnerUid);
 
-          expect(result, isNull);
-          expect(fakeDb.store['users/$partnerUid']?['chartId'], isNull);
-        },
-      );
+        expect(result, isNull);
+        expect(fakeDb.store['users/$partnerUid']?['chartId'], isNull);
+      });
 
-      test(
-        '_handleChartAccessLost clears cached state, updates Firestore, and emits auth event',
-        () async {
-          service.cachedChartId = testChartId;
-          fakeDb.store['users/user_123'] = {'chartId': testChartId};
+      test('_fetchChartId preserves Firestore users/{uid}.chartId and returns chartId on transient errors', () async {
+        fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
+        fakeDb.getDocErrors['charts/$testChartId'] = FirebaseException(
+          plugin: 'firestore',
+          code: 'unavailable',
+          message: 'Network connection unavailable',
+        );
 
-          final authEmitted = <User?>[];
-          final sub = service.authStateChanges.listen(authEmitted.add);
-          addTearDown(sub.cancel);
-          await pumpEventQueue();
+        final result = await service.fetchChartId(partnerUid);
 
-          await service.handleChartAccessLost(testChartId);
-          await pumpEventQueue();
+        expect(result, equals(testChartId));
+        expect(
+          fakeDb.store['users/$partnerUid']?['chartId'],
+          equals(testChartId),
+        );
+      });
 
-          expect(service.currentChartId, isNull);
-          expect(fakeDb.store['users/user_123']?['chartId'], isNull);
-          expect(authEmitted, contains(currentUser));
-        },
-      );
+      test('_handleChartAccessLost clears cached state, updates Firestore, and emits auth event', () async {
+        service.cachedChartId = testChartId;
+        fakeDb.store['users/user_123'] = {'chartId': testChartId};
 
-      test(
-        'streamChartReminderEnabled handles permission-denied gracefully and invalidates access',
-        () async {
-          service.cachedChartId = testChartId;
-          fakeDb.store['users/user_123'] = {'chartId': testChartId};
-          fakeDb.snapshotErrors['charts/$testChartId'] = FirebaseException(
-            plugin: 'firestore',
-            code: 'permission-denied',
-          );
+        final authEmitted = <User?>[];
+        final sub = service.authStateChanges.listen(authEmitted.add);
+        addTearDown(sub.cancel);
+        await pumpEventQueue();
 
-          final emitted = <bool>[];
-          final sub = service
-              .streamChartReminderEnabled(testChartId)
-              .listen(emitted.add);
-          addTearDown(sub.cancel);
-          await pumpEventQueue();
+        await service.handleChartAccessLost(testChartId);
+        await pumpEventQueue();
 
-          // Should not throw an unhandled exception, and should have triggered access lost
-          expect(service.currentChartId, isNull);
-          expect(fakeDb.store['users/user_123']?['chartId'], isNull);
-        },
-      );
+        expect(service.currentChartId, isNull);
+        expect(fakeDb.store['users/user_123']?['chartId'], isNull);
+        expect(authEmitted, contains(currentUser));
+      });
 
-      test(
-        'streamNotificationPreferences handles permission-denied gracefully and invalidates access',
-        () async {
-          service.cachedChartId = testChartId;
-          fakeDb.store['users/user_123'] = {'chartId': testChartId};
-          fakeDb.snapshotErrors['charts/$testChartId'] = FirebaseException(
-            plugin: 'firestore',
-            code: 'permission-denied',
-          );
+      test('streamChartReminderEnabled handles permission-denied gracefully, invalidates access, and emits fallback', () async {
+        service.cachedChartId = testChartId;
+        fakeDb.store['users/user_123'] = {'chartId': testChartId};
+        fakeDb.snapshotErrors['charts/$testChartId'] = FirebaseException(
+          plugin: 'firestore',
+          code: 'permission-denied',
+        );
 
-          final emitted = <NotificationPreferences>[];
-          final sub = service
-              .streamNotificationPreferences(testChartId)
-              .listen(emitted.add);
-          addTearDown(sub.cancel);
-          await pumpEventQueue();
+        final emitted = <bool>[];
+        final sub = service
+            .streamChartReminderEnabled(testChartId)
+            .listen(emitted.add);
+        addTearDown(sub.cancel);
+        await pumpEventQueue();
 
-          // Should not throw an unhandled exception, and should have triggered access lost
-          expect(service.currentChartId, isNull);
-          expect(fakeDb.store['users/user_123']?['chartId'], isNull);
-        },
-      );
+        // Should not throw an unhandled exception, should trigger access lost, and emit fallback true
+        expect(service.currentChartId, isNull);
+        expect(fakeDb.store['users/user_123']?['chartId'], isNull);
+        expect(emitted, [isTrue]);
 
-      test(
-        'streamCycles handles permission-denied in gated stream by clearing cached chart and resetting profile',
-        () async {
-          service.cachedChartId = testChartId;
-          fakeDb.store['users/user_123'] = {'chartId': testChartId};
+        // Consumers awaiting .first should not stall
+        final firstVal = await service
+            .streamChartReminderEnabled(testChartId)
+            .first;
+        expect(firstVal, isTrue);
+      });
 
-          final stream =
-              FirebaseDatabaseService.buildAuthGatedStreamHelper<List<String>>(
-                getCurrentChartId: () => service.currentChartId,
-                authStateChanges: service.authStateChanges,
-                emptyValue: const [],
-                subscribe: (chartId) {
-                  return Stream.error(
-                    FirebaseException(
-                      plugin: 'firestore',
-                      code: 'permission-denied',
-                    ),
-                  );
-                },
-                onAccessLost: service.handleChartAccessLost,
-              );
+      test('streamNotificationPreferences handles permission-denied gracefully, invalidates access, and emits fallback', () async {
+        service.cachedChartId = testChartId;
+        fakeDb.store['users/user_123'] = {'chartId': testChartId};
+        fakeDb.snapshotErrors['charts/$testChartId'] = FirebaseException(
+          plugin: 'firestore',
+          code: 'permission-denied',
+        );
 
-          final emitted = <List<String>>[];
-          final sub = stream.listen(emitted.add);
-          addTearDown(sub.cancel);
-          await pumpEventQueue();
+        final emitted = <NotificationPreferences>[];
+        final sub = service
+            .streamNotificationPreferences(testChartId)
+            .listen(emitted.add);
+        addTearDown(sub.cancel);
+        await pumpEventQueue();
 
-          expect(emitted, [isEmpty]);
-          expect(service.currentChartId, isNull);
-          expect(fakeDb.store['users/user_123']?['chartId'], isNull);
-        },
-      );
+        // Should not throw an unhandled exception, should trigger access lost, and emit fallback const NotificationPreferences()
+        expect(service.currentChartId, isNull);
+        expect(fakeDb.store['users/user_123']?['chartId'], isNull);
+        expect(emitted, [equals(const NotificationPreferences())]);
+
+        // Consumers awaiting .first should not stall
+        final firstVal = await service
+            .streamNotificationPreferences(testChartId)
+            .first;
+        expect(firstVal, equals(const NotificationPreferences()));
+      });
+
+      test('streamCycles handles permission-denied in gated stream by clearing cached chart and resetting profile', () async {
+        service.cachedChartId = testChartId;
+        fakeDb.store['users/user_123'] = {'chartId': testChartId};
+
+        final stream =
+            FirebaseDatabaseService.buildAuthGatedStreamHelper<List<String>>(
+              getCurrentChartId: () => service.currentChartId,
+              authStateChanges: service.authStateChanges,
+              emptyValue: const [],
+              subscribe: (chartId) {
+                return Stream.error(
+                  FirebaseException(
+                    plugin: 'firestore',
+                    code: 'permission-denied',
+                  ),
+                );
+              },
+              onAccessLost: service.handleChartAccessLost,
+            );
+
+        final emitted = <List<String>>[];
+        final sub = stream.listen(emitted.add);
+        addTearDown(sub.cancel);
+        await pumpEventQueue();
+
+        expect(emitted, [isEmpty]);
+        expect(service.currentChartId, isNull);
+        expect(fakeDb.store['users/user_123']?['chartId'], isNull);
+      });
     });
   });
 }

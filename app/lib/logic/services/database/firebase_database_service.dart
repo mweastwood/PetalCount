@@ -162,8 +162,7 @@ class FirebaseDatabaseService implements DatabaseService {
           return null;
         }
 
-        final userIds =
-            (chartDoc.data()?['userIds'] as List?)?.cast<dynamic>();
+        final userIds = (chartDoc.data()?['userIds'] as List?)?.cast<dynamic>();
         if (userIds == null || !userIds.contains(uid)) {
           await _cleanupStaleChartReference(uid, chartId);
           return null;
@@ -172,8 +171,12 @@ class FirebaseDatabaseService implements DatabaseService {
         return chartId;
       } catch (e) {
         debugPrint('Error verifying chart $chartId for user $uid: $e');
-        await _cleanupStaleChartReference(uid, chartId);
-        return null;
+        if (_isAccessLostError(e)) {
+          await _cleanupStaleChartReference(uid, chartId);
+          return null;
+        }
+        // For transient/network errors, preserve the user's chartId in Firestore
+        return chartId;
       }
     } catch (e) {
       debugPrint('Error fetching chartId: $e');
@@ -657,12 +660,19 @@ class FirebaseDatabaseService implements DatabaseService {
         .doc(chartId)
         .snapshots()
         .map((doc) => (doc.data()?['reminderEnabled'] as bool?) ?? true)
-        .handleError((e) {
-          debugPrint('Error streaming chart reminder enabled for $chartId: $e');
-          if (_isAccessLostError(e)) {
-            _handleChartAccessLost(chartId);
-          }
-        });
+        .transform(
+          StreamTransformer<bool, bool>.fromHandlers(
+            handleError: (e, stackTrace, sink) {
+              debugPrint(
+                'Error streaming chart reminder enabled for $chartId: $e',
+              );
+              if (_isAccessLostError(e)) {
+                _handleChartAccessLost(chartId);
+              }
+              sink.add(true);
+            },
+          ),
+        );
   }
 
   @override
@@ -705,14 +715,22 @@ class FirebaseDatabaseService implements DatabaseService {
           _cachedPreferencesByChart[chartId] = prefs;
           return prefs;
         })
-        .handleError((e) {
-          debugPrint(
-            'Error streaming notification preferences for $chartId: $e',
-          );
-          if (_isAccessLostError(e)) {
-            _handleChartAccessLost(chartId);
-          }
-        });
+        .transform(
+          StreamTransformer<
+            NotificationPreferences,
+            NotificationPreferences
+          >.fromHandlers(
+            handleError: (e, stackTrace, sink) {
+              debugPrint(
+                'Error streaming notification preferences for $chartId: $e',
+              );
+              if (_isAccessLostError(e)) {
+                _handleChartAccessLost(chartId);
+              }
+              sink.add(const NotificationPreferences());
+            },
+          ),
+        );
   }
 
   @override
