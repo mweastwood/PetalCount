@@ -414,7 +414,7 @@ class LocalNotificationService implements NotificationService {
     try {
       if (requestPermission != null) {
         await requestPermission();
-      } else {
+      } else if (Firebase.apps.isNotEmpty) {
         final messaging = FirebaseMessaging.instance;
         await messaging.requestPermission(
           alert: true,
@@ -426,44 +426,54 @@ class LocalNotificationService implements NotificationService {
 
       final token = getToken != null
           ? await getToken()
-          : await FirebaseMessaging.instance.getToken();
+          : (Firebase.apps.isNotEmpty
+              ? await FirebaseMessaging.instance.getToken()
+              : null);
       if (token != null && token.isNotEmpty) {
         await Services.db.saveFcmToken(token);
       }
 
       await _tokenRefreshSubscription?.cancel();
-      final effectiveTokenStream =
-          tokenRefreshStream ?? FirebaseMessaging.instance.onTokenRefresh;
-      _tokenRefreshSubscription = effectiveTokenStream.listen(
-        (newToken) {
-          if (newToken.isNotEmpty) {
-            Services.db.saveFcmToken(newToken);
-          }
-        },
-        onError: (Object error) {
-          debugPrint('Warning: FCM tokenRefreshStream error: $error');
-        },
-      );
+      final effectiveTokenStream = tokenRefreshStream ??
+          (Firebase.apps.isNotEmpty
+              ? FirebaseMessaging.instance.onTokenRefresh
+              : null);
+      if (effectiveTokenStream != null) {
+        _tokenRefreshSubscription = effectiveTokenStream.listen(
+          (newToken) async {
+            if (newToken.isNotEmpty) {
+              await Services.db.saveFcmToken(newToken);
+            }
+          },
+          onError: (Object error) {
+            debugPrint('Warning: FCM tokenRefreshStream error: $error');
+          },
+        );
+      }
 
       // Handle notifications received when the app is in the foreground
       await _onMessageSubscription?.cancel();
-      final effectiveOnMessageStream =
-          onMessageStream ?? FirebaseMessaging.onMessage;
-      _onMessageSubscription = effectiveOnMessageStream.listen(
-        (RemoteMessage message) async {
-          final notification = message.notification;
-          if (notification != null) {
-            await showNotification(
-              id: computeFcmNotificationId(message.hashCode),
-              title: notification.title ?? 'Cycle Alert',
-              body: notification.body ?? '',
-            );
-          }
-        },
-        onError: (Object error) {
-          debugPrint('Warning: FCM onMessageStream error: $error');
-        },
-      );
+      final effectiveOnMessageStream = onMessageStream ??
+          (Firebase.apps.isNotEmpty
+              ? FirebaseMessaging.onMessage
+              : null);
+      if (effectiveOnMessageStream != null) {
+        _onMessageSubscription = effectiveOnMessageStream.listen(
+          (RemoteMessage message) async {
+            final notification = message.notification;
+            if (notification != null) {
+              await showNotification(
+                id: computeFcmNotificationId(message.hashCode),
+                title: notification.title ?? 'Cycle Alert',
+                body: notification.body ?? '',
+              );
+            }
+          },
+          onError: (Object error) {
+            debugPrint('Warning: FCM onMessageStream error: $error');
+          },
+        );
+      }
 
       _fcmConfigured = true;
     } catch (e) {

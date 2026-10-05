@@ -1246,5 +1246,23 @@ void main() {
         await messageController.close();
       },
     );
+
+    test(
+      'setupFcmPushNotifications safely succeeds with partial custom delegates when Firebase is uninitialized',
+      () async {
+        final inMemoryDb = InMemoryDatabaseService();
+        Services.db = inMemoryDb;
+
+        // Provide only getToken without requestPermission or streams
+        await service.setupFcmPushNotifications(
+          getToken: () async => 'partial_custom_token',
+        );
+
+        expect(service.isFcmConfigured, isTrue);
+        expect(inMemoryDb.fcmTokens, contains('partial_custom_token'));
+
+        await service.resetFcmForTesting();
+      },
+    );
   });
 }
