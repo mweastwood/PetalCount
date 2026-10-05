@@ -1,6 +1,7 @@
 import 'package:async/async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/logic.dart';
+import 'firebase_database_service_test.dart' hide main;
 
 void main() {
   late InMemoryDatabaseService db;
@@ -881,5 +882,607 @@ void main() {
         expect(pendingAfter, isEmpty);
       },
     );
+
+    test('acceptInvitation: successfully accepts invite, joins chart, and triggers broadcasts', () async {
+      await db.createChart();
+      final chartId = db.currentChartId!;
+      const partnerEmail = 'partner@example.com';
+      await db.invitePartner(partnerEmail);
+
+      // Partner signs in
+      final partner = MockUser(uid: 'partner_uid', email: partnerEmail);
+      db.setMockCurrentUser(partner);
+
+      final authQueue = StreamQueue(db.authStateChanges);
+      final chartsQueue = StreamQueue(db.streamAvailableCharts());
+      final cyclesQueue = StreamQueue(db.streamCycles());
+
+      // Consume initial emissions
+      await authQueue.next;
+      await chartsQueue.next;
+      await cyclesQueue.next;
+
+      await db.acceptInvitation(partnerEmail);
+
+      // Verify streams broadcast
+      expect(await authQueue.next, isNotNull);
+      final updatedCharts = await chartsQueue.next;
+      expect(updatedCharts.any((c) => c['id'] == chartId), isTrue);
+      final chart = updatedCharts.firstWhere((c) => c['id'] == chartId);
+      expect((chart['userIds'] as List).contains('partner_uid'), isTrue);
+      expect((chart['emails'] as List).contains(partnerEmail), isTrue);
+      expect(db.currentChartId, chartId);
+
+      await authQueue.cancel();
+      await chartsQueue.cancel();
+      await cyclesQueue.cancel();
+    });
+
+    test('acceptInvitation: throws exception when invitation is not found matching Firebase semantics', () async {
+      await expectLater(
+        () => db.acceptInvitation('non_existent_invite'),
+        throwsA(
+          isA<Exception>().having(
+            (e) => e.toString(),
+            'message',
+            contains('Invitation not found'),
+          ),
+        ),
+      );
+    });
+  });
+
+  group('Cycle CRUD, Modifications & Stream Ordering', () {
+    test('updateBipCodes recalculates daily entries and emits via streamCycles', () async {
+      await db.createChart();
+      final cycleStart = DateTime(2026, 8, 1);
+      await db.startNewCycle(cycleStart, ['6C']);
+      final cycleId = cycleStart.dateKey;
+
+      // Add observation matching 6C
+      await db.saveObservation(
+        cycleId: cycleId,
+        date: cycleStart.add(const Duration(days: 1)),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [MucusColor.cloudy],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        bleedingColor: '',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'matching BIP 6C',
+      );
+
+      var cycles = await db.streamCycles().first;
+      var cycle = cycles.firstWhere((c) => c.id == cycleId);
+      final obsKey = cycleStart.add(const Duration(days: 1)).dateKey;
+      expect(cycle.bipCodes, equals(['6C']));
+      expect(cycle.dailyEntries[obsKey]?.vdrsCode, 'BIP');
+
+      // Now update BIP codes to ['8Y']
+      await db.updateBipCodes(cycleId, ['8Y']);
+
+      cycles = await db.streamCycles().first;
+      cycle = cycles.firstWhere((c) => c.id == cycleId);
+      expect(cycle.bipCodes, equals(['8Y']));
+      expect(cycle.dailyEntries[obsKey]?.vdrsCode, isNot('BIP'));
+    });
+
+    test('updateCycleStartDate shifts cycle start date and reallocates entries', () async {
+      await db.createChart();
+      final start1 = DateTime(2026, 6, 1);
+      final start2 = DateTime(2026, 7, 1);
+
+      await db.startNewCycle(start1, ['6C']);
+      await db.startNewCycle(start2, ['6C']);
+
+      // Add observation on June 28 (belongs to cycle 1)
+      final june28 = DateTime(2026, 6, 28);
+      await db.saveObservation(
+        date: june28,
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        bleedingColor: '',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'June 28',
+      );
+
+      var cycles = await db.streamCycles().first;
+      var cycle1 = cycles.firstWhere((c) => c.id == start1.dateKey);
+      var cycle2 = cycles.firstWhere((c) => c.id == start2.dateKey);
+      expect(cycle1.dailyEntries.containsKey(june28.dateKey), isTrue);
+      expect(cycle2.dailyEntries.containsKey(june28.dateKey), isFalse);
+
+      // Shift second cycle start date to June 25
+      final newStart2 = DateTime(2026, 6, 25);
+      await db.updateCycleStartDate(start2.dateKey, newStart2);
+
+      cycles = await db.streamCycles().first;
+      expect(cycles.any((c) => c.id == start2.dateKey), isFalse);
+      final updatedCycle2 = cycles.firstWhere((c) => c.id == newStart2.dateKey);
+      cycle1 = cycles.firstWhere((c) => c.id == start1.dateKey);
+
+      expect(updatedCycle2.startDate, newStart2);
+      expect(updatedCycle2.dailyEntries.containsKey(june28.dateKey), isTrue);
+      expect(cycle1.dailyEntries.containsKey(june28.dateKey), isFalse);
+    });
+
+    test('streamCycles maintains descending chronological order on add, update, and delete', () async {
+      await db.createChart();
+
+      final may = DateTime(2026, 5, 1);
+      final june = DateTime(2026, 6, 1);
+      final july = DateTime(2026, 7, 1);
+
+      await db.startNewCycle(july, ['6C']);
+      await db.startNewCycle(may, ['6C']);
+      await db.startNewCycle(june, ['6C']);
+
+      final cycles = await db.streamCycles().first;
+      expect(cycles.length, 3);
+      expect(cycles[0].startDate, july);
+      expect(cycles[1].startDate, june);
+      expect(cycles[2].startDate, may);
+
+      final cycleQueue = StreamQueue(db.streamCycles());
+      expect((await cycleQueue.next).length, 3);
+
+      await db.deleteCycle(june.dateKey);
+      final afterDelete = await cycleQueue.next;
+      expect(afterDelete.length, 2);
+      expect(afterDelete[0].startDate, july);
+      expect(afterDelete[1].startDate, may);
+
+      await cycleQueue.cancel();
+    });
+  });
+
+  group('Observation Operations, Boundary Cases & Notifications', () {
+    test('observation recorded exactly on cycle startDate maps to Day 1', () async {
+      await db.createChart();
+      final start = DateTime(2026, 8, 1);
+      await db.startNewCycle(start, ['6C']);
+
+      await db.saveObservation(
+        date: start,
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        bleedingColor: '',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Day 1 entry',
+      );
+
+      final cycles = await db.streamCycles().first;
+      final entry = cycles.first.dailyEntries[start.dateKey];
+      expect(entry, isNotNull);
+      expect(entry!.dayIndex, 1);
+    });
+
+    test('observation recorded prior to earliest cycle start date is handled without error', () async {
+      await db.createChart();
+      final start = DateTime(2026, 8, 10);
+      await db.startNewCycle(start, ['6C']);
+
+      final earlyDate = DateTime(2026, 8, 1);
+      await expectLater(
+        db.saveObservation(
+          date: earlyDate,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.heavy,
+          bleedingColor: 'R',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Pre-cycle entry',
+        ),
+        completes,
+      );
+
+      final cycles = await db.streamCycles().first;
+      expect(cycles.any((c) => c.startDate.compareTo(earlyDate) <= 0), isTrue);
+    });
+
+    test('saveObservation preserves isVdrsExplicit flag on resolved daily entry', () async {
+      await db.createChart();
+      final date = DateTime(2026, 8, 5);
+
+      await db.saveObservation(
+        date: date,
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: [],
+        consistencies: [],
+        bleeding: Bleeding.none,
+        bleedingColor: '',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Explicit VDRS test',
+        isVdrsExplicit: true,
+      );
+
+      final cycles = await db.streamCycles().first;
+      final entry = cycles.first.dailyEntries[date.dateKey];
+      expect(entry, isNotNull);
+      expect(entry!.isVdrsExplicit, isTrue);
+    });
+
+    test('saveObservation triggers notifications when fertilePatternAlerts is true and suppresses when false', () async {
+      final notif = InMemoryNotificationService();
+      Services.notifications = notif;
+      await db.createChart();
+      final chartId = db.currentChartId!;
+
+      await db.updateNotificationPreferences(
+        chartId,
+        const NotificationPreferences(
+          fertilePatternAlerts: true,
+          partnerSupportReminders: true,
+          dailyLoggingReminder: true,
+        ),
+      );
+
+      final fertileDate = DateTime(2026, 8, 15);
+      await db.saveObservation(
+        date: fertileDate,
+        sensation: Sensation.lubricative,
+        stretch: Stretch.stretchy,
+        colors: [MucusColor.clear],
+        consistencies: [Consistency.lubricative],
+        bleeding: Bleeding.none,
+        bleedingColor: '',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Peak Fertile mucus',
+      );
+
+      expect(notif.dispatchedNotifications.isNotEmpty, isTrue);
+      final hasFertileOrPeak = notif.dispatchedNotifications.any(
+        (n) =>
+            n['id'] == InMemoryNotificationService.fertilePatternNotificationId ||
+            n['id'] == InMemoryNotificationService.peakDayNotificationId ||
+            n['id'] == InMemoryNotificationService.kindnessSupportNotificationId,
+      );
+      expect(hasFertileOrPeak, isTrue);
+
+      // Disable notifications
+      notif.dispatchedNotifications.clear();
+      await db.updateNotificationPreferences(
+        chartId,
+        const NotificationPreferences(
+          fertilePatternAlerts: false,
+          partnerSupportReminders: false,
+          dailyLoggingReminder: false,
+        ),
+      );
+
+      final fertileDate2 = DateTime(2026, 8, 16);
+      await db.saveObservation(
+        date: fertileDate2,
+        sensation: Sensation.lubricative,
+        stretch: Stretch.stretchy,
+        colors: [MucusColor.clear],
+        consistencies: [Consistency.lubricative],
+        bleeding: Bleeding.none,
+        bleedingColor: '',
+        painLevel: 0,
+        painTypes: [],
+        comment: 'Fertile mucus 2',
+      );
+
+      expect(notif.dispatchedNotifications, isEmpty);
+    });
+  });
+
+  group('Late Subscribers, Stream Behavior & Teardown', () {
+    test('late subscribers immediately receive current value across all 8 reactive streams', () async {
+      final chartId = db.currentChartId!;
+
+      // 1. streamCycles
+      final cycles = await db.streamCycles().first;
+      expect(cycles, isNotEmpty);
+
+      // 2. streamSupplements
+      final supplements = await db.streamSupplements().first;
+      expect(supplements, isNotEmpty);
+
+      // 3. streamDailySupplementLogs
+      final logs = await db.streamDailySupplementLogs().first;
+      expect(logs, isA<Map<String, DailySupplementLog>>());
+
+      // 4. streamAvailableCharts
+      final charts = await db.streamAvailableCharts().first;
+      expect(charts, isNotEmpty);
+
+      // 5. authStateChanges
+      final user = await db.authStateChanges.first;
+      expect(user, isNotNull);
+
+      // 6. streamUserRole
+      final role = await db.streamUserRole().first;
+      expect(role, isNotNull);
+
+      // 7. streamNotificationPreferences
+      final prefs = await db.streamNotificationPreferences(chartId).first;
+      expect(prefs, isNotNull);
+
+      // 8. streamChartReminderEnabled
+      final reminder = await db.streamChartReminderEnabled(chartId).first;
+      expect(reminder, isA<bool>());
+    });
+
+    test('re-subscription stability: subscribing, cancelling, and re-subscribing succeeds without error', () async {
+      final chartId = db.currentChartId!;
+
+      // Test each reactive stream for re-subscription stability
+      final streams = <Stream<dynamic>>[
+        db.streamCycles(),
+        db.streamSupplements(),
+        db.streamDailySupplementLogs(),
+        db.streamAvailableCharts(),
+        db.authStateChanges,
+        db.streamUserRole(),
+        db.streamNotificationPreferences(chartId),
+        db.streamChartReminderEnabled(chartId),
+      ];
+
+      for (final s in streams) {
+        // First subscription
+        final sub1 = s.listen((_) {});
+        await pumpEventQueue();
+        await sub1.cancel();
+
+        // Second subscription
+        final sub2 = s.listen((_) {});
+        await pumpEventQueue();
+        await sub2.cancel();
+      }
+    });
+
+    test('dispose closes stream controllers and prevents post-dispose emissions', () async {
+      final testDb = InMemoryDatabaseService();
+      final cycles = testDb.streamCycles();
+
+      var emittedAfterDispose = false;
+      final sub = cycles.listen((_) {
+        // Any emission handled
+      });
+
+      testDb.dispose();
+      await pumpEventQueue();
+      await sub.cancel();
+
+      // Verify post-dispose operations do not emit
+      final lateSub = testDb.streamCycles().listen((data) {
+        emittedAfterDispose = true;
+      });
+      await pumpEventQueue();
+      expect(emittedAfterDispose, isFalse);
+      await lateSub.cancel();
+    });
+  });
+
+  group('Parity Check Suite (InMemoryDatabaseService vs FirebaseDatabaseService)', () {
+    test('identical sequence of domain actions produces equivalent state snapshots', () async {
+      final fakeDb = FakeFirebaseFirestore();
+      final currentUser = FakeUser(uid: 'parity_user_uid', email: 'parity@example.com');
+      final fakeAuth = FakeFirebaseAuth(currentUser: currentUser);
+      final fbService = FirebaseDatabaseService(auth: fakeAuth, db: fakeDb);
+      final inMemService = InMemoryDatabaseService();
+      inMemService.setMockCurrentUser(
+        MockUser(uid: 'parity_user_uid', email: 'parity@example.com'),
+      );
+
+      // 1. Create a chart on both
+      await inMemService.createChart();
+      await fbService.createChart();
+
+      final inMemChartId = inMemService.currentChartId!;
+      final fbChartId = fbService.currentChartId!;
+
+      // 2. Save observations (menses on days 1-3, dry on days 4-7, fertile peak mucus on day 8)
+      final baseDate = DateTime(2026, 9, 1);
+      for (int day = 0; day < 8; day++) {
+        final date = baseDate.add(Duration(days: day));
+        if (day < 3) {
+          // Days 1-3: Menstruation
+          await inMemService.saveObservation(
+            date: date,
+            sensation: Sensation.dry,
+            stretch: Stretch.none,
+            colors: [],
+            consistencies: [],
+            bleeding: Bleeding.heavy,
+            bleedingColor: 'R',
+            painLevel: 0,
+            painTypes: [],
+            comment: 'Menses day ${day + 1}',
+          );
+          await fbService.saveObservation(
+            date: date,
+            sensation: Sensation.dry,
+            stretch: Stretch.none,
+            colors: [],
+            consistencies: [],
+            bleeding: Bleeding.heavy,
+            bleedingColor: 'R',
+            painLevel: 0,
+            painTypes: [],
+            comment: 'Menses day ${day + 1}',
+          );
+        } else if (day < 7) {
+          // Days 4-7: Dry
+          await inMemService.saveObservation(
+            date: date,
+            sensation: Sensation.dry,
+            stretch: Stretch.none,
+            colors: [],
+            consistencies: [],
+            bleeding: Bleeding.none,
+            bleedingColor: '',
+            painLevel: 0,
+            painTypes: [],
+            comment: 'Dry day ${day + 1}',
+          );
+          await fbService.saveObservation(
+            date: date,
+            sensation: Sensation.dry,
+            stretch: Stretch.none,
+            colors: [],
+            consistencies: [],
+            bleeding: Bleeding.none,
+            bleedingColor: '',
+            painLevel: 0,
+            painTypes: [],
+            comment: 'Dry day ${day + 1}',
+          );
+        } else {
+          // Day 8: Fertile Peak mucus
+          await inMemService.saveObservation(
+            date: date,
+            sensation: Sensation.lubricative,
+            stretch: Stretch.stretchy,
+            colors: [MucusColor.clear],
+            consistencies: [Consistency.lubricative],
+            bleeding: Bleeding.none,
+            bleedingColor: '',
+            painLevel: 0,
+            painTypes: [],
+            comment: 'Peak day 8',
+          );
+          await fbService.saveObservation(
+            date: date,
+            sensation: Sensation.lubricative,
+            stretch: Stretch.stretchy,
+            colors: [MucusColor.clear],
+            consistencies: [Consistency.lubricative],
+            bleeding: Bleeding.none,
+            bleedingColor: '',
+            painLevel: 0,
+            painTypes: [],
+            comment: 'Peak day 8',
+          );
+        }
+      }
+
+      // 3. Update BIP codes
+      final cyclesInMemBeforeBip = await inMemService.streamCycles().first;
+      final cyclesFbBeforeBip = await fbService.streamCycles().first;
+      expect(cyclesInMemBeforeBip.length, equals(cyclesFbBeforeBip.length));
+
+      final activeInMemCycleId = cyclesInMemBeforeBip.first.id;
+      final activeFbCycleId = cyclesFbBeforeBip.first.id;
+
+      await inMemService.updateBipCodes(activeInMemCycleId, ['8Y']);
+      await fbService.updateBipCodes(activeFbCycleId, ['8Y']);
+
+      // 4. Save custom supplements and log doses (morning and evening)
+      const customSupplement = SupplementItem(
+        id: 'supp_omega3',
+        name: 'Omega 3',
+        morning: true,
+        evening: true,
+        timesPerDay: 2,
+      );
+      await inMemService.saveSupplement(customSupplement);
+      await fbService.saveSupplement(customSupplement);
+
+      await inMemService.logSupplementDose(
+        date: baseDate,
+        supplementId: 'supp_omega3',
+        timeOfDay: SupplementTimeOfDay.morning,
+        taken: true,
+      );
+      await fbService.logSupplementDose(
+        date: baseDate,
+        supplementId: 'supp_omega3',
+        timeOfDay: SupplementTimeOfDay.morning,
+        taken: true,
+      );
+
+      await inMemService.logSupplementDose(
+        date: baseDate,
+        supplementId: 'supp_omega3',
+        timeOfDay: SupplementTimeOfDay.evening,
+        taken: true,
+      );
+      await fbService.logSupplementDose(
+        date: baseDate,
+        supplementId: 'supp_omega3',
+        timeOfDay: SupplementTimeOfDay.evening,
+        taken: true,
+      );
+
+      // 5. Update notification preferences and chart reminder settings
+      const newPrefs = NotificationPreferences(
+        fertilePatternAlerts: false,
+        partnerSupportReminders: true,
+        dailyLoggingReminder: false,
+      );
+      await inMemService.updateNotificationPreferences(inMemChartId, newPrefs);
+      await fbService.updateNotificationPreferences(fbChartId, newPrefs);
+
+      await inMemService.updateChartReminderSettings(inMemChartId, false);
+      await fbService.updateChartReminderSettings(fbChartId, false);
+
+      // Parity assertions
+      final cyclesInMemory = await inMemService.streamCycles().first;
+      final cyclesFirebase = await fbService.streamCycles().first;
+      expect(cyclesInMemory.length, equals(cyclesFirebase.length));
+      expect(cyclesInMemory.first.startDate, equals(cyclesFirebase.first.startDate));
+      expect(cyclesInMemory.first.bipCodes, equals(cyclesFirebase.first.bipCodes));
+
+      // Assert daily entry keys and VDRS codes match
+      final inMemEntries = cyclesInMemory.first.dailyEntries;
+      final fbEntries = cyclesFirebase.first.dailyEntries;
+      expect(inMemEntries.keys.toSet(), equals(fbEntries.keys.toSet()));
+      for (final key in inMemEntries.keys) {
+        expect(inMemEntries[key]?.vdrsCode, equals(fbEntries[key]?.vdrsCode));
+      }
+
+      // Assert supplement lists match
+      final suppsInMem = await inMemService.streamSupplements().first;
+      final suppsFb = await fbService.streamSupplements().first;
+      expect(
+        suppsInMem.map((s) => s.id).toSet(),
+        equals(suppsFb.map((s) => s.id).toSet()),
+      );
+      expect(
+        suppsInMem.firstWhere((s) => s.id == 'supp_omega3').name,
+        equals(suppsFb.firstWhere((s) => s.id == 'supp_omega3').name),
+      );
+
+      // Assert daily supplement logs match
+      final logsInMem = await inMemService.streamDailySupplementLogs().first;
+      final logsFb = await fbService.streamDailySupplementLogs().first;
+      final logKey = baseDate.dateKey;
+      expect(logsInMem.containsKey(logKey), isTrue);
+      expect(logsFb.containsKey(logKey), isTrue);
+      expect(
+        logsInMem[logKey]!.isTaken('supp_omega3', SupplementTimeOfDay.morning),
+        equals(logsFb[logKey]!.isTaken('supp_omega3', SupplementTimeOfDay.morning)),
+      );
+      expect(
+        logsInMem[logKey]!.isTaken('supp_omega3', SupplementTimeOfDay.evening),
+        equals(logsFb[logKey]!.isTaken('supp_omega3', SupplementTimeOfDay.evening)),
+      );
+
+      // Assert notification preferences match
+      final prefsInMem = await inMemService.streamNotificationPreferences(inMemChartId).first;
+      final prefsFb = await fbService.streamNotificationPreferences(fbChartId).first;
+      expect(prefsInMem.fertilePatternAlerts, equals(prefsFb.fertilePatternAlerts));
+      expect(prefsInMem.partnerSupportReminders, equals(prefsFb.partnerSupportReminders));
+      expect(prefsInMem.dailyLoggingReminder, equals(prefsFb.dailyLoggingReminder));
+    });
   });
 }

@@ -33,12 +33,25 @@ class InMemoryDatabaseService implements DatabaseService {
   final _chartsController =
       StreamController<List<Map<String, dynamic>>>.broadcast();
   final _roleController = StreamController<String?>.broadcast();
+  final _cyclesController = StreamController<List<Cycle>>.broadcast();
   final _supplementsController =
       StreamController<List<SupplementItem>>.broadcast();
   final _supplementLogsController =
       StreamController<Map<String, DailySupplementLog>>.broadcast();
   User? _currentUser;
   String? _chartId;
+
+  void _emitAuth(User? user) {
+    if (!_authController.isClosed) {
+      _authController.add(user);
+    }
+  }
+
+  void _emitRole(String? role) {
+    if (!_roleController.isClosed) {
+      _roleController.add(role);
+    }
+  }
 
   // Fake Cloud database in-memory
   final Map<String, Map<String, dynamic>> _users = {};
@@ -102,7 +115,7 @@ class InMemoryDatabaseService implements DatabaseService {
     _authController.stream.listen((user) {
       _emitCycles();
     });
-    _authController.add(_currentUser);
+    _emitAuth(_currentUser);
   }
 
   void _prepopulateMockData(String cycleId, DateTime start) {
@@ -290,11 +303,34 @@ class InMemoryDatabaseService implements DatabaseService {
   String? get currentChartId => _chartId;
 
   @override
-  Stream<User?> get authStateChanges => _buildAuthStream();
-
-  Stream<User?> _buildAuthStream() async* {
-    yield _currentUser;
-    yield* _authController.stream;
+  Stream<User?> get authStateChanges {
+    late StreamController<User?> c;
+    StreamSubscription<User?>? sub;
+    c = StreamController<User?>.broadcast(
+      onListen: () {
+        if (_authController.isClosed) {
+          c.close();
+          return;
+        }
+        c.add(_currentUser);
+        sub = _authController.stream.listen(
+          (data) {
+            if (!c.isClosed) c.add(data);
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            if (!c.isClosed) c.addError(error, stackTrace);
+          },
+          onDone: () {
+            if (!c.isClosed) c.close();
+          },
+        );
+      },
+      onCancel: () {
+        sub?.cancel();
+        sub = null;
+      },
+    );
+    return c.stream;
   }
 
   @override
@@ -312,7 +348,7 @@ class InMemoryDatabaseService implements DatabaseService {
 
     _currentUser = MockUser(uid: uid, email: email);
     _chartId = _users[uid]!['chartId'];
-    _authController.add(_currentUser);
+    _emitAuth(_currentUser);
     _emitCharts();
   }
 
@@ -320,7 +356,7 @@ class InMemoryDatabaseService implements DatabaseService {
   Future<void> signOut() async {
     _currentUser = null;
     _chartId = null;
-    _authController.add(null);
+    _emitAuth(null);
     _emitCharts();
     _emitCycles();
     _emitSupplements();
@@ -347,7 +383,7 @@ class InMemoryDatabaseService implements DatabaseService {
     _supplements[chartId] = {
       for (final item in SupplementPresets.defaultList) item.id: item,
     };
-    _authController.add(_currentUser); // Trigger refresh
+    _emitAuth(_currentUser); // Trigger refresh
     _emitCharts();
     _emitCycles();
     _emitSupplements();
@@ -395,7 +431,9 @@ class InMemoryDatabaseService implements DatabaseService {
               inv['chartId'] == invitationId) &&
           inv['status'] == 'pending',
     );
-    if (invIndex == -1) return;
+    if (invIndex == -1) {
+      throw Exception("Invitation not found");
+    }
 
     final inv = _invitations[invIndex];
     inv['status'] = 'accepted';
@@ -408,7 +446,7 @@ class InMemoryDatabaseService implements DatabaseService {
     _users[user.uid]!['chartId'] = chartId;
     _chartId = chartId;
 
-    _authController.add(_currentUser);
+    _emitAuth(_currentUser);
     _emitCharts();
     _emitCycles();
     _emitSupplements();
@@ -434,7 +472,7 @@ class InMemoryDatabaseService implements DatabaseService {
     _currentUser = MockUser(uid: _currentUser!.uid, email: _currentUser!.email);
     _users[_currentUser!.uid]?['chartId'] = null;
     _chartId = null;
-    _authController.add(_currentUser);
+    _emitAuth(_currentUser);
     _emitCharts();
     _emitCycles();
     _emitSupplements();
@@ -442,6 +480,7 @@ class InMemoryDatabaseService implements DatabaseService {
   }
 
   void _emitCharts() {
+    if (_chartsController.isClosed) return;
     final user = _currentUser;
     if (user == null) {
       _chartsController.add([]);
@@ -475,14 +514,66 @@ class InMemoryDatabaseService implements DatabaseService {
     setMockChartCollaborators(chartId, [uid], emails: [email]);
   }
 
+  @visibleForTesting
+  void setMockCurrentUser(User? user, {String? chartId}) {
+    _currentUser = user;
+    if (user != null) {
+      _users[user.uid] ??= {
+        'uid': user.uid,
+        'email': user.email,
+        'chartId': chartId,
+      };
+      if (chartId != null) {
+        _users[user.uid]!['chartId'] = chartId;
+      }
+      _chartId = _users[user.uid]!['chartId'];
+    } else {
+      _chartId = null;
+    }
+    _emitAuth(_currentUser);
+    _emitCharts();
+    _emitCycles();
+    _emitSupplements();
+    _emitSupplementLogs();
+  }
+
   @override
   Stream<List<Map<String, dynamic>>> streamAvailableCharts() {
-    final user = _currentUser;
-    if (user == null) return Stream.value([]);
-
-    Future.microtask(() => _emitCharts());
-
-    return _chartsController.stream;
+    late StreamController<List<Map<String, dynamic>>> c;
+    StreamSubscription<List<Map<String, dynamic>>>? sub;
+    c = StreamController<List<Map<String, dynamic>>>.broadcast(
+      onListen: () {
+        if (_chartsController.isClosed) {
+          c.close();
+          return;
+        }
+        final user = _currentUser;
+        if (user != null) {
+          final list = _charts.values
+              .where((chart) => (chart['userIds'] as List).contains(user.uid))
+              .toList();
+          c.add(list);
+        } else {
+          c.add(const []);
+        }
+        sub = _chartsController.stream.listen(
+          (data) {
+            if (!c.isClosed) c.add(data);
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            if (!c.isClosed) c.addError(error, stackTrace);
+          },
+          onDone: () {
+            if (!c.isClosed) c.close();
+          },
+        );
+      },
+      onCancel: () {
+        sub?.cancel();
+        sub = null;
+      },
+    );
+    return c.stream;
   }
 
   @override
@@ -490,7 +581,7 @@ class InMemoryDatabaseService implements DatabaseService {
     if (_currentUser == null) return;
     _users[_currentUser!.uid]?['chartId'] = chartId;
     _chartId = chartId;
-    _authController.add(_currentUser);
+    _emitAuth(_currentUser);
     _emitCharts();
     _emitCycles();
     _emitSupplements();
@@ -516,7 +607,7 @@ class InMemoryDatabaseService implements DatabaseService {
       _chartId = null;
     }
 
-    _authController.add(_currentUser);
+    _emitAuth(_currentUser);
     _emitCharts();
     _emitCycles();
     _emitSupplements();
@@ -557,7 +648,7 @@ class InMemoryDatabaseService implements DatabaseService {
       _chartId = null;
     }
 
-    _authController.add(_currentUser);
+    _emitAuth(_currentUser);
     _emitCharts();
     _emitCycles();
     _emitSupplements();
@@ -640,27 +731,48 @@ class InMemoryDatabaseService implements DatabaseService {
     if (user == null) return;
     _users[user.uid] ??= {'uid': user.uid, 'email': user.email};
     _users[user.uid]!['role'] = role;
-    _roleController.add(role);
+    _emitRole(role);
   }
 
   @override
-  Stream<String?> streamUserRole() => _buildUserRoleStream();
-
-  Stream<String?> _buildUserRoleStream() async* {
-    final user = _currentUser;
-    if (user != null) {
-      yield _users[user.uid]?['role'] as String? ??
-          (user.uid == 'husband_uid' ? 'husband' : 'wife');
-    } else {
-      yield null;
-    }
-    yield* _roleController.stream;
+  Stream<String?> streamUserRole() {
+    late StreamController<String?> c;
+    StreamSubscription<String?>? sub;
+    c = StreamController<String?>.broadcast(
+      onListen: () {
+        if (_roleController.isClosed) {
+          c.close();
+          return;
+        }
+        final user = _currentUser;
+        if (user != null) {
+          c.add(_users[user.uid]?['role'] as String? ??
+              (user.uid == 'husband_uid' ? 'husband' : 'wife'));
+        } else {
+          c.add(null);
+        }
+        sub = _roleController.stream.listen(
+          (data) {
+            if (!c.isClosed) c.add(data);
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            if (!c.isClosed) c.addError(error, stackTrace);
+          },
+          onDone: () {
+            if (!c.isClosed) c.close();
+          },
+        );
+      },
+      onCancel: () {
+        sub?.cancel();
+        sub = null;
+      },
+    );
+    return c.stream;
   }
 
-  // Stream emulation
-  final _cyclesController = StreamController<List<Cycle>>.broadcast();
-
   void _emitCycles() {
+    if (_cyclesController.isClosed) return;
     final chartId = _chartId;
     if (chartId == null) {
       _cyclesController.add([]);
@@ -675,20 +787,41 @@ class InMemoryDatabaseService implements DatabaseService {
 
   @override
   Stream<List<Cycle>> streamCycles() {
-    return _buildCyclesStream().asBroadcastStream();
-  }
-
-  Stream<List<Cycle>> _buildCyclesStream() async* {
-    final chartId = _chartId;
-    if (chartId != null) {
-      final chartCyclesData = _cycles[chartId] ?? {};
-      final list = chartCyclesData.values.map((d) => Cycle.fromMap(d)).toList();
-      list.sort((a, b) => b.startDate.compareTo(a.startDate));
-      yield list;
-    } else {
-      yield [];
-    }
-    yield* _cyclesController.stream;
+    late StreamController<List<Cycle>> c;
+    StreamSubscription<List<Cycle>>? sub;
+    c = StreamController<List<Cycle>>.broadcast(
+      onListen: () {
+        if (_cyclesController.isClosed) {
+          c.close();
+          return;
+        }
+        final chartId = _chartId;
+        if (chartId != null) {
+          final chartCyclesData = _cycles[chartId] ?? {};
+          final list = chartCyclesData.values.map((d) => Cycle.fromMap(d)).toList();
+          list.sort((a, b) => b.startDate.compareTo(a.startDate));
+          c.add(list);
+        } else {
+          c.add(const []);
+        }
+        sub = _cyclesController.stream.listen(
+          (data) {
+            if (!c.isClosed) c.add(data);
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            if (!c.isClosed) c.addError(error, stackTrace);
+          },
+          onDone: () {
+            if (!c.isClosed) c.close();
+          },
+        );
+      },
+      onCancel: () {
+        sub?.cancel();
+        sub = null;
+      },
+    );
+    return c.stream;
   }
 
   void _reallocateAndRecalculate(String chartId) {
@@ -1033,6 +1166,7 @@ class InMemoryDatabaseService implements DatabaseService {
   }
 
   void _emitSupplements() {
+    if (_supplementsController.isClosed) return;
     final chartId = _chartId;
     if (chartId == null) {
       _supplementsController.add([]);
@@ -1043,6 +1177,7 @@ class InMemoryDatabaseService implements DatabaseService {
   }
 
   void _emitSupplementLogs() {
+    if (_supplementLogsController.isClosed) return;
     final chartId = _chartId;
     if (chartId == null) {
       _supplementLogsController.add({});
@@ -1058,6 +1193,10 @@ class InMemoryDatabaseService implements DatabaseService {
     StreamSubscription<List<SupplementItem>>? sub;
     c = StreamController<List<SupplementItem>>.broadcast(
       onListen: () {
+        if (_supplementsController.isClosed) {
+          c.close();
+          return;
+        }
         final chartId = _chartId;
         if (chartId != null) {
           c.add((_supplements[chartId] ?? {}).values.toList());
@@ -1071,6 +1210,9 @@ class InMemoryDatabaseService implements DatabaseService {
           onError: (Object error, StackTrace stackTrace) {
             if (!c.isClosed) c.addError(error, stackTrace);
           },
+          onDone: () {
+            if (!c.isClosed) c.close();
+          },
         );
       },
       onCancel: () {
@@ -1083,7 +1225,9 @@ class InMemoryDatabaseService implements DatabaseService {
 
   @visibleForTesting
   void emitSupplementsError(Object error, [StackTrace? stackTrace]) {
-    _supplementsController.addError(error, stackTrace);
+    if (!_supplementsController.isClosed) {
+      _supplementsController.addError(error, stackTrace);
+    }
   }
 
   @override
@@ -1119,6 +1263,10 @@ class InMemoryDatabaseService implements DatabaseService {
     StreamSubscription<Map<String, DailySupplementLog>>? sub;
     c = StreamController<Map<String, DailySupplementLog>>.broadcast(
       onListen: () {
+        if (_supplementLogsController.isClosed) {
+          c.close();
+          return;
+        }
         final chartId = _chartId;
         if (chartId != null) {
           c.add(Map.unmodifiable(_supplementLogs[chartId] ?? {}));
@@ -1132,6 +1280,9 @@ class InMemoryDatabaseService implements DatabaseService {
           onError: (Object error, StackTrace stackTrace) {
             if (!c.isClosed) c.addError(error, stackTrace);
           },
+          onDone: () {
+            if (!c.isClosed) c.close();
+          },
         );
       },
       onCancel: () {
@@ -1144,7 +1295,9 @@ class InMemoryDatabaseService implements DatabaseService {
 
   @visibleForTesting
   void emitDailySupplementLogsError(Object error, [StackTrace? stackTrace]) {
-    _supplementLogsController.addError(error, stackTrace);
+    if (!_supplementLogsController.isClosed) {
+      _supplementLogsController.addError(error, stackTrace);
+    }
   }
 
   @override
@@ -1164,5 +1317,15 @@ class InMemoryDatabaseService implements DatabaseService {
     final updatedLog = currentLog.withToggled(supplementId, timeOfDay, taken);
     _supplementLogs[chartId]![dateKey] = updatedLog;
     _emitSupplementLogs();
+  }
+
+  @visibleForTesting
+  void dispose() {
+    _authController.close();
+    _chartsController.close();
+    _roleController.close();
+    _cyclesController.close();
+    _supplementsController.close();
+    _supplementLogsController.close();
   }
 }
