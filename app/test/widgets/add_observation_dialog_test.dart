@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/logic.dart';
 import 'package:petal_count/widgets/add_observation_dialog.dart';
+import 'package:petal_count/widgets/wizard/option_card.dart';
 
 class FailingDatabaseService extends InMemoryDatabaseService {
   final String errorMessage;
@@ -175,6 +176,20 @@ void main() {
     );
 
     testWidgets(
+      'category parameter propagates to owned controller when external controller is omitted',
+      (tester) async {
+        await tester.pumpWidget(
+          buildDirectDialogWidget(category: ObservationCategory.bleeding),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Log Bleeding'), findsOneWidget);
+        expect(find.textContaining('Step 1 of 3: Bleeding'), findsOneWidget);
+        expect(find.byType(AddObservationDialog), findsOneWidget);
+      },
+    );
+
+    testWidgets(
       'pre-configured external controller renders specific category title and state',
       (tester) async {
         final bleedingController = WizardController(
@@ -243,6 +258,16 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Log Single Observation'), findsOneWidget);
+        final lightOptionCard = tester.widget<OptionCard>(
+          find.widgetWithText(OptionCard, 'Light (L)'),
+        );
+        expect(lightOptionCard.isSelected, isTrue);
+
+        final noBleedingCard = tester.widget<OptionCard>(
+          find.widgetWithText(OptionCard, 'No Bleeding'),
+        );
+        expect(noBleedingCard.isSelected, isFalse);
+
         expect(editController.bleedingFlow, Bleeding.light);
         expect(editController.bleedingColor, 'Red');
         expect(
@@ -648,57 +673,62 @@ void main() {
 
         // Step 3: Sensation
         expect(find.textContaining('Step 3 of 6: Sensation'), findsOneWidget);
-        await tester.tap(find.text('Dry'));
+        await tester.tap(find.text('Wet'));
         await tester.pumpAndSettle();
 
-        // Step 4: Mucus Presence
-        expect(find.textContaining('Step 4 of 6: Mucus'), findsOneWidget);
+        // Step 4: Lubrication
+        expect(find.textContaining('Step 4 of 7: Lubrication'), findsOneWidget);
+        await tester.tap(find.text('Yes Lubrication'));
+        await tester.pumpAndSettle();
+
+        // Step 5: Mucus Presence
+        expect(find.textContaining('Step 5 of 7: Mucus'), findsOneWidget);
         await tester.tap(find.text('Yes Mucus'));
         await tester.pumpAndSettle();
 
-        // Step 5: Mucus Stretch
-        expect(find.textContaining('Step 5 of 9: Stretch'), findsOneWidget);
+        // Step 6: Mucus Stretch
+        expect(find.textContaining('Step 6 of 10: Stretch'), findsOneWidget);
         await tester.tap(find.text('Sticky'));
         await tester.pumpAndSettle();
 
-        // Step 6: Mucus Color
+        // Step 7: Mucus Color
         expect(
-          find.textContaining('Step 6 of 10: Mucus Color'),
+          find.textContaining('Step 7 of 11: Mucus Color'),
           findsOneWidget,
         );
         await tester.tap(find.text('Clear (K)'));
         await tester.pumpAndSettle();
 
-        // Step 7: Mucus Consistency
+        // Step 8: Mucus Consistency
         expect(
-          find.textContaining('Step 7 of 10: Consistency'),
+          find.textContaining('Step 8 of 11: Consistency'),
           findsOneWidget,
         );
         await tester.tap(find.text('Gummy (Gluey)'));
         await tester.pumpAndSettle();
 
-        // Step 8: Frequency
-        expect(find.textContaining('Step 8 of 10: Frequency'), findsOneWidget);
+        // Step 9: Frequency
+        expect(find.textContaining('Step 9 of 11: Frequency'), findsOneWidget);
         await tester.tap(find.text('Once (x1)'));
         await tester.pumpAndSettle();
 
-        // Step 9: Pain
-        expect(find.textContaining('Step 9 of 10: Pain'), findsOneWidget);
+        // Step 10: Pain
+        expect(find.textContaining('Step 10 of 11: Pain'), findsOneWidget);
         await tester.tap(find.text('Yes (Log Pain)'));
         await tester.pumpAndSettle();
 
-        // Step 10: Pain Details
+        // Step 11: Pain Details
         expect(
-          find.textContaining('Step 10 of 11: Pain Details'),
+          find.textContaining('Step 11 of 12: Pain Details'),
           findsOneWidget,
         );
         expect(find.text('Continue'), findsOneWidget);
         await tester.tap(find.text('Continue'));
         await tester.pumpAndSettle();
 
-        // Step 11: Comments & Save
+        // Step 12: Comments & Save
         expect(
-          find.textContaining('Step 11 of 11: Comments & Save'),
+          find.textContaining('Step 12 of 12: Comments & Save'),
           findsOneWidget,
         );
         expect(find.text('Save Observation'), findsOneWidget);
