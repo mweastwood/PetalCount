@@ -255,6 +255,7 @@ void main() {
           dbService: testDb,
         );
         editController.setBleedingFlow(Bleeding.light);
+        editController.setBleedingColor('R');
         editController.setSensation(Sensation.wet);
         editController.setLubrication(true);
         addTearDown(editController.dispose);
@@ -269,16 +270,28 @@ void main() {
             .widget<OptionCard>(find.widgetWithText(OptionCard, label))
             .isSelected;
 
-        // Bleeding step reflects the pre-configured flow.
+        // Step 1: Bleeding Flow
+        expect(find.textContaining('Step 1 of 7: Bleeding'), findsOneWidget);
         expect(isSelected('Light (L)'), isTrue);
         expect(isSelected('No Bleeding'), isFalse);
 
-        // Sensation step reflects the pre-configured sensation/lubrication.
+        // Step 2: Blood Color
         editController.nextStep();
         await tester.pumpAndSettle();
-        expect(find.textContaining('Step 2 of 5: Sensation'), findsOneWidget);
+        expect(find.textContaining('Step 2 of 7: Blood Color'), findsOneWidget);
+        expect(isSelected('Red (R)'), isTrue);
+
+        // Step 3: Sensation
+        editController.nextStep();
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Step 3 of 7: Sensation'), findsOneWidget);
         expect(isSelected('Wet'), isTrue);
         expect(isSelected('Dry'), isFalse);
+
+        // Step 4: Lubrication
+        editController.nextStep();
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Step 4 of 7: Lubrication'), findsOneWidget);
         expect(isSelected('Yes Lubrication'), isTrue);
         expect(isSelected('Not Lubricative'), isFalse);
       },
@@ -378,16 +391,16 @@ void main() {
         );
 
         // Mutate controllerB and verify UI reacts
-        OptionCard yesCard() => tester.widget<OptionCard>(
-          find.widgetWithText(OptionCard, 'Yes (Log Pain)'),
+        FilterChip crampsChip() => tester.widget<FilterChip>(
+          find.widgetWithText(FilterChip, 'Cramps'),
         );
-        expect(yesCard().isSelected, isFalse);
+        expect(crampsChip().selected, isFalse);
 
-        controllerB.setHasPain(true);
+        controllerB.togglePainType('Cramps', true);
         await tester.pumpAndSettle();
 
-        expect(controllerB.hasPain, isTrue);
-        expect(yesCard().isSelected, isTrue);
+        expect(controllerB.painTypes.contains('Cramps'), isTrue);
+        expect(crampsChip().selected, isTrue);
       },
     );
 
