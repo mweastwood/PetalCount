@@ -511,7 +511,7 @@ void main() {
         expect(service.notificationCount, 3);
       });
 
-      test('formats peak day notification correctly for husband', () async {
+      test('dispatches notification with ID 902 and expected content for husband', () async {
         final now = DateTime(2026, 8, 17, 10, 0, 0);
         final husbandExpected = CycleNotificationFormatter.peakDayMessage(
           UserRole.husband,
@@ -520,8 +520,11 @@ void main() {
 
         await service.notifyPeakDay(role: UserRole.husband, peakLabel: 'P', now: now);
         expect(service.notificationCount, 1);
+        expect(service.dispatchedNotifications.first['id'], InMemoryNotificationService.peakDayNotificationId);
+        expect(service.dispatchedNotifications.first['id'], 902);
         expect(service.dispatchedNotifications.first['title'], husbandExpected.title);
         expect(service.dispatchedNotifications.first['body'], husbandExpected.body);
+        expect(service.sentNotificationDeduplicationKeys, contains('2026-08-17_peak_P_husband'));
       });
 
       test('suppresses duplicate when peakLabel is omitted and then explicitly passed as P', () async {
@@ -549,6 +552,20 @@ void main() {
         expect(service.dispatchedNotifications.first['title'], wifeExpected.title);
         expect(service.dispatchedNotifications.first['body'], wifeExpected.body);
         expect(service.sentNotificationDeduplicationKeys, contains('2026-08-17_kindness_wife'));
+      });
+
+      test('dispatches notification with ID 903 and expected content for husband', () async {
+        final now = DateTime(2026, 8, 17, 10, 0, 0);
+        final husbandExpected = CycleNotificationFormatter.kindnessSupportMessage(UserRole.husband);
+
+        await service.notifyKindnessSupport(role: UserRole.husband, now: now);
+
+        expect(service.notificationCount, 1);
+        expect(service.dispatchedNotifications.first['id'], InMemoryNotificationService.kindnessSupportNotificationId);
+        expect(service.dispatchedNotifications.first['id'], 903);
+        expect(service.dispatchedNotifications.first['title'], husbandExpected.title);
+        expect(service.dispatchedNotifications.first['body'], husbandExpected.body);
+        expect(service.sentNotificationDeduplicationKeys, contains('2026-08-17_kindness_husband'));
       });
 
       test('suppresses duplicates unless force is true and differentiates roles', () async {
