@@ -302,18 +302,20 @@ class InMemoryDatabaseService implements DatabaseService {
   @override
   String? get currentChartId => _chartId;
 
-  @override
-  Stream<User?> get authStateChanges {
-    late StreamController<User?> c;
-    StreamSubscription<User?>? sub;
-    c = StreamController<User?>.broadcast(
+  Stream<T> _createReplayableStream<T>({
+    required StreamController<T> source,
+    required T Function() getCurrentValue,
+  }) {
+    late StreamController<T> c;
+    StreamSubscription<T>? sub;
+    c = StreamController<T>.broadcast(
       onListen: () {
-        if (_authController.isClosed) {
+        if (source.isClosed) {
           c.close();
           return;
         }
-        c.add(_currentUser);
-        sub = _authController.stream.listen(
+        c.add(getCurrentValue());
+        sub = source.stream.listen(
           (data) {
             if (!c.isClosed) c.add(data);
           },
@@ -332,6 +334,12 @@ class InMemoryDatabaseService implements DatabaseService {
     );
     return c.stream;
   }
+
+  @override
+  Stream<User?> get authStateChanges => _createReplayableStream<User?>(
+    source: _authController,
+    getCurrentValue: () => _currentUser,
+  );
 
   @override
   Future<void> signInWithGoogle() async {
@@ -538,43 +546,19 @@ class InMemoryDatabaseService implements DatabaseService {
   }
 
   @override
-  Stream<List<Map<String, dynamic>>> streamAvailableCharts() {
-    late StreamController<List<Map<String, dynamic>>> c;
-    StreamSubscription<List<Map<String, dynamic>>>? sub;
-    c = StreamController<List<Map<String, dynamic>>>.broadcast(
-      onListen: () {
-        if (_chartsController.isClosed) {
-          c.close();
-          return;
-        }
-        final user = _currentUser;
-        if (user != null) {
-          final list = _charts.values
-              .where((chart) => (chart['userIds'] as List).contains(user.uid))
-              .toList();
-          c.add(list);
-        } else {
-          c.add(const []);
-        }
-        sub = _chartsController.stream.listen(
-          (data) {
-            if (!c.isClosed) c.add(data);
-          },
-          onError: (Object error, StackTrace stackTrace) {
-            if (!c.isClosed) c.addError(error, stackTrace);
-          },
-          onDone: () {
-            if (!c.isClosed) c.close();
-          },
-        );
-      },
-      onCancel: () {
-        sub?.cancel();
-        sub = null;
-      },
-    );
-    return c.stream;
-  }
+  Stream<List<Map<String, dynamic>>> streamAvailableCharts() =>
+      _createReplayableStream<List<Map<String, dynamic>>>(
+        source: _chartsController,
+        getCurrentValue: () {
+          final user = _currentUser;
+          if (user != null) {
+            return _charts.values
+                .where((chart) => (chart['userIds'] as List).contains(user.uid))
+                .toList();
+          }
+          return const [];
+        },
+      );
 
   @override
   Future<void> setActiveChart(String chartId) async {
@@ -735,41 +719,17 @@ class InMemoryDatabaseService implements DatabaseService {
   }
 
   @override
-  Stream<String?> streamUserRole() {
-    late StreamController<String?> c;
-    StreamSubscription<String?>? sub;
-    c = StreamController<String?>.broadcast(
-      onListen: () {
-        if (_roleController.isClosed) {
-          c.close();
-          return;
-        }
-        final user = _currentUser;
-        if (user != null) {
-          c.add(_users[user.uid]?['role'] as String? ??
-              (user.uid == 'husband_uid' ? 'husband' : 'wife'));
-        } else {
-          c.add(null);
-        }
-        sub = _roleController.stream.listen(
-          (data) {
-            if (!c.isClosed) c.add(data);
-          },
-          onError: (Object error, StackTrace stackTrace) {
-            if (!c.isClosed) c.addError(error, stackTrace);
-          },
-          onDone: () {
-            if (!c.isClosed) c.close();
-          },
-        );
-      },
-      onCancel: () {
-        sub?.cancel();
-        sub = null;
-      },
-    );
-    return c.stream;
-  }
+  Stream<String?> streamUserRole() => _createReplayableStream<String?>(
+    source: _roleController,
+    getCurrentValue: () {
+      final user = _currentUser;
+      if (user != null) {
+        return _users[user.uid]?['role'] as String? ??
+            (user.uid == 'husband_uid' ? 'husband' : 'wife');
+      }
+      return null;
+    },
+  );
 
   void _emitCycles() {
     if (_cyclesController.isClosed) return;
@@ -786,43 +746,21 @@ class InMemoryDatabaseService implements DatabaseService {
   }
 
   @override
-  Stream<List<Cycle>> streamCycles() {
-    late StreamController<List<Cycle>> c;
-    StreamSubscription<List<Cycle>>? sub;
-    c = StreamController<List<Cycle>>.broadcast(
-      onListen: () {
-        if (_cyclesController.isClosed) {
-          c.close();
-          return;
-        }
-        final chartId = _chartId;
-        if (chartId != null) {
-          final chartCyclesData = _cycles[chartId] ?? {};
-          final list = chartCyclesData.values.map((d) => Cycle.fromMap(d)).toList();
-          list.sort((a, b) => b.startDate.compareTo(a.startDate));
-          c.add(list);
-        } else {
-          c.add(const []);
-        }
-        sub = _cyclesController.stream.listen(
-          (data) {
-            if (!c.isClosed) c.add(data);
-          },
-          onError: (Object error, StackTrace stackTrace) {
-            if (!c.isClosed) c.addError(error, stackTrace);
-          },
-          onDone: () {
-            if (!c.isClosed) c.close();
-          },
-        );
-      },
-      onCancel: () {
-        sub?.cancel();
-        sub = null;
-      },
-    );
-    return c.stream;
-  }
+  Stream<List<Cycle>> streamCycles() => _createReplayableStream<List<Cycle>>(
+    source: _cyclesController,
+    getCurrentValue: () {
+      final chartId = _chartId;
+      if (chartId != null) {
+        final chartCyclesData = _cycles[chartId] ?? {};
+        final list = chartCyclesData.values
+            .map((d) => Cycle.fromMap(d))
+            .toList();
+        list.sort((a, b) => b.startDate.compareTo(a.startDate));
+        return list;
+      }
+      return const [];
+    },
+  );
 
   void _reallocateAndRecalculate(String chartId) {
     final chartCyclesData = _cycles[chartId];
@@ -1188,40 +1126,17 @@ class InMemoryDatabaseService implements DatabaseService {
   }
 
   @override
-  Stream<List<SupplementItem>> streamSupplements() {
-    late StreamController<List<SupplementItem>> c;
-    StreamSubscription<List<SupplementItem>>? sub;
-    c = StreamController<List<SupplementItem>>.broadcast(
-      onListen: () {
-        if (_supplementsController.isClosed) {
-          c.close();
-          return;
-        }
-        final chartId = _chartId;
-        if (chartId != null) {
-          c.add((_supplements[chartId] ?? {}).values.toList());
-        } else {
-          c.add(const []);
-        }
-        sub = _supplementsController.stream.listen(
-          (data) {
-            if (!c.isClosed) c.add(data);
-          },
-          onError: (Object error, StackTrace stackTrace) {
-            if (!c.isClosed) c.addError(error, stackTrace);
-          },
-          onDone: () {
-            if (!c.isClosed) c.close();
-          },
-        );
-      },
-      onCancel: () {
-        sub?.cancel();
-        sub = null;
-      },
-    );
-    return c.stream;
-  }
+  Stream<List<SupplementItem>> streamSupplements() =>
+      _createReplayableStream<List<SupplementItem>>(
+        source: _supplementsController,
+        getCurrentValue: () {
+          final chartId = _chartId;
+          if (chartId != null) {
+            return (_supplements[chartId] ?? {}).values.toList();
+          }
+          return const [];
+        },
+      );
 
   @visibleForTesting
   void emitSupplementsError(Object error, [StackTrace? stackTrace]) {
@@ -1258,40 +1173,17 @@ class InMemoryDatabaseService implements DatabaseService {
   }
 
   @override
-  Stream<Map<String, DailySupplementLog>> streamDailySupplementLogs() {
-    late StreamController<Map<String, DailySupplementLog>> c;
-    StreamSubscription<Map<String, DailySupplementLog>>? sub;
-    c = StreamController<Map<String, DailySupplementLog>>.broadcast(
-      onListen: () {
-        if (_supplementLogsController.isClosed) {
-          c.close();
-          return;
-        }
-        final chartId = _chartId;
-        if (chartId != null) {
-          c.add(Map.unmodifiable(_supplementLogs[chartId] ?? {}));
-        } else {
-          c.add(const {});
-        }
-        sub = _supplementLogsController.stream.listen(
-          (data) {
-            if (!c.isClosed) c.add(data);
-          },
-          onError: (Object error, StackTrace stackTrace) {
-            if (!c.isClosed) c.addError(error, stackTrace);
-          },
-          onDone: () {
-            if (!c.isClosed) c.close();
-          },
-        );
-      },
-      onCancel: () {
-        sub?.cancel();
-        sub = null;
-      },
-    );
-    return c.stream;
-  }
+  Stream<Map<String, DailySupplementLog>> streamDailySupplementLogs() =>
+      _createReplayableStream<Map<String, DailySupplementLog>>(
+        source: _supplementLogsController,
+        getCurrentValue: () {
+          final chartId = _chartId;
+          if (chartId != null) {
+            return Map.unmodifiable(_supplementLogs[chartId] ?? {});
+          }
+          return const {};
+        },
+      );
 
   @visibleForTesting
   void emitDailySupplementLogsError(Object error, [StackTrace? stackTrace]) {
