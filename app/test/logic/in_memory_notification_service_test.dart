@@ -43,6 +43,14 @@ void main() {
       service.mockFcmToken = null;
       expect(await service.getFcmToken(), isNull);
     });
+
+    test('notification ID constants match expected values', () {
+      expect(InMemoryNotificationService.dailyReminderNotificationId, 900);
+      expect(InMemoryNotificationService.fertilePatternNotificationId, 901);
+      expect(InMemoryNotificationService.peakDayNotificationId, 902);
+      expect(InMemoryNotificationService.kindnessSupportNotificationId, 903);
+      expect(InMemoryNotificationService.breastSelfExamNotificationId, 904);
+    });
   });
 
   group('InMemoryNotificationService - calculateNextReminderTime', () {
@@ -56,8 +64,26 @@ void main() {
         expect(next, DateTime(2026, 8, 17, 21, 0, 0));
       });
 
+      test('schedules for today at 21:00 when one second before 21:00 (20:59:59)', () {
+        final now = DateTime(2026, 8, 17, 20, 59, 59);
+        final next = service.calculateNextReminderTime(
+          now: now,
+          isTodayLogged: false,
+        );
+        expect(next, DateTime(2026, 8, 17, 21, 0, 0));
+      });
+
       test('schedules for tomorrow at 21:00 when at exactly 21:00:00', () {
         final now = DateTime(2026, 8, 17, 21, 0, 0);
+        final next = service.calculateNextReminderTime(
+          now: now,
+          isTodayLogged: false,
+        );
+        expect(next, DateTime(2026, 8, 18, 21, 0, 0));
+      });
+
+      test('schedules for tomorrow at 21:00 when one second after 21:00 (21:00:01)', () {
+        final now = DateTime(2026, 8, 17, 21, 0, 1);
         final next = service.calculateNextReminderTime(
           now: now,
           isTodayLogged: false,
@@ -249,6 +275,15 @@ void main() {
       expect(service.isReminderScheduled, isTrue);
       expect(service.scheduledReminderTime, triggerTimeHusband);
       expect(service.scheduleCount, 2);
+    });
+
+    test('scheduleDailyReminder uses default wife role when role is omitted', () async {
+      final triggerTime = DateTime(2026, 8, 17, 21, 0, 0);
+      await service.scheduleDailyReminder(triggerTime: triggerTime);
+
+      expect(service.isReminderScheduled, isTrue);
+      expect(service.scheduledReminderTime, triggerTime);
+      expect(service.scheduleCount, 1);
     });
 
     test('cancelDailyReminder clears state and increments cancelCount', () async {
@@ -488,6 +523,17 @@ void main() {
         expect(service.dispatchedNotifications.first['title'], husbandExpected.title);
         expect(service.dispatchedNotifications.first['body'], husbandExpected.body);
       });
+
+      test('suppresses duplicate when peakLabel is omitted and then explicitly passed as P', () async {
+        final now = DateTime(2026, 8, 17, 10, 0, 0);
+
+        await service.notifyPeakDay(role: UserRole.wife, now: now);
+        expect(service.notificationCount, 1);
+
+        // Omitting peakLabel defaults to 'P', so explicitly calling with 'P' is suppressed
+        await service.notifyPeakDay(role: UserRole.wife, peakLabel: 'P', now: now);
+        expect(service.notificationCount, 1);
+      });
     });
 
     group('notifyKindnessSupport', () {
@@ -541,19 +587,52 @@ void main() {
         expect(service.sentNotificationDeduplicationKeys, contains('2026-08-17_bse_wife'));
       });
 
-      test('suppresses duplicates unless force is true', () async {
+      test('suppresses duplicates unless force is true and differentiates roles', () async {
         final now = DateTime(2026, 8, 17, 10, 0, 0);
 
         await service.notifyBreastSelfExam(role: UserRole.wife, now: now);
         expect(service.notificationCount, 1);
 
-        // Suppressed duplicate
         await service.notifyBreastSelfExam(role: UserRole.wife, now: now);
         expect(service.notificationCount, 1);
 
-        // Force dispatch
         await service.notifyBreastSelfExam(role: UserRole.wife, now: now, force: true);
         expect(service.notificationCount, 2);
+
+        await service.notifyBreastSelfExam(role: UserRole.husband, now: now);
+        expect(service.notificationCount, 3);
+        expect(service.sentNotificationDeduplicationKeys, contains('2026-08-17_bse_husband'));
+      });
+
+      test('dispatches notification with ID 904 and expected content for husband', () async {
+        final now = DateTime(2026, 8, 17, 10, 0, 0);
+        final husbandExpected = CycleNotificationFormatter.breastSelfExamMessage(UserRole.husband);
+
+        await service.notifyBreastSelfExam(role: UserRole.husband, now: now);
+
+        expect(service.notificationCount, 1);
+        expect(service.dispatchedNotifications.first['id'], InMemoryNotificationService.breastSelfExamNotificationId);
+        expect(service.dispatchedNotifications.first['id'], 904);
+        expect(service.dispatchedNotifications.first['title'], husbandExpected.title);
+        expect(service.dispatchedNotifications.first['body'], husbandExpected.body);
+        expect(service.sentNotificationDeduplicationKeys, contains('2026-08-17_bse_husband'));
+      });
+    });
+
+    group('Default timestamp handling (now omitted)', () {
+      test('domain notification methods default now to DateTime.now()', () async {
+        final todayKey = DateTime.now().dateKey;
+
+        await service.notifyFertilePattern(role: UserRole.wife);
+        await service.notifyPeakDay(role: UserRole.wife);
+        await service.notifyKindnessSupport(role: UserRole.wife);
+        await service.notifyBreastSelfExam(role: UserRole.wife);
+
+        expect(service.notificationCount, 4);
+        expect(service.sentNotificationDeduplicationKeys, contains('${todayKey}_fertile_wife'));
+        expect(service.sentNotificationDeduplicationKeys, contains('${todayKey}_peak_P_wife'));
+        expect(service.sentNotificationDeduplicationKeys, contains('${todayKey}_kindness_wife'));
+        expect(service.sentNotificationDeduplicationKeys, contains('${todayKey}_bse_wife'));
       });
     });
   });
