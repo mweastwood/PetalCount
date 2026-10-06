@@ -70,6 +70,24 @@ class DelayedDatabaseService extends InMemoryDatabaseService {
   }
 }
 
+/// A [WizardController] whose save is rejected without throwing (returns false).
+class _RejectingWizardController extends WizardController {
+  int saveCalls = 0;
+
+  _RejectingWizardController({
+    super.category,
+    super.cycle,
+    required super.defaultDate,
+    super.dbService,
+  });
+
+  @override
+  Future<bool> saveObservation() async {
+    saveCalls++;
+    return false;
+  }
+}
+
 void main() {
   late InMemoryDatabaseService testDb;
   final defaultDate = DateTime(2026, 7, 27, 10, 30);
@@ -261,6 +279,7 @@ void main() {
           defaultDate: defaultDate,
           dbService: testDb,
         );
+        addTearDown(externalController.dispose);
 
         await tester.pumpWidget(
           buildDirectDialogWidget(controller: externalController),
@@ -283,9 +302,6 @@ void main() {
           returnsNormally,
         );
         expect(externalController.selectedDate, DateTime(2026, 7, 28));
-
-        // Clean up external controller
-        externalController.dispose();
       },
     );
   });
@@ -398,6 +414,54 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      'updating from external controller to null creates owned internal controller without disposing external',
+      (tester) async {
+        final externalController = WizardController(
+          category: ObservationCategory.intercourse,
+          defaultDate: defaultDate,
+          dbService: testDb,
+        );
+        addTearDown(externalController.dispose);
+
+        // First mount with external controller (not owned)
+        await tester.pumpWidget(
+          buildDirectDialogWidget(controller: externalController),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Log Intercourse'), findsOneWidget);
+
+        // Update to no controller -> dialog builds its own default controller
+        await tester.pumpWidget(buildDirectDialogWidget());
+        await tester.pumpAndSettle();
+
+        expect(find.text('Log Intercourse'), findsNothing);
+        expect(find.text('Log Single Observation'), findsOneWidget);
+        expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
+
+        // External controller must remain alive and usable
+        expect(
+          () => externalController.setSelectedDate(DateTime(2026, 7, 28)),
+          returnsNormally,
+        );
+
+        // The new internal controller is owned: removing the dialog disposes
+        // it without errors, and the external controller is still untouched.
+        await tester.pumpWidget(
+          const MaterialApp(home: Scaffold(body: SizedBox())),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AddObservationDialog), findsNothing);
+        expect(
+          () => externalController.setSelectedDate(DateTime(2026, 7, 29)),
+          returnsNormally,
+        );
+        expect(externalController.selectedDate, DateTime(2026, 7, 29));
+      },
+    );
   });
 
   group('Suite 3: Date & Time Picker Interactions (_pickDate / _pickTime)', () {
@@ -467,6 +531,12 @@ void main() {
 
         await pumpDialogInNavigator(tester, controller: controller);
 
+        final initialTimeText = const TimeOfDay(
+          hour: 10,
+          minute: 30,
+        ).format(tester.element(find.byType(AddObservationDialog)));
+        expect(find.text(initialTimeText), findsOneWidget);
+
         // Tap access_time icon to open time picker
         await tester.tap(find.byIcon(Icons.access_time));
         await tester.pumpAndSettle();
@@ -474,11 +544,30 @@ void main() {
         // Confirm time picker dialog opened
         expect(find.text('Select time'), findsWidgets);
 
+        // Switch to keyboard entry mode and enter a different time (9:45 AM)
+        await tester.tap(find.byIcon(Icons.keyboard_outlined));
+        await tester.pumpAndSettle();
+
+        final timeFields = find.descendant(
+          of: find.byType(TimePickerDialog),
+          matching: find.byType(TextField),
+        );
+        expect(timeFields, findsNWidgets(2));
+        await tester.enterText(timeFields.at(0), '9');
+        await tester.enterText(timeFields.at(1), '45');
+        await tester.pumpAndSettle();
+
         // Tap OK to confirm
         await tester.tap(find.text('OK'));
         await tester.pumpAndSettle();
 
-        expect(controller.selectedTime, const TimeOfDay(hour: 10, minute: 30));
+        const newTime = TimeOfDay(hour: 9, minute: 45);
+        expect(controller.selectedTime, newTime);
+        final newTimeText = newTime.format(
+          tester.element(find.byType(AddObservationDialog)),
+        );
+        expect(find.text(newTimeText), findsOneWidget);
+        expect(find.text(initialTimeText), findsNothing);
 
         // Tap access_time icon again and tap Cancel
         await tester.tap(find.byIcon(Icons.access_time));
@@ -487,7 +576,9 @@ void main() {
         await tester.tap(find.text('Cancel'));
         await tester.pumpAndSettle();
 
-        expect(controller.selectedTime, const TimeOfDay(hour: 10, minute: 30));
+        // Cancelling preserves the newly updated time
+        expect(controller.selectedTime, newTime);
+        expect(find.text(newTimeText), findsOneWidget);
       },
     );
   });
@@ -505,9 +596,16 @@ void main() {
 
         await pumpDialogInNavigator(tester, controller: controller);
 
+        double progressValue() => tester
+            .widget<LinearProgressIndicator>(
+              find.byType(LinearProgressIndicator),
+            )
+            .value!;
+
         // Step 1: Bleeding
         expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
         expect(find.text('Back'), findsNothing);
+        expect(progressValue(), closeTo(1 / 5, 1e-9));
 
         // Select No Bleeding -> advances to Step 2
         await tester.tap(find.text('No Bleeding'));
@@ -516,12 +614,14 @@ void main() {
         // Step 2: Sensation
         expect(find.textContaining('Step 2 of 5: Sensation'), findsOneWidget);
         expect(find.text('Back'), findsOneWidget);
+        expect(progressValue(), closeTo(2 / 5, 1e-9));
 
         // Tap Back button -> returns to Step 1
         await tester.tap(find.text('Back'));
         await tester.pumpAndSettle();
 
         expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
+        expect(progressValue(), closeTo(1 / 5, 1e-9));
       },
     );
 
@@ -772,6 +872,44 @@ void main() {
 
         // Verify dialog remains mounted
         expect(find.byType(AddObservationDialog), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'saveObservation returning false keeps dialog mounted without popping or showing error',
+      (tester) async {
+        final rejectingController = _RejectingWizardController(
+          category: ObservationCategory.bleeding,
+          defaultDate: defaultDate,
+          dbService: testDb,
+        );
+        addTearDown(rejectingController.dispose);
+
+        await pumpDialogInNavigator(tester, controller: rejectingController);
+
+        // Advance to comments step
+        await tester.tap(find.text('Light (L)'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Red (R)'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Save Observation'));
+        await tester.pumpAndSettle();
+
+        expect(rejectingController.saveCalls, 1);
+
+        // Dialog is not popped and no error snackbar is shown
+        expect(find.byType(AddObservationDialog), findsOneWidget);
+        expect(find.byType(SnackBar), findsNothing);
+        expect(find.text('Save Observation'), findsOneWidget);
+
+        // Nothing was persisted
+        final cycles = await testDb.streamCycles().first;
+        final hasEntry = cycles.any(
+          (c) => c.dailyEntries.containsKey(defaultDate.dateKey),
+        );
+        expect(hasEntry, isFalse);
       },
     );
   });
