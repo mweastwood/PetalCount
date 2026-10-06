@@ -314,7 +314,11 @@ class InMemoryDatabaseService implements DatabaseService {
           c.close();
           return;
         }
-        c.add(getCurrentValue());
+        scheduleMicrotask(() {
+          if (!c.isClosed) {
+            c.add(getCurrentValue());
+          }
+        });
         sub = source.stream.listen(
           (data) {
             if (!c.isClosed) c.add(data);
