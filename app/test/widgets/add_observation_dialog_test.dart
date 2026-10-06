@@ -168,7 +168,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Log Bleeding'), findsOneWidget);
-      expect(find.textContaining('Step 1 of 2: Bleeding'), findsOneWidget);
+      expect(find.textContaining('Step 1 of 3: Bleeding'), findsOneWidget);
 
       final painController = WizardController(
         category: ObservationCategory.pain,
@@ -289,7 +289,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Log Bleeding'), findsOneWidget);
-      expect(find.textContaining('Step 1 of 2: Bleeding'), findsOneWidget);
+      expect(find.textContaining('Step 1 of 3: Bleeding'), findsOneWidget);
 
       // Rebuild with controllerB
       await tester.pumpWidget(
