@@ -76,7 +76,6 @@ class _RejectingWizardController extends WizardController {
 
   _RejectingWizardController({
     super.category,
-    super.cycle,
     required super.defaultDate,
     super.dbService,
   });
