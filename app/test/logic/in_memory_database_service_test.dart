@@ -10,6 +10,7 @@ void main() {
 
   setUp(() {
     db = InMemoryDatabaseService();
+    addTearDown(() => db.dispose());
   });
 
   test('InMemoryDatabaseService initial state has a currentChartId', () {
@@ -938,6 +939,30 @@ void main() {
         );
       },
     );
+
+    test(
+      'acceptInvitation: successfully accepts invite when user was not previously registered in _users',
+      () async {
+        await db.createChart();
+        final chartId = db.currentChartId!;
+        const newPartnerEmail = 'new_partner@example.com';
+        await db.invitePartner(newPartnerEmail);
+
+        // Switch to a brand new user not previously in _users map
+        final newPartner = MockUser(
+          uid: 'completely_new_uid',
+          email: newPartnerEmail,
+        );
+        db.setMockCurrentUser(newPartner);
+
+        // Accept invitation without throwing null assertion
+        await db.acceptInvitation(newPartnerEmail);
+
+        expect(db.currentChartId, chartId);
+        final availableCharts = await db.streamAvailableCharts().first;
+        expect(availableCharts.any((c) => c['id'] == chartId), isTrue);
+      },
+    );
   });
 
   group('Cycle CRUD, Modifications & Stream Ordering', () {
@@ -1152,7 +1177,9 @@ void main() {
       'saveObservation triggers notifications when fertilePatternAlerts is true and suppresses when false',
       () async {
         final notif = InMemoryNotificationService();
+        final originalNotifications = Services.notifications;
         Services.notifications = notif;
+        addTearDown(() => Services.notifications = originalNotifications);
         await db.createChart();
         final chartId = db.currentChartId!;
 
@@ -1261,32 +1288,49 @@ void main() {
     );
 
     test(
-      're-subscription stability: subscribing, cancelling, and re-subscribing succeeds without error',
+      're-subscription stability: subscribing, cancelling, and re-subscribing succeeds and concurrent listeners receive data',
       () async {
         final chartId = db.currentChartId!;
 
-        // Test each reactive stream for re-subscription stability
-        final streams = <Stream<dynamic>>[
-          db.streamCycles(),
-          db.streamSupplements(),
-          db.streamDailySupplementLogs(),
-          db.streamAvailableCharts(),
-          db.authStateChanges,
-          db.streamUserRole(),
-          db.streamNotificationPreferences(chartId),
-          db.streamChartReminderEnabled(chartId),
-        ];
+        // Test each reactive stream for re-subscription stability and concurrent listening
+        final streams = <String, Stream<dynamic>>{
+          'streamCycles': db.streamCycles(),
+          'streamSupplements': db.streamSupplements(),
+          'streamDailySupplementLogs': db.streamDailySupplementLogs(),
+          'streamAvailableCharts': db.streamAvailableCharts(),
+          'authStateChanges': db.authStateChanges,
+          'streamUserRole': db.streamUserRole(),
+          'streamNotificationPreferences': db.streamNotificationPreferences(chartId),
+          'streamChartReminderEnabled': db.streamChartReminderEnabled(chartId),
+        };
 
-        for (final s in streams) {
-          // First subscription
-          final sub1 = s.listen((_) {});
+        for (final entry in streams.entries) {
+          final s = entry.value;
+
+          // First subscription - assert data reception
+          dynamic val1;
+          final sub1 = s.listen((val) => val1 = val);
           await pumpEventQueue();
+          expect(val1, isNotNull, reason: '${entry.key} initial subscription received data');
           await sub1.cancel();
 
-          // Second subscription
-          final sub2 = s.listen((_) {});
+          // Second subscription - assert data reception on re-subscription
+          dynamic val2;
+          final sub2 = s.listen((val) => val2 = val);
           await pumpEventQueue();
+          expect(val2, isNotNull, reason: '${entry.key} re-subscription received data');
           await sub2.cancel();
+
+          // Concurrent multi-listener validation on the same stream instance
+          dynamic concurrentVal1;
+          dynamic concurrentVal2;
+          final cSub1 = s.listen((val) => concurrentVal1 = val);
+          final cSub2 = s.listen((val) => concurrentVal2 = val);
+          await pumpEventQueue();
+          expect(concurrentVal1, isNotNull, reason: '${entry.key} concurrent listener 1 received data');
+          expect(concurrentVal2, isNotNull, reason: '${entry.key} concurrent listener 2 received data');
+          await cSub1.cancel();
+          await cSub2.cancel();
         }
       },
     );
@@ -1295,6 +1339,7 @@ void main() {
       'dispose closes stream controllers and asserts active and late streams complete',
       () async {
         final testDb = InMemoryDatabaseService();
+        final chartId = testDb.currentChartId!;
 
         final authDone = Completer<void>();
         final chartsDone = Completer<void>();
@@ -1302,6 +1347,8 @@ void main() {
         final cyclesDone = Completer<void>();
         final suppsDone = Completer<void>();
         final logsDone = Completer<void>();
+        final prefsDone = Completer<void>();
+        final reminderDone = Completer<void>();
 
         testDb.authStateChanges.listen((_) {}, onDone: authDone.complete);
         testDb.streamAvailableCharts().listen(
@@ -1315,6 +1362,14 @@ void main() {
           (_) {},
           onDone: logsDone.complete,
         );
+        testDb.streamNotificationPreferences(chartId).listen(
+          (_) {},
+          onDone: prefsDone.complete,
+        );
+        testDb.streamChartReminderEnabled(chartId).listen(
+          (_) {},
+          onDone: reminderDone.complete,
+        );
 
         var emittedAfterDispose = false;
 
@@ -1327,6 +1382,8 @@ void main() {
         await expectLater(cyclesDone.future, completes);
         await expectLater(suppsDone.future, completes);
         await expectLater(logsDone.future, completes);
+        await expectLater(prefsDone.future, completes);
+        await expectLater(reminderDone.future, completes);
 
         // Verify late subscribers on disposed service complete immediately (closed-controller guard path)
         final lateSub = testDb.streamCycles().listen((_) {
@@ -1342,6 +1399,42 @@ void main() {
         await expectLater(testDb.streamCycles(), emitsDone);
         await expectLater(testDb.streamSupplements(), emitsDone);
         await expectLater(testDb.streamDailySupplementLogs(), emitsDone);
+        await expectLater(testDb.streamNotificationPreferences(chartId), emitsDone);
+        await expectLater(testDb.streamChartReminderEnabled(chartId), emitsDone);
+      },
+    );
+
+    test(
+      'role stream synchronizes accurately across signOut, setMockCurrentUser, and signInWithGoogle',
+      () async {
+        final roleQueue = StreamQueue(db.streamUserRole());
+
+        // Initial emission for default user (husband_uid -> 'husband')
+        expect(await roleQueue.next, equals('husband'));
+
+        // Sign out emits null
+        await db.signOut();
+        expect(await roleQueue.next, isNull);
+
+        // Sign in with Google emits role ('wife' for new user)
+        await db.signInWithGoogle();
+        expect(await roleQueue.next, equals('wife'));
+
+        // Switching mock user to wife_uid emits 'wife'
+        final wife = MockUser(uid: 'wife_uid', email: 'wife@example.com');
+        db.setMockCurrentUser(wife);
+        expect(await roleQueue.next, equals('wife'));
+
+        // Switching to husband emits 'husband'
+        final husband = MockUser(uid: 'husband_uid', email: 'husband@example.com');
+        db.setMockCurrentUser(husband);
+        expect(await roleQueue.next, equals('husband'));
+
+        // Switching mock user to null emits null
+        db.setMockCurrentUser(null);
+        expect(await roleQueue.next, isNull);
+
+        await roleQueue.cancel();
       },
     );
   });

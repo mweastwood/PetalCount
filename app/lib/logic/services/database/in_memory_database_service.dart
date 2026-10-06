@@ -306,37 +306,22 @@ class InMemoryDatabaseService implements DatabaseService {
     required StreamController<T> source,
     required T Function() getCurrentValue,
   }) {
-    late StreamController<T> c;
-    StreamSubscription<T>? sub;
-    c = StreamController<T>.broadcast(
-      onListen: () {
+    return Stream<T>.multi(
+      (controller) {
         if (source.isClosed) {
-          c.close();
+          controller.close();
           return;
         }
-        scheduleMicrotask(() {
-          if (!c.isClosed) {
-            c.add(getCurrentValue());
-          }
-        });
-        sub = source.stream.listen(
-          (data) {
-            if (!c.isClosed) c.add(data);
-          },
-          onError: (Object error, StackTrace stackTrace) {
-            if (!c.isClosed) c.addError(error, stackTrace);
-          },
-          onDone: () {
-            if (!c.isClosed) c.close();
-          },
+        controller.add(getCurrentValue());
+        final sub = source.stream.listen(
+          controller.add,
+          onError: controller.addError,
+          onDone: controller.close,
         );
+        controller.onCancel = sub.cancel;
       },
-      onCancel: () {
-        sub?.cancel();
-        sub = null;
-      },
+      isBroadcast: true,
     );
-    return c.stream;
   }
 
   @override
@@ -361,7 +346,14 @@ class InMemoryDatabaseService implements DatabaseService {
     _currentUser = MockUser(uid: uid, email: email);
     _chartId = _users[uid]!['chartId'];
     _emitAuth(_currentUser);
+    _emitRole(
+      _users[uid]?['role'] as String? ??
+          (uid == 'husband_uid' ? 'husband' : 'wife'),
+    );
     _emitCharts();
+    _emitCycles();
+    _emitSupplements();
+    _emitSupplementLogs();
   }
 
   @override
@@ -369,6 +361,7 @@ class InMemoryDatabaseService implements DatabaseService {
     _currentUser = null;
     _chartId = null;
     _emitAuth(null);
+    _emitRole(null);
     _emitCharts();
     _emitCycles();
     _emitSupplements();
@@ -455,6 +448,7 @@ class InMemoryDatabaseService implements DatabaseService {
     _charts[chartId]?['userIds']?.add(user.uid);
     _charts[chartId]?['emails']?.add(user.email);
 
+    _users[user.uid] ??= {'uid': user.uid, 'email': user.email};
     _users[user.uid]!['chartId'] = chartId;
     _chartId = chartId;
 
@@ -543,6 +537,12 @@ class InMemoryDatabaseService implements DatabaseService {
       _chartId = null;
     }
     _emitAuth(_currentUser);
+    _emitRole(
+      user != null
+          ? (_users[user.uid]?['role'] as String? ??
+              (user.uid == 'husband_uid' ? 'husband' : 'wife'))
+          : null,
+    );
     _emitCharts();
     _emitCycles();
     _emitSupplements();
