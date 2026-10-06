@@ -306,22 +306,19 @@ class InMemoryDatabaseService implements DatabaseService {
     required StreamController<T> source,
     required T Function() getCurrentValue,
   }) {
-    return Stream<T>.multi(
-      (controller) {
-        if (source.isClosed) {
-          controller.close();
-          return;
-        }
-        controller.add(getCurrentValue());
-        final sub = source.stream.listen(
-          controller.add,
-          onError: controller.addError,
-          onDone: controller.close,
-        );
-        controller.onCancel = sub.cancel;
-      },
-      isBroadcast: true,
-    );
+    return Stream<T>.multi((controller) {
+      if (source.isClosed) {
+        controller.close();
+        return;
+      }
+      controller.add(getCurrentValue());
+      final sub = source.stream.listen(
+        controller.add,
+        onError: controller.addError,
+        onDone: controller.close,
+      );
+      controller.onCancel = sub.cancel;
+    }, isBroadcast: true);
   }
 
   @override
@@ -540,7 +537,7 @@ class InMemoryDatabaseService implements DatabaseService {
     _emitRole(
       user != null
           ? (_users[user.uid]?['role'] as String? ??
-              (user.uid == 'husband_uid' ? 'husband' : 'wife'))
+                (user.uid == 'husband_uid' ? 'husband' : 'wife'))
           : null,
     );
     _emitCharts();
