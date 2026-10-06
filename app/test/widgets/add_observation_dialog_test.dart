@@ -145,398 +145,470 @@ void main() {
   }
 
   group('Suite 1: Initialization & Controller Ownership', () {
-    testWidgets('default controller creation renders full category title and step count', (tester) async {
-      await tester.pumpWidget(buildDirectDialogWidget());
-      await tester.pumpAndSettle();
+    testWidgets(
+      'default controller creation renders full category title and step count',
+      (tester) async {
+        await tester.pumpWidget(buildDirectDialogWidget());
+        await tester.pumpAndSettle();
 
-      expect(find.text('Log Single Observation'), findsOneWidget);
-      expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
-      expect(find.byType(AddObservationDialog), findsOneWidget);
-    });
+        expect(find.text('Log Single Observation'), findsOneWidget);
+        expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
+        expect(find.byType(AddObservationDialog), findsOneWidget);
+      },
+    );
 
-    testWidgets('pre-configured external controller renders specific category title and state', (tester) async {
-      final bleedingController = WizardController(
-        category: ObservationCategory.bleeding,
-        defaultDate: defaultDate,
-        dbService: testDb,
-      );
-      addTearDown(bleedingController.dispose);
+    testWidgets(
+      'pre-configured external controller renders specific category title and state',
+      (tester) async {
+        final bleedingController = WizardController(
+          category: ObservationCategory.bleeding,
+          defaultDate: defaultDate,
+          dbService: testDb,
+        );
+        addTearDown(bleedingController.dispose);
 
-      await tester.pumpWidget(
-        buildDirectDialogWidget(controller: bleedingController),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          buildDirectDialogWidget(controller: bleedingController),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Log Bleeding'), findsOneWidget);
-      expect(find.textContaining('Step 1 of 3: Bleeding'), findsOneWidget);
+        expect(find.text('Log Bleeding'), findsOneWidget);
+        expect(find.textContaining('Step 1 of 3: Bleeding'), findsOneWidget);
 
-      final painController = WizardController(
-        category: ObservationCategory.pain,
-        defaultDate: defaultDate,
-        dbService: testDb,
-      );
-      addTearDown(painController.dispose);
+        final painController = WizardController(
+          category: ObservationCategory.pain,
+          defaultDate: defaultDate,
+          dbService: testDb,
+        );
+        addTearDown(painController.dispose);
 
-      await tester.pumpWidget(
-        buildDirectDialogWidget(controller: painController),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          buildDirectDialogWidget(controller: painController),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Log Pain'), findsOneWidget);
-      expect(find.textContaining('Step 1 of 2: Pain Details'), findsOneWidget);
-    });
+        expect(find.text('Log Pain'), findsOneWidget);
+        expect(
+          find.textContaining('Step 1 of 2: Pain Details'),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('pre-configured edit mode controller pre-populates observation values', (tester) async {
-      final editController = WizardController(
-        category: ObservationCategory.full,
-        defaultDate: defaultDate,
-        dbService: testDb,
-      );
-      editController.setBleedingFlow(Bleeding.light);
-      editController.setBleedingColor('Red');
-      editController.setSensation(Sensation.wet);
-      editController.setLubrication(true);
-      editController.setHasMucus(true);
-      editController.setStretch(Stretch.stretchy);
-      editController.setSelectedColors([MucusColor.clear]);
-      editController.setConsistency(isGummy: true, isPasty: false);
-      editController.setFrequency(Frequency.allDay);
-      editController.setHasIntercourse(true);
-      editController.setHasPain(true);
-      editController.togglePainType('cramps', true);
-      editController.setPainLevel(4.0);
-      editController.commentController.text = 'Pre-existing observation comment';
-      addTearDown(editController.dispose);
+    testWidgets(
+      'pre-configured edit mode controller pre-populates observation values',
+      (tester) async {
+        final editController = WizardController(
+          category: ObservationCategory.full,
+          defaultDate: defaultDate,
+          dbService: testDb,
+        );
+        editController.setBleedingFlow(Bleeding.light);
+        editController.setBleedingColor('Red');
+        editController.setSensation(Sensation.wet);
+        editController.setLubrication(true);
+        editController.setHasMucus(true);
+        editController.setStretch(Stretch.stretchy);
+        editController.setSelectedColors([MucusColor.clear]);
+        editController.setConsistency(isGummy: true, isPasty: false);
+        editController.setFrequency(Frequency.allDay);
+        editController.setHasIntercourse(true);
+        editController.setHasPain(true);
+        editController.togglePainType('cramps', true);
+        editController.setPainLevel(4.0);
+        editController.commentController.text =
+            'Pre-existing observation comment';
+        addTearDown(editController.dispose);
 
-      await tester.pumpWidget(
-        buildDirectDialogWidget(controller: editController),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          buildDirectDialogWidget(controller: editController),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Log Single Observation'), findsOneWidget);
-      expect(editController.bleedingFlow, Bleeding.light);
-      expect(editController.bleedingColor, 'Red');
-      expect(editController.commentController.text, 'Pre-existing observation comment');
-    });
+        expect(find.text('Log Single Observation'), findsOneWidget);
+        expect(editController.bleedingFlow, Bleeding.light);
+        expect(editController.bleedingColor, 'Red');
+        expect(
+          editController.commentController.text,
+          'Pre-existing observation comment',
+        );
+      },
+    );
 
-    testWidgets('pumping out an internally-owned dialog disposes its controller without errors', (tester) async {
-      await tester.pumpWidget(buildDirectDialogWidget());
-      await tester.pumpAndSettle();
+    testWidgets(
+      'pumping out an internally-owned dialog disposes its controller without errors',
+      (tester) async {
+        await tester.pumpWidget(buildDirectDialogWidget());
+        await tester.pumpAndSettle();
 
-      expect(find.byType(AddObservationDialog), findsOneWidget);
+        expect(find.byType(AddObservationDialog), findsOneWidget);
 
-      // Replace dialog with empty container to trigger dispose
-      await tester.pumpWidget(
-        const MaterialApp(home: Scaffold(body: SizedBox())),
-      );
-      await tester.pumpAndSettle();
+        // Replace dialog with empty container to trigger dispose
+        await tester.pumpWidget(
+          const MaterialApp(home: Scaffold(body: SizedBox())),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byType(AddObservationDialog), findsNothing);
-    });
+        expect(find.byType(AddObservationDialog), findsNothing);
+      },
+    );
 
-    testWidgets('pumping out an externally-passed controller does not dispose external controller', (tester) async {
-      final externalController = WizardController(
-        category: ObservationCategory.full,
-        defaultDate: defaultDate,
-        dbService: testDb,
-      );
+    testWidgets(
+      'pumping out an externally-passed controller does not dispose external controller',
+      (tester) async {
+        final externalController = WizardController(
+          category: ObservationCategory.full,
+          defaultDate: defaultDate,
+          dbService: testDb,
+        );
 
-      await tester.pumpWidget(
-        buildDirectDialogWidget(controller: externalController),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          buildDirectDialogWidget(controller: externalController),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byType(AddObservationDialog), findsOneWidget);
+        expect(find.byType(AddObservationDialog), findsOneWidget);
 
-      // Replace dialog to trigger AddObservationDialog.dispose()
-      await tester.pumpWidget(
-        const MaterialApp(home: Scaffold(body: SizedBox())),
-      );
-      await tester.pumpAndSettle();
+        // Replace dialog to trigger AddObservationDialog.dispose()
+        await tester.pumpWidget(
+          const MaterialApp(home: Scaffold(body: SizedBox())),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byType(AddObservationDialog), findsNothing);
+        expect(find.byType(AddObservationDialog), findsNothing);
 
-      // Verify external controller is still alive and can be notified/mutated
-      expect(
-        () => externalController.setSelectedDate(DateTime(2026, 7, 28)),
-        returnsNormally,
-      );
-      expect(externalController.selectedDate, DateTime(2026, 7, 28));
+        // Verify external controller is still alive and can be notified/mutated
+        expect(
+          () => externalController.setSelectedDate(DateTime(2026, 7, 28)),
+          returnsNormally,
+        );
+        expect(externalController.selectedDate, DateTime(2026, 7, 28));
 
-      // Clean up external controller
-      externalController.dispose();
-    });
+        // Clean up external controller
+        externalController.dispose();
+      },
+    );
   });
 
   group('Suite 2: didUpdateWidget Dynamic Reconfiguration', () {
-    testWidgets('swapping widget.controller cleanly switches active step, title, and listeners', (tester) async {
-      final controllerA = WizardController(
-        category: ObservationCategory.bleeding,
-        defaultDate: defaultDate,
-        dbService: testDb,
-      );
-      final controllerB = WizardController(
-        category: ObservationCategory.pain,
-        defaultDate: defaultDate,
-        dbService: testDb,
-      );
-      addTearDown(controllerA.dispose);
-      addTearDown(controllerB.dispose);
+    testWidgets(
+      'swapping widget.controller cleanly switches active step, title, and listeners',
+      (tester) async {
+        final controllerA = WizardController(
+          category: ObservationCategory.bleeding,
+          defaultDate: defaultDate,
+          dbService: testDb,
+        );
+        final controllerB = WizardController(
+          category: ObservationCategory.pain,
+          defaultDate: defaultDate,
+          dbService: testDb,
+        );
+        addTearDown(controllerA.dispose);
+        addTearDown(controllerB.dispose);
 
-      await tester.pumpWidget(
-        buildDirectDialogWidget(controller: controllerA),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          buildDirectDialogWidget(controller: controllerA),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Log Bleeding'), findsOneWidget);
-      expect(find.textContaining('Step 1 of 3: Bleeding'), findsOneWidget);
+        expect(find.text('Log Bleeding'), findsOneWidget);
+        expect(find.textContaining('Step 1 of 3: Bleeding'), findsOneWidget);
 
-      // Rebuild with controllerB
-      await tester.pumpWidget(
-        buildDirectDialogWidget(controller: controllerB),
-      );
-      await tester.pumpAndSettle();
+        // Rebuild with controllerB
+        await tester.pumpWidget(
+          buildDirectDialogWidget(controller: controllerB),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Log Pain'), findsOneWidget);
-      expect(find.textContaining('Step 1 of 2: Pain Details'), findsOneWidget);
+        expect(find.text('Log Pain'), findsOneWidget);
+        expect(
+          find.textContaining('Step 1 of 2: Pain Details'),
+          findsOneWidget,
+        );
 
-      // Mutate controllerB and verify UI reacts
-      controllerB.setHasPain(true);
-      await tester.pumpAndSettle();
+        // Mutate controllerB and verify UI reacts
+        controllerB.setHasPain(true);
+        await tester.pumpAndSettle();
 
-      expect(controllerB.hasPain, isTrue);
-    });
+        expect(controllerB.hasPain, isTrue);
+      },
+    );
 
-    testWidgets('rebuilding with identical controller reference preserves existing state', (tester) async {
-      final controller = WizardController(
-        category: ObservationCategory.full,
-        defaultDate: defaultDate,
-        dbService: testDb,
-      );
-      addTearDown(controller.dispose);
+    testWidgets(
+      'rebuilding with identical controller reference preserves existing state',
+      (tester) async {
+        final controller = WizardController(
+          category: ObservationCategory.full,
+          defaultDate: defaultDate,
+          dbService: testDb,
+        );
+        addTearDown(controller.dispose);
 
-      await tester.pumpWidget(
-        buildDirectDialogWidget(controller: controller),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          buildDirectDialogWidget(controller: controller),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
+        expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
 
-      // Advance controller to next step
-      controller.setNoBleeding();
-      controller.nextStep();
-      await tester.pumpAndSettle();
+        // Advance controller to next step
+        controller.setNoBleeding();
+        controller.nextStep();
+        await tester.pumpAndSettle();
 
-      expect(find.textContaining('Step 2 of 5: Sensation'), findsOneWidget);
+        expect(find.textContaining('Step 2 of 5: Sensation'), findsOneWidget);
 
-      // Rebuild with same controller instance
-      await tester.pumpWidget(
-        buildDirectDialogWidget(controller: controller),
-      );
-      await tester.pumpAndSettle();
+        // Rebuild with same controller instance
+        await tester.pumpWidget(
+          buildDirectDialogWidget(controller: controller),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.textContaining('Step 2 of 5: Sensation'), findsOneWidget);
-    });
+        expect(find.textContaining('Step 2 of 5: Sensation'), findsOneWidget);
+      },
+    );
 
-    testWidgets('updating from owned controller to external controller disposes internal controller', (tester) async {
-      final externalController = WizardController(
-        category: ObservationCategory.intercourse,
-        defaultDate: defaultDate,
-        dbService: testDb,
-      );
-      addTearDown(externalController.dispose);
+    testWidgets(
+      'updating from owned controller to external controller disposes internal controller',
+      (tester) async {
+        final externalController = WizardController(
+          category: ObservationCategory.intercourse,
+          defaultDate: defaultDate,
+          dbService: testDb,
+        );
+        addTearDown(externalController.dispose);
 
-      // First mount without controller (owned)
-      await tester.pumpWidget(buildDirectDialogWidget());
-      await tester.pumpAndSettle();
+        // First mount without controller (owned)
+        await tester.pumpWidget(buildDirectDialogWidget());
+        await tester.pumpAndSettle();
 
-      expect(find.text('Log Single Observation'), findsOneWidget);
+        expect(find.text('Log Single Observation'), findsOneWidget);
 
-      // Update with external controller
-      await tester.pumpWidget(
-        buildDirectDialogWidget(controller: externalController),
-      );
-      await tester.pumpAndSettle();
+        // Update with external controller
+        await tester.pumpWidget(
+          buildDirectDialogWidget(controller: externalController),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.text('Log Intercourse'), findsOneWidget);
-      expect(find.textContaining('Step 1 of 1: Comments & Save'), findsOneWidget);
-    });
+        expect(find.text('Log Intercourse'), findsOneWidget);
+        expect(
+          find.textContaining('Step 1 of 1: Comments & Save'),
+          findsOneWidget,
+        );
+      },
+    );
   });
 
   group('Suite 3: Date & Time Picker Interactions (_pickDate / _pickTime)', () {
-    testWidgets('date picker flow: selecting date updates UI and controller; cancelling preserves date', (tester) async {
-      final controller = WizardController(
-        category: ObservationCategory.full,
-        defaultDate: DateTime(2026, 7, 27, 10, 30),
-        dbService: testDb,
-      );
-      addTearDown(controller.dispose);
+    testWidgets(
+      'date picker flow: selecting date updates UI and controller; cancelling preserves date',
+      (tester) async {
+        final controller = WizardController(
+          category: ObservationCategory.full,
+          defaultDate: DateTime(2026, 7, 27, 10, 30),
+          dbService: testDb,
+        );
+        addTearDown(controller.dispose);
 
-      await pumpDialogInNavigator(tester, controller: controller);
+        await pumpDialogInNavigator(tester, controller: controller);
 
-      expect(find.text(AppDateFormats.fullDate.format(DateTime(2026, 7, 27))), findsOneWidget);
+        expect(
+          find.text(AppDateFormats.fullDate.format(DateTime(2026, 7, 27))),
+          findsOneWidget,
+        );
 
-      // Tap calendar icon to open date picker
-      await tester.tap(find.byIcon(Icons.calendar_today));
-      await tester.pumpAndSettle();
+        // Tap calendar icon to open date picker
+        await tester.tap(find.byIcon(Icons.calendar_today));
+        await tester.pumpAndSettle();
 
-      // Verify date picker is visible
-      expect(find.text('Select date'), findsWidgets);
+        // Verify date picker is visible
+        expect(find.text('Select date'), findsWidgets);
 
-      // Tap day 15 on the calendar
-      await tester.tap(find.text('15'));
-      await tester.pumpAndSettle();
+        // Tap day 15 on the calendar
+        await tester.tap(find.text('15'));
+        await tester.pumpAndSettle();
 
-      // Tap OK
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
+        // Tap OK
+        await tester.tap(find.text('OK'));
+        await tester.pumpAndSettle();
 
-      expect(controller.selectedDate.day, 15);
-      expect(find.text(AppDateFormats.fullDate.format(DateTime(2026, 7, 15))), findsOneWidget);
+        expect(controller.selectedDate.day, 15);
+        expect(
+          find.text(AppDateFormats.fullDate.format(DateTime(2026, 7, 15))),
+          findsOneWidget,
+        );
 
-      // Tap calendar again and Cancel
-      await tester.tap(find.byIcon(Icons.calendar_today));
-      await tester.pumpAndSettle();
+        // Tap calendar again and Cancel
+        await tester.tap(find.byIcon(Icons.calendar_today));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
 
-      // Date remains July 15
-      expect(controller.selectedDate.day, 15);
-      expect(find.text(AppDateFormats.fullDate.format(DateTime(2026, 7, 15))), findsOneWidget);
-    });
+        // Date remains July 15
+        expect(controller.selectedDate.day, 15);
+        expect(
+          find.text(AppDateFormats.fullDate.format(DateTime(2026, 7, 15))),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('time picker flow: selecting time updates UI and controller; cancelling preserves time', (tester) async {
-      final controller = WizardController(
-        category: ObservationCategory.full,
-        defaultDate: DateTime(2026, 7, 27, 10, 30),
-        dbService: testDb,
-      );
-      addTearDown(controller.dispose);
+    testWidgets(
+      'time picker flow: selecting time updates UI and controller; cancelling preserves time',
+      (tester) async {
+        final controller = WizardController(
+          category: ObservationCategory.full,
+          defaultDate: DateTime(2026, 7, 27, 10, 30),
+          dbService: testDb,
+        );
+        addTearDown(controller.dispose);
 
-      await pumpDialogInNavigator(tester, controller: controller);
+        await pumpDialogInNavigator(tester, controller: controller);
 
-      // Tap access_time icon to open time picker
-      await tester.tap(find.byIcon(Icons.access_time));
-      await tester.pumpAndSettle();
+        // Tap access_time icon to open time picker
+        await tester.tap(find.byIcon(Icons.access_time));
+        await tester.pumpAndSettle();
 
-      // Confirm time picker dialog opened
-      expect(find.text('Select time'), findsWidgets);
+        // Confirm time picker dialog opened
+        expect(find.text('Select time'), findsWidgets);
 
-      // Tap OK to confirm
-      await tester.tap(find.text('OK'));
-      await tester.pumpAndSettle();
+        // Tap OK to confirm
+        await tester.tap(find.text('OK'));
+        await tester.pumpAndSettle();
 
-      expect(controller.selectedTime, const TimeOfDay(hour: 10, minute: 30));
+        expect(controller.selectedTime, const TimeOfDay(hour: 10, minute: 30));
 
-      // Tap access_time icon again and tap Cancel
-      await tester.tap(find.byIcon(Icons.access_time));
-      await tester.pumpAndSettle();
+        // Tap access_time icon again and tap Cancel
+        await tester.tap(find.byIcon(Icons.access_time));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
 
-      expect(controller.selectedTime, const TimeOfDay(hour: 10, minute: 30));
-    });
+        expect(controller.selectedTime, const TimeOfDay(hour: 10, minute: 30));
+      },
+    );
   });
 
   group('Suite 4: Step Navigation & Dialog Dismissal', () {
-    testWidgets('step navigation advances and returns via back button, updating progress', (tester) async {
-      final controller = WizardController(
-        category: ObservationCategory.full,
-        defaultDate: defaultDate,
-        dbService: testDb,
-      );
-      addTearDown(controller.dispose);
+    testWidgets(
+      'step navigation advances and returns via back button, updating progress',
+      (tester) async {
+        final controller = WizardController(
+          category: ObservationCategory.full,
+          defaultDate: defaultDate,
+          dbService: testDb,
+        );
+        addTearDown(controller.dispose);
 
-      await pumpDialogInNavigator(tester, controller: controller);
+        await pumpDialogInNavigator(tester, controller: controller);
 
-      // Step 1: Bleeding
-      expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
-      expect(find.text('Back'), findsNothing);
+        // Step 1: Bleeding
+        expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
+        expect(find.text('Back'), findsNothing);
 
-      // Select No Bleeding -> advances to Step 2
-      await tester.tap(find.text('No Bleeding'));
-      await tester.pumpAndSettle();
+        // Select No Bleeding -> advances to Step 2
+        await tester.tap(find.text('No Bleeding'));
+        await tester.pumpAndSettle();
 
-      // Step 2: Sensation
-      expect(find.textContaining('Step 2 of 5: Sensation'), findsOneWidget);
-      expect(find.text('Back'), findsOneWidget);
+        // Step 2: Sensation
+        expect(find.textContaining('Step 2 of 5: Sensation'), findsOneWidget);
+        expect(find.text('Back'), findsOneWidget);
 
-      // Tap Back button -> returns to Step 1
-      await tester.tap(find.text('Back'));
-      await tester.pumpAndSettle();
+        // Tap Back button -> returns to Step 1
+        await tester.tap(find.text('Back'));
+        await tester.pumpAndSettle();
 
-      expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
-    });
+        expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
+      },
+    );
 
-    testWidgets('step navigation renders each wizard step card throughout flow', (tester) async {
-      final controller = WizardController(
-        category: ObservationCategory.full,
-        defaultDate: defaultDate,
-        dbService: testDb,
-      );
-      addTearDown(controller.dispose);
+    testWidgets(
+      'step navigation renders each wizard step card throughout flow',
+      (tester) async {
+        final controller = WizardController(
+          category: ObservationCategory.full,
+          defaultDate: defaultDate,
+          dbService: testDb,
+        );
+        addTearDown(controller.dispose);
 
-      await pumpDialogInNavigator(tester, controller: controller);
+        await pumpDialogInNavigator(tester, controller: controller);
 
-      // Step 1: Bleeding Flow
-      expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
-      await tester.tap(find.text('Light (L)'));
-      await tester.pumpAndSettle();
+        // Step 1: Bleeding Flow
+        expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
+        await tester.tap(find.text('Light (L)'));
+        await tester.pumpAndSettle();
 
-      // Step 2: Bleeding Color
-      expect(find.textContaining('Step 2 of 6: Blood Color'), findsOneWidget);
-      await tester.tap(find.text('Red (R)'));
-      await tester.pumpAndSettle();
+        // Step 2: Bleeding Color
+        expect(find.textContaining('Step 2 of 6: Blood Color'), findsOneWidget);
+        await tester.tap(find.text('Red (R)'));
+        await tester.pumpAndSettle();
 
-      // Step 3: Sensation
-      expect(find.textContaining('Step 3 of 6: Sensation'), findsOneWidget);
-      await tester.tap(find.text('Dry'));
-      await tester.pumpAndSettle();
+        // Step 3: Sensation
+        expect(find.textContaining('Step 3 of 6: Sensation'), findsOneWidget);
+        await tester.tap(find.text('Dry'));
+        await tester.pumpAndSettle();
 
-      // Step 4: Mucus Presence
-      expect(find.textContaining('Step 4 of 6: Mucus'), findsOneWidget);
-      await tester.tap(find.text('Yes Mucus'));
-      await tester.pumpAndSettle();
+        // Step 4: Mucus Presence
+        expect(find.textContaining('Step 4 of 6: Mucus'), findsOneWidget);
+        await tester.tap(find.text('Yes Mucus'));
+        await tester.pumpAndSettle();
 
-      // Step 5: Mucus Stretch
-      expect(find.textContaining('Step 5 of 9: Stretch'), findsOneWidget);
-      await tester.tap(find.text('Sticky'));
-      await tester.pumpAndSettle();
+        // Step 5: Mucus Stretch
+        expect(find.textContaining('Step 5 of 9: Stretch'), findsOneWidget);
+        await tester.tap(find.text('Sticky'));
+        await tester.pumpAndSettle();
 
-      // Step 6: Mucus Color
-      expect(find.textContaining('Step 6 of 10: Mucus Color'), findsOneWidget);
-      await tester.tap(find.text('Clear (K)'));
-      await tester.pumpAndSettle();
+        // Step 6: Mucus Color
+        expect(
+          find.textContaining('Step 6 of 10: Mucus Color'),
+          findsOneWidget,
+        );
+        await tester.tap(find.text('Clear (K)'));
+        await tester.pumpAndSettle();
 
-      // Step 7: Mucus Consistency
-      expect(find.textContaining('Step 7 of 10: Consistency'), findsOneWidget);
-      await tester.tap(find.text('Gummy (Gluey)'));
-      await tester.pumpAndSettle();
+        // Step 7: Mucus Consistency
+        expect(
+          find.textContaining('Step 7 of 10: Consistency'),
+          findsOneWidget,
+        );
+        await tester.tap(find.text('Gummy (Gluey)'));
+        await tester.pumpAndSettle();
 
-      // Step 8: Frequency
-      expect(find.textContaining('Step 8 of 10: Frequency'), findsOneWidget);
-      await tester.tap(find.text('Once (x1)'));
-      await tester.pumpAndSettle();
+        // Step 8: Frequency
+        expect(find.textContaining('Step 8 of 10: Frequency'), findsOneWidget);
+        await tester.tap(find.text('Once (x1)'));
+        await tester.pumpAndSettle();
 
-      // Step 9: Pain
-      expect(find.textContaining('Step 9 of 10: Pain'), findsOneWidget);
-      await tester.tap(find.text('Yes (Log Pain)'));
-      await tester.pumpAndSettle();
+        // Step 9: Pain
+        expect(find.textContaining('Step 9 of 10: Pain'), findsOneWidget);
+        await tester.tap(find.text('Yes (Log Pain)'));
+        await tester.pumpAndSettle();
 
-      // Step 10: Pain Details
-      expect(find.textContaining('Step 10 of 11: Pain Details'), findsOneWidget);
-      expect(find.text('Continue'), findsOneWidget);
-      await tester.tap(find.text('Continue'));
-      await tester.pumpAndSettle();
+        // Step 10: Pain Details
+        expect(
+          find.textContaining('Step 10 of 11: Pain Details'),
+          findsOneWidget,
+        );
+        expect(find.text('Continue'), findsOneWidget);
+        await tester.tap(find.text('Continue'));
+        await tester.pumpAndSettle();
 
-      // Step 11: Comments & Save
-      expect(find.textContaining('Step 11 of 11: Comments & Save'), findsOneWidget);
-      expect(find.text('Save Observation'), findsOneWidget);
-    });
+        // Step 11: Comments & Save
+        expect(
+          find.textContaining('Step 11 of 11: Comments & Save'),
+          findsOneWidget,
+        );
+        expect(find.text('Save Observation'), findsOneWidget);
+      },
+    );
 
-    testWidgets('tapping close icon button pops and dismisses the dialog', (tester) async {
+    testWidgets('tapping close icon button pops and dismisses the dialog', (
+      tester,
+    ) async {
       await pumpDialogInNavigator(tester);
 
       expect(find.byType(AddObservationDialog), findsOneWidget);
@@ -550,7 +622,9 @@ void main() {
   });
 
   group('Suite 5: Save Workflow & Error Handling (_saveLog)', () {
-    testWidgets('save button is not rendered on incomplete steps', (tester) async {
+    testWidgets('save button is not rendered on incomplete steps', (
+      tester,
+    ) async {
       final controller = WizardController(
         category: ObservationCategory.full,
         defaultDate: defaultDate,
@@ -571,7 +645,9 @@ void main() {
       expect(find.text('Save Observation'), findsNothing);
     });
 
-    testWidgets('successful save saves observation and pops dialog', (tester) async {
+    testWidgets('successful save saves observation and pops dialog', (
+      tester,
+    ) async {
       final controller = WizardController(
         category: ObservationCategory.bleeding,
         defaultDate: defaultDate,
@@ -591,7 +667,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Step 3: Comments & Save
-      expect(find.textContaining('Step 3 of 3: Comments & Save'), findsOneWidget);
+      expect(
+        find.textContaining('Step 3 of 3: Comments & Save'),
+        findsOneWidget,
+      );
       expect(find.text('Save Observation'), findsOneWidget);
 
       // Tap Save Observation
@@ -611,7 +690,9 @@ void main() {
       expect(entries.first.bleedingColor, 'R');
     });
 
-    testWidgets('circular progress indicator is shown while isSaving is true', (tester) async {
+    testWidgets('circular progress indicator is shown while isSaving is true', (
+      tester,
+    ) async {
       final delayedDb = DelayedDatabaseService();
       final controller = WizardController(
         category: ObservationCategory.bleeding,
@@ -650,38 +731,48 @@ void main() {
       expect(find.byType(AddObservationDialog), findsNothing);
     });
 
-    testWidgets('save failure displays error snackbar and keeps dialog mounted', (tester) async {
-      final failingDb = FailingDatabaseService(errorMessage: 'Network timeout');
-      final controller = WizardController(
-        category: ObservationCategory.bleeding,
-        defaultDate: defaultDate,
-        dbService: failingDb,
-      );
-      addTearDown(controller.dispose);
+    testWidgets(
+      'save failure displays error snackbar and keeps dialog mounted',
+      (tester) async {
+        final failingDb = FailingDatabaseService(
+          errorMessage: 'Network timeout',
+        );
+        final controller = WizardController(
+          category: ObservationCategory.bleeding,
+          defaultDate: defaultDate,
+          dbService: failingDb,
+        );
+        addTearDown(controller.dispose);
 
-      await pumpDialogInNavigator(
-        tester,
-        controller: controller,
-        dbService: failingDb,
-      );
+        await pumpDialogInNavigator(
+          tester,
+          controller: controller,
+          dbService: failingDb,
+        );
 
-      // Advance to comments step
-      await tester.tap(find.text('Light (L)'));
-      await tester.pumpAndSettle();
+        // Advance to comments step
+        await tester.tap(find.text('Light (L)'));
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Red (R)'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Red (R)'));
+        await tester.pumpAndSettle();
 
-      // Tap Save Observation
-      await tester.tap(find.text('Save Observation'));
-      await tester.pumpAndSettle();
+        // Tap Save Observation
+        await tester.tap(find.text('Save Observation'));
+        await tester.pumpAndSettle();
 
-      // Verify SnackBar with error is displayed
-      expect(find.byType(SnackBar), findsOneWidget);
-      expect(find.textContaining('Error saving observation: Exception: Network timeout'), findsOneWidget);
+        // Verify SnackBar with error is displayed
+        expect(find.byType(SnackBar), findsOneWidget);
+        expect(
+          find.textContaining(
+            'Error saving observation: Exception: Network timeout',
+          ),
+          findsOneWidget,
+        );
 
-      // Verify dialog remains mounted
-      expect(find.byType(AddObservationDialog), findsOneWidget);
-    });
+        // Verify dialog remains mounted
+        expect(find.byType(AddObservationDialog), findsOneWidget);
+      },
+    );
   });
 }
