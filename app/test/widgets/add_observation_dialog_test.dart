@@ -6,9 +6,11 @@ import 'package:petal_count/logic/logic.dart';
 import 'package:petal_count/widgets/add_observation_dialog.dart';
 import 'package:petal_count/widgets/wizard/option_card.dart';
 
-class FailingDatabaseService extends InMemoryDatabaseService {
-  final String errorMessage;
-  FailingDatabaseService({this.errorMessage = 'Database disk failure'});
+/// Base [InMemoryDatabaseService] that runs [beforeSave] ahead of every
+/// observation save, so subclasses need not repeat the long
+/// [saveObservation] signature.
+abstract class HookedSaveDatabaseService extends InMemoryDatabaseService {
+  Future<void> beforeSave();
 
   @override
   Future<void> saveObservation({
@@ -27,31 +29,7 @@ class FailingDatabaseService extends InMemoryDatabaseService {
     required String comment,
     bool? isVdrsExplicit,
   }) async {
-    throw Exception(errorMessage);
-  }
-}
-
-class DelayedDatabaseService extends InMemoryDatabaseService {
-  final Completer<void> saveCompleter = Completer<void>();
-
-  @override
-  Future<void> saveObservation({
-    String? cycleId,
-    required DateTime date,
-    required Sensation sensation,
-    required Stretch stretch,
-    required List<MucusColor> colors,
-    required List<Consistency> consistencies,
-    required Bleeding bleeding,
-    required String bleedingColor,
-    Frequency frequency = Frequency.none,
-    bool intercourse = false,
-    required double painLevel,
-    required List<String> painTypes,
-    required String comment,
-    bool? isVdrsExplicit,
-  }) async {
-    await saveCompleter.future;
+    await beforeSave();
     await super.saveObservation(
       cycleId: cycleId,
       date: date,
@@ -69,6 +47,47 @@ class DelayedDatabaseService extends InMemoryDatabaseService {
       isVdrsExplicit: isVdrsExplicit,
     );
   }
+}
+
+class FailingDatabaseService extends HookedSaveDatabaseService {
+  final String errorMessage;
+  FailingDatabaseService({this.errorMessage = 'Database disk failure'});
+
+  @override
+  Future<void> beforeSave() async => throw Exception(errorMessage);
+}
+
+class DelayedDatabaseService extends HookedSaveDatabaseService {
+  final Completer<void> saveCompleter = Completer<void>();
+
+  @override
+  Future<void> beforeSave() => saveCompleter.future;
+}
+
+/// Returns the [WizardController] currently driving the dialog's UI.
+WizardController findDialogController(WidgetTester tester) {
+  final builder = tester.widget<ListenableBuilder>(
+    find
+        .descendant(
+          of: find.byType(AddObservationDialog),
+          matching: find.byWidgetPredicate(
+            (w) => w is ListenableBuilder && w.listenable is WizardController,
+          ),
+        )
+        .first,
+  );
+  return builder.listenable as WizardController;
+}
+
+void expectControllerDisposed(WizardController controller) {
+  // ChangeNotifier asserts when listened to after being disposed.
+  expect(() => controller.addListener(() {}), throwsFlutterError);
+}
+
+void expectControllerNotDisposed(WizardController controller) {
+  void listener() {}
+  expect(() => controller.addListener(listener), returnsNormally);
+  controller.removeListener(listener);
 }
 
 /// A [WizardController] whose save is rejected without throwing (returns false).
@@ -236,20 +255,8 @@ void main() {
           dbService: testDb,
         );
         editController.setBleedingFlow(Bleeding.light);
-        editController.setBleedingColor('Red');
         editController.setSensation(Sensation.wet);
         editController.setLubrication(true);
-        editController.setHasMucus(true);
-        editController.setStretch(Stretch.stretchy);
-        editController.setSelectedColors([MucusColor.clear]);
-        editController.setConsistency(isGummy: true, isPasty: false);
-        editController.setFrequency(Frequency.allDay);
-        editController.setHasIntercourse(true);
-        editController.setHasPain(true);
-        editController.togglePainType('cramps', true);
-        editController.setPainLevel(4.0);
-        editController.commentController.text =
-            'Pre-existing observation comment';
         addTearDown(editController.dispose);
 
         await tester.pumpWidget(
@@ -258,22 +265,22 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Log Single Observation'), findsOneWidget);
-        final lightOptionCard = tester.widget<OptionCard>(
-          find.widgetWithText(OptionCard, 'Light (L)'),
-        );
-        expect(lightOptionCard.isSelected, isTrue);
+        bool isSelected(String label) => tester
+            .widget<OptionCard>(find.widgetWithText(OptionCard, label))
+            .isSelected;
 
-        final noBleedingCard = tester.widget<OptionCard>(
-          find.widgetWithText(OptionCard, 'No Bleeding'),
-        );
-        expect(noBleedingCard.isSelected, isFalse);
+        // Bleeding step reflects the pre-configured flow.
+        expect(isSelected('Light (L)'), isTrue);
+        expect(isSelected('No Bleeding'), isFalse);
 
-        expect(editController.bleedingFlow, Bleeding.light);
-        expect(editController.bleedingColor, 'Red');
-        expect(
-          editController.commentController.text,
-          'Pre-existing observation comment',
-        );
+        // Sensation step reflects the pre-configured sensation/lubrication.
+        editController.nextStep();
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Step 2 of 5: Sensation'), findsOneWidget);
+        expect(isSelected('Wet'), isTrue);
+        expect(isSelected('Dry'), isFalse);
+        expect(isSelected('Yes Lubrication'), isTrue);
+        expect(isSelected('Not Lubricative'), isFalse);
       },
     );
 
@@ -284,6 +291,8 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byType(AddObservationDialog), findsOneWidget);
+        final ownedController = findDialogController(tester);
+        expectControllerNotDisposed(ownedController);
 
         // Replace dialog with empty container to trigger dispose
         await tester.pumpWidget(
@@ -292,6 +301,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byType(AddObservationDialog), findsNothing);
+        expectControllerDisposed(ownedController);
       },
     );
 
@@ -368,10 +378,16 @@ void main() {
         );
 
         // Mutate controllerB and verify UI reacts
+        OptionCard yesCard() => tester.widget<OptionCard>(
+          find.widgetWithText(OptionCard, 'Yes (Log Pain)'),
+        );
+        expect(yesCard().isSelected, isFalse);
+
         controllerB.setHasPain(true);
         await tester.pumpAndSettle();
 
         expect(controllerB.hasPain, isTrue);
+        expect(yesCard().isSelected, isTrue);
       },
     );
 
@@ -424,6 +440,9 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Log Single Observation'), findsOneWidget);
+        final ownedController = findDialogController(tester);
+        expect(ownedController, isNot(same(externalController)));
+        expectControllerNotDisposed(ownedController);
 
         // Update with external controller
         await tester.pumpWidget(
@@ -431,6 +450,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
+        expectControllerDisposed(ownedController);
+        expectControllerNotDisposed(externalController);
         expect(find.text('Log Intercourse'), findsOneWidget);
         expect(
           find.textContaining('Step 1 of 1: Comments & Save'),
