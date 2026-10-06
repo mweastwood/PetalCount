@@ -431,7 +431,10 @@ void main() {
             now: lateNow,
           );
           expect(service.isReminderScheduled, isTrue);
-          expect(service.scheduledReminderTime, DateTime(2026, 8, 18, 21, 0, 0));
+          expect(
+            service.scheduledReminderTime,
+            DateTime(2026, 8, 18, 21, 0, 0),
+          );
           expect(service.scheduleCount, 1);
         },
       );
