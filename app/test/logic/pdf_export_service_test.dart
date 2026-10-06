@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:petal_count/logic/logic.dart';
+import 'package:petal_count/theme/creighton_theme.dart';
 
 void main() {
   group('PdfExportService Unit Tests', () {
@@ -496,6 +499,116 @@ void main() {
         '10K x2',
       );
     });
+
+    test(
+      'derives baby symbol size from stamp cell height and shared fraction',
+      () {
+        expect(CreightonTheme.babyIconFraction, equals(0.75));
+        expect(PdfExportService.stampCellHeight, equals(38.0));
+        expect(PdfExportService.stampCellWidth, equals(48.0));
+        expect(
+          PdfExportService.babySymbolSize,
+          equals(
+            PdfExportService.stampCellHeight * CreightonTheme.babyIconFraction,
+          ),
+        );
+        expect(PdfExportService.babySymbolSize, equals(28.5));
+
+        final defaultBabyWidget = PdfExportService.buildBabySymbol(
+          PdfColors.black,
+        );
+        expect(defaultBabyWidget, isA<pw.SvgImage>());
+        final defaultSvg = defaultBabyWidget as pw.SvgImage;
+        expect(defaultSvg.width, equals(28.5));
+        expect(defaultSvg.height, equals(28.5));
+
+        final customBabyWidget = PdfExportService.buildBabySymbol(
+          PdfColors.white,
+          size: 20.0,
+        );
+        expect(customBabyWidget, isA<pw.SvgImage>());
+        final customSvg = customBabyWidget as pw.SvgImage;
+        expect(customSvg.width, equals(20.0));
+        expect(customSvg.height, equals(20.0));
+      },
+    );
+
+    test(
+      'stamp cell Stack children order ensures cycle day number renders on top of baby icon',
+      () {
+        final start = DateTime(2026, 6, 1);
+        final cycle = Cycle(
+          id: 'test_cycle',
+          startDate: start,
+          dailyEntries: {
+            '2026-06-01': DailyEntry(
+              date: start,
+              stampType: StampType.whiteBaby,
+              resolvedVdrsCode: '10KL',
+              painLevel: 0,
+              painTypes: [],
+              comments: '',
+              observations: const [],
+            ),
+            '2026-06-02': DailyEntry(
+              date: start.addCalendarDays(1),
+              stampType: StampType.greenBaby,
+              resolvedVdrsCode: '2',
+              painLevel: 0,
+              painTypes: [],
+              comments: '',
+              observations: const [],
+            ),
+          },
+        );
+
+        // Check whiteBaby stamp cell: baby symbol at index 0, day number at index 1
+        final day0Column =
+            PdfExportService.buildDayColumn(cycle, 0) as pw.Container;
+        final col0 = day0Column.child as pw.Column;
+        final stamp0Container = col0.children[1] as pw.Container;
+        final stack0 = stamp0Container.child as pw.Stack;
+
+        expect(stack0.children.length, equals(2));
+        final baby0 = stack0.children[0] as pw.Positioned;
+        expect(baby0.child, isA<pw.SvgImage>());
+        final num0 = stack0.children[1] as pw.Positioned;
+        expect(num0.child, isA<pw.Text>());
+        expect((num0.child as pw.Text).text.toPlainText(), equals('1'));
+
+        // Check greenBaby stamp cell: baby symbol at index 0, day number at index 1
+        final day1Column =
+            PdfExportService.buildDayColumn(cycle, 1) as pw.Container;
+        final col1 = day1Column.child as pw.Column;
+        final stamp1Container = col1.children[1] as pw.Container;
+        final stack1 = stamp1Container.child as pw.Stack;
+
+        expect(stack1.children.length, equals(2));
+        final baby1 = stack1.children[0] as pw.Positioned;
+        expect(baby1.child, isA<pw.SvgImage>());
+        final num1 = stack1.children[1] as pw.Positioned;
+        expect(num1.child, isA<pw.Text>());
+        expect((num1.child as pw.Text).text.toPlainText(), equals('2'));
+
+        // Check unlogged day stamp cell: '?' at index 0, day number at index 1
+        final day2Column =
+            PdfExportService.buildDayColumn(cycle, 2) as pw.Container;
+        final col2 = day2Column.child as pw.Column;
+        final stamp2Container = col2.children[1] as pw.Container;
+        final stack2 = stamp2Container.child as pw.Stack;
+
+        expect(stack2.children.length, equals(2));
+        final unloggedCenter = stack2.children[0] as pw.Center;
+        expect(unloggedCenter.child, isA<pw.Text>());
+        expect(
+          (unloggedCenter.child as pw.Text).text.toPlainText(),
+          equals('?'),
+        );
+        final num2 = stack2.children[1] as pw.Positioned;
+        expect(num2.child, isA<pw.Text>());
+        expect((num2.child as pw.Text).text.toPlainText(), equals('3'));
+      },
+    );
   });
 }
 

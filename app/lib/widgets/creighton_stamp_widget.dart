@@ -6,9 +6,14 @@ import 'baby_icon.dart';
 
 enum _StampWidgetMode { badge, gridSticker, timelineNode }
 
+const double _babyIconFraction = CreightonTheme.babyIconFraction;
+
 /// A unified widget for rendering Creighton Model FertilityCare stamps across
 /// badges, grid spreadsheet sticker headers, and timeline nodes.
 class CreightonStampWidget extends StatelessWidget {
+  /// Fraction of stamp container height occupied by the baby icon.
+  static const double babyIconFraction = _babyIconFraction;
+
   final StampType? stampType;
   final String? peakDayLabel;
   final int? dayNumber;
@@ -101,10 +106,24 @@ class CreightonStampWidget extends StatelessWidget {
           width: 2,
         );
     final hasBaby = CreightonTheme.hasBabyIcon(stampType);
+    final effectiveHeight = height ?? 48.0;
+    final hasPeakLabel = peakDayLabel != null && peakDayLabel!.isNotEmpty;
+
+    // When peakDayLabel is present at top: 2 (height ~10-12pt), reserve vertical space
+    // (top margin 2 + label height ~10 + gap 2 + bottom margin 2 = 16) to prevent overlap.
+    const labelReservedHeight = 16.0;
+    final maxIconHeight = (effectiveHeight - labelReservedHeight).clamp(
+      0.0,
+      double.infinity,
+    );
+    final defaultBabySize = effectiveHeight * _babyIconFraction;
+    final babySize = hasPeakLabel
+        ? defaultBabySize.clamp(0.0, maxIconHeight)
+        : defaultBabySize;
 
     return Container(
       width: width ?? 44.0,
-      height: height ?? 48.0,
+      height: effectiveHeight,
       decoration: BoxDecoration(
         color: bg,
         borderRadius: borderRadius ?? BorderRadius.circular(6),
@@ -114,7 +133,12 @@ class CreightonStampWidget extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          if (peakDayLabel != null && peakDayLabel!.isNotEmpty)
+          if (hasBaby)
+            Positioned(
+              bottom: hasPeakLabel ? 2 : (effectiveHeight - babySize) / 2,
+              child: BabyIcon.forStamp(stampType, size: babySize),
+            ),
+          if (hasPeakLabel)
             Positioned(
               top: 2,
               child: Text(
@@ -125,11 +149,6 @@ class CreightonStampWidget extends StatelessWidget {
                   color: Colors.black87,
                 ),
               ),
-            ),
-          if (hasBaby)
-            Positioned(
-              bottom: 4,
-              child: BabyIcon.forStamp(stampType, size: 20),
             ),
         ],
       ),
@@ -142,10 +161,13 @@ class CreightonStampWidget extends StatelessWidget {
       defaultColor: theme.colorScheme.surfaceContainerLowest,
     );
     final hasBaby = CreightonTheme.hasBabyIcon(stampType);
+    final effectiveHeight = height ?? 46.0;
+    final babySize = effectiveHeight * _babyIconFraction;
+    final hasPeakLabel = peakDayLabel != null && peakDayLabel!.isNotEmpty;
 
     return Container(
       width: width ?? double.infinity,
-      height: height ?? 46.0,
+      height: effectiveHeight,
       decoration: BoxDecoration(
         color: stampColor,
         borderRadius:
@@ -156,8 +178,22 @@ class CreightonStampWidget extends StatelessWidget {
       ),
       child: Stack(
         children: [
+          // Baby Icon in center for fertile stamps, or '?' for unlogged days
+          if (hasBaby)
+            Center(child: BabyIcon.forStamp(stampType, size: babySize))
+          else if (stampType == null)
+            Center(
+              child: Text(
+                '?',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.outline.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
           // Peak Day Badge at top-left
-          if (peakDayLabel != null && peakDayLabel!.isNotEmpty)
+          if (hasPeakLabel)
             Positioned(
               top: 2,
               left: 4,
@@ -179,20 +215,6 @@ class CreightonStampWidget extends StatelessWidget {
                 ),
               ),
             ),
-          // Baby Icon in center for fertile stamps, or '?' for unlogged days
-          if (hasBaby)
-            Center(child: BabyIcon.forStamp(stampType, size: 26))
-          else if (stampType == null)
-            Center(
-              child: Text(
-                '?',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.outline.withValues(alpha: 0.7),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -209,10 +231,13 @@ class CreightonStampWidget extends StatelessWidget {
               : Colors.grey.shade400)
         : theme.colorScheme.outlineVariant;
     final hasBaby = CreightonTheme.hasBabyIcon(stampType);
+    final effectiveHeight = height ?? 52.0;
+    final babySize = effectiveHeight * _babyIconFraction;
+    final hasPeakLabel = peakDayLabel != null && peakDayLabel!.isNotEmpty;
 
     return Container(
       width: width ?? 52.0,
-      height: height ?? 52.0,
+      height: effectiveHeight,
       decoration: BoxDecoration(
         color: stampColor,
         borderRadius: borderRadius ?? BorderRadius.circular(10),
@@ -230,7 +255,20 @@ class CreightonStampWidget extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          if (peakDayLabel != null && peakDayLabel!.isNotEmpty)
+          if (hasBaby)
+            BabyIcon.forStamp(stampType, size: babySize)
+          else if (dayNumber != null)
+            Text(
+              '$dayNumber',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: stampType != null && stampType != StampType.whiteBaby
+                    ? Colors.white
+                    : Colors.grey.shade800,
+              ),
+            ),
+          if (hasPeakLabel)
             Positioned(
               top: 2,
               right: 4,
@@ -241,19 +279,6 @@ class CreightonStampWidget extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   color: peakDayLabel == 'P' ? Colors.red : Colors.black87,
                 ),
-              ),
-            ),
-          if (hasBaby)
-            BabyIcon.forStamp(stampType, size: 24)
-          else if (dayNumber != null)
-            Text(
-              '$dayNumber',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: stampType != null && stampType != StampType.whiteBaby
-                    ? Colors.white
-                    : Colors.grey.shade800,
               ),
             ),
         ],

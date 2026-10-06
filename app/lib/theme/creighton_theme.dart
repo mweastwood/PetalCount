@@ -18,6 +18,10 @@ class CreightonTheme {
   static const double cardBorderRadius = 8.0;
   static const double stickerBorderRadius = 6.5;
 
+  // Layout Fractions
+  /// Fraction of stamp container height allocated to the swaddled baby icon (75%).
+  static const double babyIconFraction = 0.75;
+
   // Stamp Colors
   static const Color redStamp = Color(0xFFEF5350); // Colors.red.shade400
   static const Color greenStamp = Color(0xFF66BB6A); // Colors.green.shade400
