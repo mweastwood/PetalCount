@@ -13,18 +13,18 @@ class FailingDatabaseService extends InMemoryDatabaseService {
   Future<void> saveObservation({
     String? cycleId,
     required DateTime date,
-    Sensation? sensation,
-    Stretch? stretch,
-    List<MucusColor> colors = const [],
-    List<Consistency> consistencies = const [],
-    Bleeding? bleeding,
-    String? bleedingColor,
+    required Sensation sensation,
+    required Stretch stretch,
+    required List<MucusColor> colors,
+    required List<Consistency> consistencies,
+    required Bleeding bleeding,
+    required String bleedingColor,
     Frequency frequency = Frequency.none,
     bool intercourse = false,
-    double painLevel = 0.0,
-    List<String> painTypes = const [],
-    String? comment,
-    bool isVdrsExplicit = false,
+    required double painLevel,
+    required List<String> painTypes,
+    required String comment,
+    bool? isVdrsExplicit,
   }) async {
     throw Exception(errorMessage);
   }
@@ -37,18 +37,18 @@ class DelayedDatabaseService extends InMemoryDatabaseService {
   Future<void> saveObservation({
     String? cycleId,
     required DateTime date,
-    Sensation? sensation,
-    Stretch? stretch,
-    List<MucusColor> colors = const [],
-    List<Consistency> consistencies = const [],
-    Bleeding? bleeding,
-    String? bleedingColor,
+    required Sensation sensation,
+    required Stretch stretch,
+    required List<MucusColor> colors,
+    required List<Consistency> consistencies,
+    required Bleeding bleeding,
+    required String bleedingColor,
     Frequency frequency = Frequency.none,
     bool intercourse = false,
-    double painLevel = 0.0,
-    List<String> painTypes = const [],
-    String? comment,
-    bool isVdrsExplicit = false,
+    required double painLevel,
+    required List<String> painTypes,
+    required String comment,
+    bool? isVdrsExplicit,
   }) async {
     await saveCompleter.future;
     await super.saveObservation(
@@ -150,7 +150,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Log Single Observation'), findsOneWidget);
-      expect(find.textContaining('Step 1 of 11: Bleeding'), findsOneWidget);
+      expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
       expect(find.byType(AddObservationDialog), findsOneWidget);
     });
 
@@ -168,7 +168,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Log Bleeding'), findsOneWidget);
-      expect(find.textContaining('Step 1 of 3: Bleeding'), findsOneWidget);
+      expect(find.textContaining('Step 1 of 2: Bleeding'), findsOneWidget);
 
       final painController = WizardController(
         category: ObservationCategory.pain,
@@ -183,7 +183,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Log Pain'), findsOneWidget);
-      expect(find.textContaining('Step 1 of 3: Pain'), findsOneWidget);
+      expect(find.textContaining('Step 1 of 2: Pain Details'), findsOneWidget);
     });
 
     testWidgets('pre-configured edit mode controller pre-populates observation values', (tester) async {
@@ -194,10 +194,10 @@ void main() {
       );
       editController.setBleedingFlow(Bleeding.light);
       editController.setBleedingColor('Red');
-      editController.setSensation(Sensation.slippery);
+      editController.setSensation(Sensation.wet);
       editController.setLubrication(true);
       editController.setHasMucus(true);
-      editController.setStretch(Stretch.oneInch);
+      editController.setStretch(Stretch.stretchy);
       editController.setSelectedColors([MucusColor.clear]);
       editController.setConsistency(isGummy: true, isPasty: false);
       editController.setFrequency(Frequency.allDay);
@@ -289,7 +289,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Log Bleeding'), findsOneWidget);
-      expect(find.textContaining('Step 1 of 3: Bleeding'), findsOneWidget);
+      expect(find.textContaining('Step 1 of 2: Bleeding'), findsOneWidget);
 
       // Rebuild with controllerB
       await tester.pumpWidget(
@@ -298,7 +298,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Log Pain'), findsOneWidget);
-      expect(find.textContaining('Step 1 of 3: Pain'), findsOneWidget);
+      expect(find.textContaining('Step 1 of 2: Pain Details'), findsOneWidget);
 
       // Mutate controllerB and verify UI reacts
       controllerB.setHasPain(true);
@@ -320,14 +320,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Step 1 of 11: Bleeding'), findsOneWidget);
+      expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
 
       // Advance controller to next step
       controller.setNoBleeding();
       controller.nextStep();
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Step 2 of 10: Sensation'), findsOneWidget);
+      expect(find.textContaining('Step 2 of 5: Sensation'), findsOneWidget);
 
       // Rebuild with same controller instance
       await tester.pumpWidget(
@@ -335,7 +335,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Step 2 of 10: Sensation'), findsOneWidget);
+      expect(find.textContaining('Step 2 of 5: Sensation'), findsOneWidget);
     });
 
     testWidgets('updating from owned controller to external controller disposes internal controller', (tester) async {
@@ -359,7 +359,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Log Intercourse'), findsOneWidget);
-      expect(find.textContaining('Step 1 of 2: Intercourse'), findsOneWidget);
+      expect(find.textContaining('Step 1 of 1: Comments & Save'), findsOneWidget);
     });
   });
 
@@ -452,7 +452,7 @@ void main() {
       await pumpDialogInNavigator(tester, controller: controller);
 
       // Step 1: Bleeding
-      expect(find.textContaining('Step 1 of 11: Bleeding'), findsOneWidget);
+      expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
       expect(find.text('Back'), findsNothing);
 
       // Select No Bleeding -> advances to Step 2
@@ -460,14 +460,14 @@ void main() {
       await tester.pumpAndSettle();
 
       // Step 2: Sensation
-      expect(find.textContaining('Step 2 of 10: Sensation'), findsOneWidget);
+      expect(find.textContaining('Step 2 of 5: Sensation'), findsOneWidget);
       expect(find.text('Back'), findsOneWidget);
 
       // Tap Back button -> returns to Step 1
       await tester.tap(find.text('Back'));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Step 1 of 10: Bleeding'), findsOneWidget);
+      expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
     });
 
     testWidgets('step navigation renders each wizard step card throughout flow', (tester) async {
@@ -481,48 +481,48 @@ void main() {
       await pumpDialogInNavigator(tester, controller: controller);
 
       // Step 1: Bleeding Flow
-      expect(find.textContaining('Step 1 of 11: Bleeding'), findsOneWidget);
+      expect(find.textContaining('Step 1 of 5: Bleeding'), findsOneWidget);
       await tester.tap(find.text('Light (L)'));
       await tester.pumpAndSettle();
 
       // Step 2: Bleeding Color
-      expect(find.textContaining('Step 2 of 11: Blood Color'), findsOneWidget);
+      expect(find.textContaining('Step 2 of 6: Blood Color'), findsOneWidget);
       await tester.tap(find.text('Red (R)'));
       await tester.pumpAndSettle();
 
       // Step 3: Sensation
-      expect(find.textContaining('Step 3 of 11: Sensation'), findsOneWidget);
+      expect(find.textContaining('Step 3 of 6: Sensation'), findsOneWidget);
       await tester.tap(find.text('Dry'));
       await tester.pumpAndSettle();
 
       // Step 4: Mucus Presence
-      expect(find.textContaining('Step 4 of 11: Mucus'), findsOneWidget);
-      await tester.tap(find.text('Yes'));
+      expect(find.textContaining('Step 4 of 6: Mucus'), findsOneWidget);
+      await tester.tap(find.text('Yes Mucus'));
       await tester.pumpAndSettle();
 
       // Step 5: Mucus Stretch
-      expect(find.textContaining('Step 5 of 11: Stretch'), findsOneWidget);
-      await tester.tap(find.text('1/4 inch'));
+      expect(find.textContaining('Step 5 of 9: Stretch'), findsOneWidget);
+      await tester.tap(find.text('Sticky'));
       await tester.pumpAndSettle();
 
       // Step 6: Mucus Color
-      expect(find.textContaining('Step 6 of 11: Mucus Color'), findsOneWidget);
-      await tester.tap(find.text('Clear'));
+      expect(find.textContaining('Step 6 of 10: Mucus Color'), findsOneWidget);
+      await tester.tap(find.text('Clear (K)'));
       await tester.pumpAndSettle();
 
       // Step 7: Mucus Consistency
-      expect(find.textContaining('Step 7 of 11: Consistency'), findsOneWidget);
-      await tester.tap(find.text('Gummy'));
+      expect(find.textContaining('Step 7 of 10: Consistency'), findsOneWidget);
+      await tester.tap(find.text('Gummy (Gluey)'));
       await tester.pumpAndSettle();
 
       // Step 8: Frequency
-      expect(find.textContaining('Step 8 of 11: Frequency'), findsOneWidget);
-      await tester.tap(find.text('Once'));
+      expect(find.textContaining('Step 8 of 10: Frequency'), findsOneWidget);
+      await tester.tap(find.text('Once (x1)'));
       await tester.pumpAndSettle();
 
       // Step 9: Pain
-      expect(find.textContaining('Step 9 of 11: Pain'), findsOneWidget);
-      await tester.tap(find.text('Yes'));
+      expect(find.textContaining('Step 9 of 10: Pain'), findsOneWidget);
+      await tester.tap(find.text('Yes (Log Pain)'));
       await tester.pumpAndSettle();
 
       // Step 10: Pain Details
@@ -602,10 +602,13 @@ void main() {
       expect(find.byType(AddObservationDialog), findsNothing);
 
       // Verify observation was saved in db
-      final entries = await testDb.getObservationsForDate(defaultDate);
+      final cycles = await testDb.streamCycles().first;
+      final dailyEntry = cycles.first.dailyEntries[defaultDate.dateKey];
+      expect(dailyEntry, isNotNull);
+      final entries = dailyEntry!.observations;
       expect(entries, isNotEmpty);
       expect(entries.first.bleeding, Bleeding.light);
-      expect(entries.first.bleedingColor, 'Red');
+      expect(entries.first.bleedingColor, 'R');
     });
 
     testWidgets('circular progress indicator is shown while isSaving is true', (tester) async {
