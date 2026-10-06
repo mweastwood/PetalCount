@@ -9,6 +9,14 @@ void main() {
   });
 
   group('InMemoryNotificationService - Lifecycle & Service Configuration', () {
+    test('initial state has empty collections and zero counts', () {
+      expect(service.sentNotificationDeduplicationKeys, isEmpty);
+      expect(service.dispatchedNotifications, isEmpty);
+      expect(service.notificationCount, 0);
+      expect(service.scheduleCount, 0);
+      expect(service.cancelCount, 0);
+    });
+
     test('init sets isInitialized to true and is idempotent', () async {
       expect(service.isInitialized, isFalse);
 
@@ -413,6 +421,22 @@ void main() {
       );
 
       test(
+        'schedules reminder for tomorrow when unlogged and now is after 21:00',
+        () async {
+          final lateNow = DateTime(2026, 8, 17, 21, 30, 0);
+          await service.syncReminderSchedule(
+            chartId: 'chart-123',
+            reminderEnabled: true,
+            isTodayLogged: false,
+            now: lateNow,
+          );
+          expect(service.isReminderScheduled, isTrue);
+          expect(service.scheduledReminderTime, DateTime(2026, 8, 18, 21, 0, 0));
+          expect(service.scheduleCount, 1);
+        },
+      );
+
+      test(
         'schedules reminder when now is omitted (uses DateTime.now())',
         () async {
           await service.syncReminderSchedule(
@@ -697,6 +721,49 @@ void main() {
             now: now,
           );
           expect(service.notificationCount, 1);
+        },
+      );
+
+      test(
+        'suppresses duplicates unless force is true and differentiates roles',
+        () async {
+          final now = DateTime(2026, 8, 17, 10, 0, 0);
+
+          await service.notifyPeakDay(
+            role: UserRole.wife,
+            peakLabel: 'P',
+            now: now,
+          );
+          expect(service.notificationCount, 1);
+
+          // Duplicate for same role suppressed
+          await service.notifyPeakDay(
+            role: UserRole.wife,
+            peakLabel: 'P',
+            now: now,
+          );
+          expect(service.notificationCount, 1);
+
+          // Force allows duplicate
+          await service.notifyPeakDay(
+            role: UserRole.wife,
+            peakLabel: 'P',
+            now: now,
+            force: true,
+          );
+          expect(service.notificationCount, 2);
+
+          // Different role (husband) on same day is allowed
+          await service.notifyPeakDay(
+            role: UserRole.husband,
+            peakLabel: 'P',
+            now: now,
+          );
+          expect(service.notificationCount, 3);
+          expect(
+            service.sentNotificationDeduplicationKeys,
+            contains('2026-08-17_peak_P_husband'),
+          );
         },
       );
     });
@@ -996,6 +1063,26 @@ void main() {
       {
         'description': 'spring DST transition (Mar 8 2026 23:30)',
         'now': DateTime(2026, 3, 8, 23, 30),
+        'isTodayLogged': false,
+      },
+      {
+        'description': 'unlogged midnight edge (00:00:00)',
+        'now': DateTime(2026, 8, 17, 0, 0, 0),
+        'isTodayLogged': false,
+      },
+      {
+        'description': 'unlogged just after midnight (00:00:01)',
+        'now': DateTime(2026, 8, 17, 0, 0, 1),
+        'isTodayLogged': false,
+      },
+      {
+        'description': '30-day month boundary rollover (Apr 30 22:00)',
+        'now': DateTime(2026, 4, 30, 22, 0),
+        'isTodayLogged': false,
+      },
+      {
+        'description': 'leap day rollover (Feb 29 2028 22:00)',
+        'now': DateTime(2028, 2, 29, 22, 0),
         'isTodayLogged': false,
       },
     ];
