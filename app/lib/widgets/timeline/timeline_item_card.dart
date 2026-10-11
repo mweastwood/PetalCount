@@ -87,6 +87,7 @@ class TimelineItemCard extends StatelessWidget {
         currentEntry != null && currentEntry.comments.isNotEmpty;
 
     return Container(
+      constraints: const BoxConstraints(minHeight: 52.0),
       margin: const EdgeInsets.only(bottom: 16.0),
       decoration: BoxDecoration(
         color: isToday

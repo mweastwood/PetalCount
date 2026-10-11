@@ -44,5 +44,25 @@ void main() {
 
       expect(find.text('DECEMBER 2025'), findsOneWidget);
     });
+
+    testWidgets('does not contain IntrinsicHeight widget', (
+      WidgetTester tester,
+    ) async {
+      final date = DateTime(2026, 8, 1);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: TimelineMonthHeader(date: date)),
+        ),
+      );
+
+      expect(
+        find.descendant(
+          of: find.byType(TimelineMonthHeader),
+          matching: find.byType(IntrinsicHeight),
+        ),
+        findsNothing,
+      );
+    });
   });
 }
