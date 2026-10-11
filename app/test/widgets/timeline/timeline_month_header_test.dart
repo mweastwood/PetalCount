@@ -83,7 +83,9 @@ void main() {
         ),
       );
       expect(
-        lineContainers.any((c) => c.constraints?.maxWidth == 4 || c.color != null),
+        lineContainers.any(
+          (c) => c.constraints?.maxWidth == 4 || c.color != null,
+        ),
         isTrue,
       );
     });
