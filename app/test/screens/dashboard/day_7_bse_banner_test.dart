@@ -4,12 +4,12 @@ import 'package:petal_count/screens/dashboard/day_7_bse_banner.dart';
 
 void main() {
   group('Day7BseBanner Tests', () {
-    testWidgets(
-      'renders key, icon, title, description, and styling correctly',
-      (WidgetTester tester) async {
-        await tester.pumpWidget(
-          const MaterialApp(home: Scaffold(body: Day7BseBanner())),
-        );
+    testWidgets('renders key, icon, title, description, and styling correctly', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(home: Scaffold(body: Day7BseBanner())),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('banner_day_7_bse')), findsOneWidget);

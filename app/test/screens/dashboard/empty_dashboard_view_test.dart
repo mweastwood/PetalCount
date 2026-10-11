@@ -33,27 +33,28 @@ void main() {
     testWidgets(
       'triggers onLogFirstObservation callback when CTA button tapped',
       (WidgetTester tester) async {
-      var callbackCalled = false;
+        var callbackCalled = false;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: EmptyDashboardView(
-              onLogFirstObservation: () {
-                callbackCalled = true;
-              },
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: EmptyDashboardView(
+                onLogFirstObservation: () {
+                  callbackCalled = true;
+                },
+              ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.widgetWithText(FilledButton, 'Log First Observation'),
-      );
-      await tester.pumpAndSettle();
+        await tester.tap(
+          find.widgetWithText(FilledButton, 'Log First Observation'),
+        );
+        await tester.pumpAndSettle();
 
-      expect(callbackCalled, isTrue);
-    });
+        expect(callbackCalled, isTrue);
+      },
+    );
   });
 }

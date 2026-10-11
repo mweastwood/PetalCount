@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../logic/models/observation.dart';
+import '../../widgets/wizard/wizard_controller.dart';
 
 class ObservationSpeedDialFab extends StatelessWidget {
   final bool isOpen;

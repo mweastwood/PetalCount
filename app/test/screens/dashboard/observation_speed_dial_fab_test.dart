@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:petal_count/logic/models/observation.dart';
+import 'package:petal_count/widgets/wizard/wizard_controller.dart';
 import 'package:petal_count/screens/dashboard/observation_speed_dial_fab.dart';
 
 void main() {
