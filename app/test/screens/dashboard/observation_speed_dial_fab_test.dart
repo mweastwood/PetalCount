@@ -25,7 +25,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('fab_log_observation_toggle')), findsOneWidget);
+      expect(
+        find.byKey(const Key('fab_log_observation_toggle')),
+        findsOneWidget,
+      );
       expect(find.byIcon(Icons.add), findsOneWidget);
       expect(find.byIcon(Icons.close), findsNothing);
 
@@ -61,7 +64,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('fab_log_observation_toggle')), findsOneWidget);
+      expect(
+        find.byKey(const Key('fab_log_observation_toggle')),
+        findsOneWidget,
+      );
       expect(find.byIcon(Icons.close), findsOneWidget);
 
       expect(find.text('Log intercourse'), findsOneWidget);

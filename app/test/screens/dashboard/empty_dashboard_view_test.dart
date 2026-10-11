@@ -10,9 +10,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: EmptyDashboardView(
-              onLogFirstObservation: () {},
-            ),
+            body: EmptyDashboardView(onLogFirstObservation: () {}),
           ),
         ),
       );
@@ -26,12 +24,15 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.widgetWithText(FilledButton, 'Log First Observation'), findsOneWidget);
+      expect(
+        find.widgetWithText(FilledButton, 'Log First Observation'),
+        findsOneWidget,
+      );
     });
 
-    testWidgets('triggers onLogFirstObservation callback when CTA button tapped', (
-      WidgetTester tester,
-    ) async {
+    testWidgets(
+      'triggers onLogFirstObservation callback when CTA button tapped',
+      (WidgetTester tester) async {
       var callbackCalled = false;
 
       await tester.pumpWidget(
@@ -47,7 +48,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Log First Observation'));
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Log First Observation'),
+      );
       await tester.pumpAndSettle();
 
       expect(callbackCalled, isTrue);

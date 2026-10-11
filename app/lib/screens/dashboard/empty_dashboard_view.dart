@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 class EmptyDashboardView extends StatelessWidget {
   final VoidCallback onLogFirstObservation;
 
-  const EmptyDashboardView({
-    super.key,
-    required this.onLogFirstObservation,
-  });
+  const EmptyDashboardView({super.key, required this.onLogFirstObservation});
 
   @override
   Widget build(BuildContext context) {
