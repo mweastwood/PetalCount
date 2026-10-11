@@ -24,19 +24,11 @@ class TimelineMonthHeader extends StatelessWidget {
           width: 56,
           child: SizedBox(
             width: 56,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned(
-                  left: 26,
-                  width: 4,
-                  top: 0,
-                  bottom: 0,
-                  child: Container(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.4),
-                  ),
-                ),
-              ],
+            child: Center(
+              child: Container(
+                width: 4,
+                color: theme.colorScheme.primary.withValues(alpha: 0.4),
+              ),
             ),
           ),
         ),

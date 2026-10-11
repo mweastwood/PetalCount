@@ -148,31 +148,28 @@ class ObservationsScreen extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.only(left: 68.0),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: 52.0),
-                child: TimelineItemCard(
-                  date: item.date,
-                  entry: entry,
-                  cycle: item.cycle,
-                  dayNumber: item.dayNumber,
-                  isCycleStart: item.isCycleStart,
-                  isToday: isToday,
-                  onTap: () {
-                    if (entry != null && item.cycle != null) {
-                      onSelectEntry(entry, item.cycle!);
-                    } else {
-                      onAddForDate(item.cycle, item.date);
-                    }
-                  },
-                  onCycleOptionsTap: item.cycle != null
-                      ? () => CycleOptionsDialog.show(
-                          context,
-                          cycle: item.cycle!,
-                          cycles: cycles,
-                          targetDate: item.date,
-                        )
-                      : null,
-                ),
+              child: TimelineItemCard(
+                date: item.date,
+                entry: entry,
+                cycle: item.cycle,
+                dayNumber: item.dayNumber,
+                isCycleStart: item.isCycleStart,
+                isToday: isToday,
+                onTap: () {
+                  if (entry != null && item.cycle != null) {
+                    onSelectEntry(entry, item.cycle!);
+                  } else {
+                    onAddForDate(item.cycle, item.date);
+                  }
+                },
+                onCycleOptionsTap: item.cycle != null
+                    ? () => CycleOptionsDialog.show(
+                        context,
+                        cycle: item.cycle!,
+                        cycles: cycles,
+                        targetDate: item.date,
+                      )
+                    : null,
               ),
             ),
           ],
