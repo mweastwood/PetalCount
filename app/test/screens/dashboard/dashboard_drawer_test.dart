@@ -108,6 +108,7 @@ void main() {
         find.byKey(const Key('drawer_logout_tile')),
       );
       expect(signOutTile.onTap, isNull);
+      expect(signOutTile.enabled, isFalse);
     });
   });
 }

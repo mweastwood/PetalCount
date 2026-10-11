@@ -43,6 +43,7 @@ class EmptyDashboardView extends StatelessWidget {
             ),
             const SizedBox(height: 32),
             FilledButton.icon(
+              key: const Key('btn_log_first_observation'),
               onPressed: onLogFirstObservation,
               icon: const Icon(Icons.add),
               label: const Text('Log First Observation'),

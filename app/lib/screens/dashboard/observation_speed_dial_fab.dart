@@ -109,6 +109,7 @@ class ObservationSpeedDialFab extends StatelessWidget {
         const SizedBox(width: 10),
         FloatingActionButton.small(
           heroTag: label,
+          tooltip: label,
           onPressed: onTap,
           backgroundColor: color,
           foregroundColor: Colors.white,

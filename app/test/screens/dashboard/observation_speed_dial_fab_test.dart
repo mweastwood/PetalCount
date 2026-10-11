@@ -96,6 +96,24 @@ void main() {
       await tester.tap(find.text('Log mucus'));
       await tester.pumpAndSettle();
       expect(selectedCategories, contains(ObservationCategory.mucus));
+
+      // Also verify tapping the small FAB buttons directly
+      selectedCategories.clear();
+      await tester.tap(find.byIcon(Icons.favorite));
+      await tester.pumpAndSettle();
+      expect(selectedCategories, contains(ObservationCategory.intercourse));
+
+      await tester.tap(find.byIcon(Icons.healing));
+      await tester.pumpAndSettle();
+      expect(selectedCategories, contains(ObservationCategory.pain));
+
+      await tester.tap(find.byIcon(Icons.water_drop));
+      await tester.pumpAndSettle();
+      expect(selectedCategories, contains(ObservationCategory.bleeding));
+
+      await tester.tap(find.byIcon(Icons.bubble_chart));
+      await tester.pumpAndSettle();
+      expect(selectedCategories, contains(ObservationCategory.mucus));
     });
 
     testWidgets('selecting a speed dial category does not trigger onToggle', (

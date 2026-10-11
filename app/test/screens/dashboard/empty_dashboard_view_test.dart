@@ -28,6 +28,10 @@ void main() {
         find.widgetWithText(FilledButton, 'Log First Observation'),
         findsOneWidget,
       );
+      expect(
+        find.byKey(const Key('btn_log_first_observation')),
+        findsOneWidget,
+      );
     });
 
     testWidgets(

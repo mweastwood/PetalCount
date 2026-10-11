@@ -18,10 +18,10 @@ class DashboardDrawer extends StatelessWidget {
 
   /// Optional callback invoked when the user taps Sign Out.
   ///
-  /// When null, the Sign Out list tile is disabled (`onTap: null`), which
-  /// allows the drawer to be rendered in unauthenticated, read-only, or guest
+  /// When null, the Sign Out list tile is disabled (`enabled: false`, `onTap: null`),
+  /// which allows the drawer to be rendered in unauthenticated, read-only, or guest
   /// contexts where signing out is not applicable.
-  final Future<void> Function()? onSignOut;
+  final VoidCallback? onSignOut;
 
   /// Creates a [DashboardDrawer].
   const DashboardDrawer({
@@ -70,7 +70,8 @@ class DashboardDrawer extends StatelessWidget {
             key: const Key('drawer_logout_tile'),
             leading: const Icon(Icons.logout),
             title: const Text('Sign Out'),
-            onTap: onSignOut != null ? () => onSignOut!() : null,
+            enabled: onSignOut != null,
+            onTap: onSignOut,
           ),
           const Divider(),
           ListTile(
