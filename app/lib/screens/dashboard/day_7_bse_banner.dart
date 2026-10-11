@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+/// Notification banner displayed on Cycle Day 7 reminding the user to perform
+/// a routine Creighton Model Breast Self-Exam (BSE).
 class Day7BseBanner extends StatelessWidget {
+  /// Creates a [Day7BseBanner].
   const Day7BseBanner({super.key});
 
   @override
@@ -39,9 +42,8 @@ class Day7BseBanner extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   'Day 7 is the standard Creighton Model routine day for a monthly Breast Self-Exam (BSE).',
-                  style: theme.textTheme.bodySmall?.copyWith(
+                  style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onTertiaryContainer,
-                    fontSize: 11,
                   ),
                 ),
               ],

@@ -33,6 +33,17 @@ void main() {
         container.padding,
         const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       );
+
+      final descriptionText = tester.widget<Text>(
+        find.text(
+          'Day 7 is the standard Creighton Model routine day for a monthly Breast Self-Exam (BSE).',
+        ),
+      );
+      final theme = Theme.of(tester.element(find.byType(Day7BseBanner)));
+      expect(
+        descriptionText.style?.fontSize,
+        equals(theme.textTheme.labelSmall?.fontSize),
+      );
     });
   });
 }

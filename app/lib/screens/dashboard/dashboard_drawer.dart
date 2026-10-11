@@ -2,12 +2,28 @@ import 'package:flutter/material.dart';
 
 import '../../logic/utils/app_version.dart';
 
+/// Navigation drawer displayed on the dashboard screen.
+///
+/// Provides navigation items to switch charts, manage supplements and schedule,
+/// open app settings, and sign out, as well as displaying the current [AppVersion].
 class DashboardDrawer extends StatelessWidget {
+  /// Callback invoked when navigating to the chart management view.
   final VoidCallback onNavigateToCharts;
+
+  /// Callback invoked when opening the supplements and schedule modal or screen.
   final VoidCallback onSelectSupplements;
+
+  /// Callback invoked when navigating to the settings screen.
   final VoidCallback onNavigateToSettings;
+
+  /// Optional callback invoked when the user taps Sign Out.
+  ///
+  /// When null, the Sign Out list tile is disabled (`onTap: null`), which
+  /// allows the drawer to be rendered in unauthenticated, read-only, or guest
+  /// contexts where signing out is not applicable.
   final Future<void> Function()? onSignOut;
 
+  /// Creates a [DashboardDrawer].
   const DashboardDrawer({
     super.key,
     required this.onNavigateToCharts,

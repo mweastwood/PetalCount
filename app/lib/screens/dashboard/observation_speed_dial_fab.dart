@@ -2,11 +2,23 @@ import 'package:flutter/material.dart';
 
 import '../../widgets/wizard/wizard_controller.dart';
 
+/// Speed-dial floating action button menu for logging observations.
+///
+/// When closed, displays an add icon button that triggers [onToggle].
+/// When open, displays quick-log action options for each [ObservationCategory]
+/// (intercourse, pain, bleeding, mucus) and a close icon button.
 class ObservationSpeedDialFab extends StatelessWidget {
+  /// Whether the speed dial menu is currently expanded to show options.
   final bool isOpen;
+
+  /// Callback invoked when the user taps the main floating action button to
+  /// toggle between open and closed states.
   final VoidCallback onToggle;
+
+  /// Callback invoked when the user selects a specific [ObservationCategory] option.
   final void Function(ObservationCategory category) onSelectCategory;
 
+  /// Creates an [ObservationSpeedDialFab].
   const ObservationSpeedDialFab({
     super.key,
     required this.isOpen,

@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 
+/// Zero-state dashboard view displayed when no cycles or observations have been logged.
+///
+/// Prompts the user with introductory text and a primary call-to-action button
+/// to record their first observation.
 class EmptyDashboardView extends StatelessWidget {
+  /// Callback invoked when the user taps the call-to-action button to log
+  /// their first observation.
   final VoidCallback onLogFirstObservation;
 
+  /// Creates an [EmptyDashboardView].
   const EmptyDashboardView({super.key, required this.onLogFirstObservation});
 
   @override

@@ -97,5 +97,53 @@ void main() {
       await tester.pumpAndSettle();
       expect(selectedCategories, contains(ObservationCategory.mucus));
     });
+
+    testWidgets('selecting a speed dial category does not trigger onToggle', (
+      WidgetTester tester,
+    ) async {
+      var toggleCalled = false;
+      ObservationCategory? selectedCategory;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            floatingActionButton: ObservationSpeedDialFab(
+              isOpen: true,
+              onToggle: () {
+                toggleCalled = true;
+              },
+              onSelectCategory: (category) {
+                selectedCategory = category;
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Log intercourse'));
+      await tester.pumpAndSettle();
+
+      expect(selectedCategory, equals(ObservationCategory.intercourse));
+      expect(toggleCalled, isFalse);
+
+      await tester.tap(find.text('Log pain'));
+      await tester.pumpAndSettle();
+
+      expect(selectedCategory, equals(ObservationCategory.pain));
+      expect(toggleCalled, isFalse);
+
+      await tester.tap(find.text('Log bleeding'));
+      await tester.pumpAndSettle();
+
+      expect(selectedCategory, equals(ObservationCategory.bleeding));
+      expect(toggleCalled, isFalse);
+
+      await tester.tap(find.text('Log mucus'));
+      await tester.pumpAndSettle();
+
+      expect(selectedCategory, equals(ObservationCategory.mucus));
+      expect(toggleCalled, isFalse);
+    });
   });
 }

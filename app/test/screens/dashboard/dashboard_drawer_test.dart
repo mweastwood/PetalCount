@@ -83,5 +83,31 @@ void main() {
       await tester.pumpAndSettle();
       expect(signOutCalled, isTrue);
     });
+
+    testWidgets('renders disabled sign out tile when onSignOut is null', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            drawer: DashboardDrawer(
+              onNavigateToCharts: () {},
+              onSelectSupplements: () {},
+              onNavigateToSettings: () {},
+              onSignOut: null,
+            ),
+          ),
+        ),
+      );
+
+      final scaffoldState = tester.state<ScaffoldState>(find.byType(Scaffold));
+      scaffoldState.openDrawer();
+      await tester.pumpAndSettle();
+
+      final signOutTile = tester.widget<ListTile>(
+        find.byKey(const Key('drawer_logout_tile')),
+      );
+      expect(signOutTile.onTap, isNull);
+    });
   });
 }
