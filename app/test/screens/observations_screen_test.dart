@@ -198,5 +198,39 @@ void main() {
         expect(find.textContaining('Tap to log observation'), findsOneWidget);
       },
     );
+
+    testWidgets(
+      'does not contain IntrinsicHeight widgets to prevent scroll jank',
+      (WidgetTester tester) async {
+        final startDate = DateTime(2026, 6, 1);
+        final cycle = Cycle(
+          id: 'cycle_1',
+          startDate: startDate,
+          dailyEntries: {},
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationsScreen(
+                cycles: [cycle],
+                todayOverride: DateTime(2026, 6, 3),
+                onSelectEntry: (entry, c) {},
+                onAddForDate: (c, d) {},
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.descendant(
+            of: find.byType(ObservationsScreen),
+            matching: find.byType(IntrinsicHeight),
+          ),
+          findsNothing,
+        );
+      },
+    );
   });
 }

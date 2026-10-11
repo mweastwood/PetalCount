@@ -14,61 +14,53 @@ class TimelineMonthHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final monthYearStr = AppDateFormats.monthYear.format(date).toUpperCase();
 
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Timeline Track Column - Unbroken Line Through Month Header
-          SizedBox(
+    return Stack(
+      children: [
+        // Timeline Track Column - Unbroken Line Through Month Header
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: 56,
+          child: SizedBox(
             width: 56,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Positioned(
-                  left: 26,
-                  width: 4,
-                  top: 0,
-                  bottom: 0,
-                  child: Container(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.4),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 16.0, bottom: 12.0),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.calendar_month,
-                    size: 16,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    monthYearStr,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Divider(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.3),
-                      thickness: 1,
-                    ),
-                  ),
-                ],
+            child: Center(
+              child: Container(
+                width: 4,
+                color: theme.colorScheme.primary.withValues(alpha: 0.4),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 68.0, top: 16.0, bottom: 12.0),
+          child: Row(
+            children: [
+              Icon(
+                Icons.calendar_month,
+                size: 16,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                monthYearStr,
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Divider(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.3),
+                  thickness: 1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

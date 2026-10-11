@@ -123,11 +123,14 @@ class ObservationsScreen extends StatelessWidget {
             reversedItems[index + 1].date.year != item.date.year ||
             reversedItems[index + 1].date.month != item.date.month;
 
-        final timelineRowWidget = IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TimelineTrackNode(
+        final timelineRowWidget = Stack(
+          children: [
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 56,
+              child: TimelineTrackNode(
                 stampType: entry?.stampType,
                 peakDayLabel: entry?.peakDayLabel,
                 dayNumber: item.dayNumber,
@@ -142,34 +145,34 @@ class ObservationsScreen extends StatelessWidget {
                       }
                     : null,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TimelineItemCard(
-                  date: item.date,
-                  entry: entry,
-                  cycle: item.cycle,
-                  dayNumber: item.dayNumber,
-                  isCycleStart: item.isCycleStart,
-                  isToday: isToday,
-                  onTap: () {
-                    if (entry != null && item.cycle != null) {
-                      onSelectEntry(entry, item.cycle!);
-                    } else {
-                      onAddForDate(item.cycle, item.date);
-                    }
-                  },
-                  onCycleOptionsTap: item.cycle != null
-                      ? () => CycleOptionsDialog.show(
-                          context,
-                          cycle: item.cycle!,
-                          cycles: cycles,
-                          targetDate: item.date,
-                        )
-                      : null,
-                ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 68.0),
+              child: TimelineItemCard(
+                date: item.date,
+                entry: entry,
+                cycle: item.cycle,
+                dayNumber: item.dayNumber,
+                isCycleStart: item.isCycleStart,
+                isToday: isToday,
+                onTap: () {
+                  if (entry != null && item.cycle != null) {
+                    onSelectEntry(entry, item.cycle!);
+                  } else {
+                    onAddForDate(item.cycle, item.date);
+                  }
+                },
+                onCycleOptionsTap: item.cycle != null
+                    ? () => CycleOptionsDialog.show(
+                        context,
+                        cycle: item.cycle!,
+                        cycles: cycles,
+                        targetDate: item.date,
+                      )
+                    : null,
               ),
-            ],
-          ),
+            ),
+          ],
         );
 
         if (isMonthStart) {
