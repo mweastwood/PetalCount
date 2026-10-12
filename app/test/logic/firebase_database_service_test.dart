@@ -1500,13 +1500,24 @@ void main() {
         final sep5 = DateTime(2026, 9, 5);
         final legacyObs = Observation(
           id: 'legacy_obs_1',
-          time: sep5,
+          timestamp: sep5,
           sensation: Sensation.dry,
           stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
           bleeding: Bleeding.none,
+          userId: 'user_123',
           comment: 'Misplaced observation before fix',
         );
-        final legacyEntry = DailyEntry(date: sep5, observations: [legacyObs]);
+        final legacyEntry = DailyEntry(
+          date: sep5,
+          resolvedVdrsCode: '',
+          stampType: StampType.green,
+          observations: [legacyObs],
+          painLevel: 0,
+          painTypes: const [],
+          comments: 'Misplaced observation before fix',
+        );
         final sep10Doc = fakeDb.store['charts/$chartId/cycles/2026-09-10']!;
         final sep10Entries = Map<String, dynamic>.from(
           sep10Doc['dailyEntries'] as Map? ?? {},
