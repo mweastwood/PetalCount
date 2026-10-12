@@ -335,7 +335,10 @@ class InMemoryDatabaseService implements DatabaseService {
     _charts[chartId] = {
       'id': chartId,
       'userIds': [_currentUser!.uid],
-      'emails': [_currentUser!.email],
+      'emails': [
+        if (_currentUser!.email != null && _currentUser!.email!.isNotEmpty)
+          _currentUser!.email!,
+      ],
       'reminderEnabled': true,
       if (_userTimezone != null && _userTimezone!.isNotEmpty)
         'timezone': _userTimezone,
@@ -403,7 +406,9 @@ class InMemoryDatabaseService implements DatabaseService {
     final chartId = inv['chartId'] as String;
 
     _charts[chartId]?['userIds']?.add(user.uid);
-    _charts[chartId]?['emails']?.add(user.email);
+    if (user.email != null && user.email!.isNotEmpty) {
+      (_charts[chartId]?['emails'] as List?)?.add(user.email!);
+    }
 
     _users[user.uid]!['chartId'] = chartId;
     _chartId = chartId;
@@ -454,15 +459,25 @@ class InMemoryDatabaseService implements DatabaseService {
   }
 
   @visibleForTesting
+  void setMockCurrentUser(User? user) {
+    _currentUser = user;
+    if (user != null) {
+      _users[user.uid] ??= {'uid': user.uid, 'email': user.email ?? ''};
+    }
+    _authController.add(_currentUser);
+    _emitCharts();
+  }
+
+  @visibleForTesting
   void setMockChartCollaborators(
     String chartId,
     List<String> userIds, {
-    List<String>? emails,
+    List<dynamic>? emails,
   }) {
     if (_charts.containsKey(chartId)) {
       _charts[chartId]!['userIds'] = List<String>.from(userIds);
       if (emails != null) {
-        _charts[chartId]!['emails'] = List<String>.from(emails);
+        _charts[chartId]!['emails'] = List<dynamic>.from(emails);
       }
       _emitCharts();
     }
@@ -530,7 +545,9 @@ class InMemoryDatabaseService implements DatabaseService {
     final chart = _charts[chartId];
     if (chart != null) {
       final userIds = List<String>.from(chart['userIds'] ?? []);
-      final emails = List<String>.from(chart['emails'] ?? []);
+      final rawEmails = (chart['emails'] as List?) ?? const [];
+      final emails =
+          rawEmails.whereType<String>().where((e) => e.isNotEmpty).toList();
 
       if (userIds.length <= 1) {
         throw Exception(
@@ -539,7 +556,9 @@ class InMemoryDatabaseService implements DatabaseService {
       }
 
       userIds.remove(_currentUser!.uid);
-      emails.remove(_currentUser!.email ?? '');
+      if (_currentUser!.email != null && _currentUser!.email!.isNotEmpty) {
+        emails.remove(_currentUser!.email);
+      }
 
       if (userIds.isEmpty) {
         _charts.remove(chartId);

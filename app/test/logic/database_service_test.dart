@@ -126,6 +126,39 @@ void main() {
     },
   );
 
+  test(
+    'createChart does not store null in emails when user has no email',
+    () async {
+      db.setMockCurrentUser(MockUser(uid: 'anon_uid', email: null));
+      await db.createChart();
+
+      final activeId = db.currentChartId;
+      expect(activeId, isNotNull);
+
+      final charts = await db.streamAvailableCharts().first;
+      final chart = charts.firstWhere((c) => c['id'] == activeId);
+      expect(chart['emails'], isEmpty);
+    },
+  );
+
+  test(
+    'leaveChart does not throw TypeError when emails contains null',
+    () async {
+      final activeId = db.currentChartId!;
+      db.setMockChartCollaborators(
+        activeId,
+        ['husband_uid', 'partner_uid'],
+        emails: ['husband@example.com', null, 'partner@example.com'],
+      );
+
+      await db.leaveChart(activeId);
+
+      final updatedCharts = await db.streamAvailableCharts().first;
+      expect(updatedCharts, isEmpty);
+      expect(db.currentChartId, isNull);
+    },
+  );
+
   group('Automatic Cycle Detection', () {
     test(
       'auto-creates initial cycle when saving observation on an empty chart',

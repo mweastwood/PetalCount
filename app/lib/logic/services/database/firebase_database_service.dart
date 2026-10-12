@@ -282,7 +282,9 @@ class FirebaseDatabaseService implements DatabaseService {
     await chartRef.set({
       'id': chartId,
       'userIds': [user.uid],
-      'emails': [user.email],
+      'emails': [
+        if (user.email != null && user.email!.isNotEmpty) user.email!,
+      ],
       'reminderEnabled': true,
       if (userTimezone != null && userTimezone.isNotEmpty)
         'timezone': userTimezone,
@@ -581,7 +583,9 @@ class FirebaseDatabaseService implements DatabaseService {
       if (!chartSnap.exists) return;
 
       final userIds = List<String>.from(chartSnap.data()?['userIds'] ?? []);
-      final emails = List<String>.from(chartSnap.data()?['emails'] ?? []);
+      final rawEmails = (chartSnap.data()?['emails'] as List?) ?? const [];
+      final emails =
+          rawEmails.whereType<String>().where((e) => e.isNotEmpty).toList();
 
       if (userIds.length <= 1) {
         throw Exception(
@@ -590,7 +594,9 @@ class FirebaseDatabaseService implements DatabaseService {
       }
 
       userIds.remove(user.uid);
-      emails.remove(user.email ?? '');
+      if (user.email != null && user.email!.isNotEmpty) {
+        emails.remove(user.email);
+      }
 
       if (userIds.isEmpty) {
         shouldDeleteAll = true;
