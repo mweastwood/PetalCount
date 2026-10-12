@@ -579,6 +579,90 @@ void main() {
         );
       },
     );
+
+    testWidgets(
+      'Pre-cycle date binds to earliest cycle rather than latest cycle',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        // Clear existing cycles
+        final existingCycles = await Services.db.streamCycles().first;
+        for (final c in existingCycles) {
+          await Services.db.deleteCycle(c.id);
+        }
+
+        // Seed two cycles: Cycle 1 starting 2026-06-01, Cycle 2 starting 2026-07-01
+        await Services.db.startNewCycle(DateTime(2026, 6, 1), []);
+        await Services.db.startNewCycle(DateTime(2026, 7, 1), []);
+
+        // Navigate to a date before Cycle 1 (e.g. 2026-05-20)
+        await tester.pumpWidget(
+          createTestWidget(
+            initialDate: DateTime(2026, 5, 20),
+            cycle: null,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Verify date is May 20, 2026
+        expect(find.text('May 20, 2026'), findsOneWidget);
+
+        // Verify cycleDay binds to Cycle 1 (2026-06-01):
+        // calendarDaysBetween(2026-06-01, 2026-05-20) + 1 = -12 + 1 = -11
+        // Prior to fix, it bound to Cycle 2 (2026-07-01), giving 'Cycle Day -41'
+        expect(find.text('Cycle Day -11'), findsOneWidget);
+        expect(find.text('Cycle Day -41'), findsNothing);
+      },
+    );
+  });
+
+  group('SupplementScreen.findCycleForDate Unit Tests', () {
+    final cycle1 = Cycle(id: 'c1', startDate: DateTime(2026, 6, 1));
+    final cycle2 = Cycle(id: 'c2', startDate: DateTime(2026, 7, 1));
+    final cycle3 = Cycle(id: 'c3', startDate: DateTime(2026, 8, 1));
+
+    test('returns null when cycles list is empty', () {
+      expect(
+        SupplementScreen.findCycleForDate([], DateTime(2026, 6, 15)),
+        isNull,
+      );
+    });
+
+    test('returns earliest cycle when date precedes all cycles', () {
+      // Issue #280: dates preceding all cycles must resolve to sorted.first,
+      // not sorted.last.
+      final result = SupplementScreen.findCycleForDate(
+        [cycle2, cycle1, cycle3],
+        DateTime(2026, 5, 20),
+      );
+      expect(result?.id, equals('c1'));
+    });
+
+    test('returns exact cycle when date matches start date', () {
+      final result = SupplementScreen.findCycleForDate(
+        [cycle1, cycle2, cycle3],
+        DateTime(2026, 7, 1),
+      );
+      expect(result?.id, equals('c2'));
+    });
+
+    test('returns appropriate cycle when date falls between cycles', () {
+      final result = SupplementScreen.findCycleForDate(
+        [cycle3, cycle1, cycle2],
+        DateTime(2026, 7, 15),
+      );
+      expect(result?.id, equals('c2'));
+    });
+
+    test('returns latest cycle when date is after all cycle start dates', () {
+      final result = SupplementScreen.findCycleForDate(
+        [cycle1, cycle2, cycle3],
+        DateTime(2026, 8, 20),
+      );
+      expect(result?.id, equals('c3'));
+    });
   });
 
   group('SupplementScreen Golden Tests', () {

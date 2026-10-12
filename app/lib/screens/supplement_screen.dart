@@ -15,6 +15,19 @@ class SupplementScreen extends StatefulWidget {
     this.initialRole,
   });
 
+  @visibleForTesting
+  static Cycle? findCycleForDate(List<Cycle> cycles, DateTime date) {
+    if (cycles.isEmpty) return null;
+    final sorted = List<Cycle>.from(cycles)
+      ..sort((a, b) => a.startDate.compareTo(b.startDate));
+    for (int i = sorted.length - 1; i >= 0; i--) {
+      if (!sorted[i].startDate.isAfter(date)) {
+        return sorted[i];
+      }
+    }
+    return sorted.first;
+  }
+
   @override
   State<SupplementScreen> createState() => _SupplementScreenState();
 }
@@ -64,16 +77,8 @@ class _SupplementScreenState extends State<SupplementScreen>
     });
   }
 
-  Cycle? _findCycleForDate(List<Cycle> cycles, DateTime date) {
-    final sorted = List<Cycle>.from(cycles)
-      ..sort((a, b) => a.startDate.compareTo(b.startDate));
-    for (int i = sorted.length - 1; i >= 0; i--) {
-      if (!sorted[i].startDate.isAfter(date)) {
-        return sorted[i];
-      }
-    }
-    return sorted.isNotEmpty ? sorted.last : null;
-  }
+  Cycle? _findCycleForDate(List<Cycle> cycles, DateTime date) =>
+      SupplementScreen.findCycleForDate(cycles, date);
 
   int _calculateCycleDay(Cycle? cycle, DateTime date) {
     if (cycle == null) return 1;
