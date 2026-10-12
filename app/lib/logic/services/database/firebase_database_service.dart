@@ -1155,8 +1155,8 @@ class FirebaseDatabaseService implements DatabaseService {
             : null;
         final inheritedBipCodes =
             (earliestCycle != null && earliestCycle.bipCodes.isNotEmpty)
-                ? earliestCycle.bipCodes
-                : const <String>['6C'];
+            ? earliestCycle.bipCodes
+            : const <String>['6C'];
         final newCycle = Cycle(
           id: dateStr,
           startDate: date,
