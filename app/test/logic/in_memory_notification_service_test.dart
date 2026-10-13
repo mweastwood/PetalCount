@@ -958,9 +958,7 @@ void main() {
     });
 
     group('Default timestamp handling (now omitted)', () {
-      test(
-        'domain notification methods default now to DateTime.now()',
-        () async {
+      test('domain notification methods default now to DateTime.now()', () async {
           final now = DateTime.now();
           final allowedDateKeys = {
             now.subtractCalendarDays(1).dateKey,
@@ -991,7 +989,8 @@ void main() {
             expect(
               matchingKeys,
               hasLength(1),
-              reason: 'Expected exactly one deduplication key ending with $suffix',
+              reason:
+                  'Expected exactly one deduplication key ending with $suffix',
             );
 
             final datePrefix = matchingKeys.first.replaceAll(suffix, '');
@@ -1007,8 +1006,7 @@ void main() {
                   'Date prefix "$datePrefix" should be within the execution date window',
             );
           }
-        },
-      );
+      });
     });
   });
 
