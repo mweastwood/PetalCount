@@ -38,17 +38,18 @@ class MockConfiguredFirebasePlatform extends FirebasePlatform {
     FirebaseAppPlatform? app,
     this.throwOnApps = false,
     this.throwOnSubsequentAccess = false,
-  })  : _app = app ??
-            FirebaseAppPlatform(
-              defaultFirebaseAppName,
-              const FirebaseOptions(
-                apiKey: 'mock-api-key',
-                appId: 'mock-app-id',
-                messagingSenderId: 'mock-sender-id',
-                projectId: 'mock-project-id',
-              ),
-            ),
-        super();
+  }) : _app =
+           app ??
+           FirebaseAppPlatform(
+             defaultFirebaseAppName,
+             const FirebaseOptions(
+               apiKey: 'mock-api-key',
+               appId: 'mock-app-id',
+               messagingSenderId: 'mock-sender-id',
+               projectId: 'mock-project-id',
+             ),
+           ),
+       super();
 
   @override
   List<FirebaseAppPlatform> get apps {
@@ -165,8 +166,7 @@ void main() {
             (log) =>
                 log.level == LogLevel.info &&
                 log.category == 'init' &&
-                log.message ==
-                    'Firebase not initialized. Falling back to InMemoryDatabaseService.',
+                log.message == 'Firebase not initialized. Falling back to InMemoryDatabaseService.',
           ),
           isTrue,
         );
@@ -211,177 +211,155 @@ void main() {
       },
     );
 
-    test(
-      'Partial injection: dbService only preserves custom db and defaults notifications',
-      () async {
-        final customDb = CustomTestDatabaseService(
-          identifier: 'custom-db-partial',
-        );
+    test('Partial injection: dbService only preserves custom db and defaults notifications', () async {
+      final customDb = CustomTestDatabaseService(
+        identifier: 'custom-db-partial',
+      );
 
-        await Services.init(dbService: customDb);
+      await Services.init(dbService: customDb);
 
-        expect(identical(Services.db, customDb), isTrue);
-        expect(Services.notifications, isA<InMemoryNotificationService>());
-        expect(
-          (Services.notifications as InMemoryNotificationService).isInitialized,
-          isTrue,
-        );
-        expect(
-          Services.logger.logs.any(
-            (log) =>
-                log.level == LogLevel.info &&
-                log.category == 'init' &&
-                log.message == 'NotificationService initialized.',
-          ),
-          isTrue,
-        );
-      },
-    );
+      expect(identical(Services.db, customDb), isTrue);
+      expect(Services.notifications, isA<InMemoryNotificationService>());
+      expect(
+        (Services.notifications as InMemoryNotificationService).isInitialized,
+        isTrue,
+      );
+      expect(
+        Services.logger.logs.any(
+          (log) =>
+              log.level == LogLevel.info &&
+              log.category == 'init' &&
+              log.message == 'NotificationService initialized.',
+        ),
+        isTrue,
+      );
+    });
 
-    test(
-      'Partial injection: notificationService only preserves custom notifications and defaults db',
-      () async {
-        final customNotification = CustomTestNotificationService();
+    test('Partial injection: notificationService only preserves custom notifications and defaults db', () async {
+      final customNotification = CustomTestNotificationService();
 
-        await Services.init(notificationService: customNotification);
+      await Services.init(notificationService: customNotification);
 
-        expect(Services.db, isA<InMemoryDatabaseService>());
-        expect(identical(Services.notifications, customNotification), isTrue);
-        expect(customNotification.isInitialized, isTrue);
-        expect(customNotification.initCallCount, 1);
-        expect(
-          Services.logger.logs.any(
-            (log) =>
-                log.level == LogLevel.info &&
-                log.category == 'init' &&
-                log.message ==
-                    'Firebase not initialized. Falling back to InMemoryDatabaseService.',
-          ),
-          isTrue,
-        );
-        expect(
-          Services.logger.logs.any(
-            (log) =>
-                log.level == LogLevel.info &&
-                log.category == 'init' &&
-                log.message == 'NotificationService initialized.',
-          ),
-          isTrue,
-        );
-      },
-    );
+      expect(Services.db, isA<InMemoryDatabaseService>());
+      expect(identical(Services.notifications, customNotification), isTrue);
+      expect(customNotification.isInitialized, isTrue);
+      expect(customNotification.initCallCount, 1);
+      expect(
+        Services.logger.logs.any(
+          (log) =>
+              log.level == LogLevel.info &&
+              log.category == 'init' &&
+              log.message == 'Firebase not initialized. Falling back to InMemoryDatabaseService.',
+        ),
+        isTrue,
+      );
+      expect(
+        Services.logger.logs.any(
+          (log) =>
+              log.level == LogLevel.info &&
+              log.category == 'init' &&
+              log.message == 'NotificationService initialized.',
+        ),
+        isTrue,
+      );
+    });
   });
 
   group('Group 4: Error Recovery & Resilience', () {
-    test(
-      'Database initialization error recovery falls back to InMemoryDatabaseService when platform channel throws during init',
-      () async {
-        // Configure FirebasePlatform.instance with MockConfiguredFirebasePlatform
-        // where Firebase.apps.isNotEmpty is true initially, but platform channel access during init throws
-        final platform = MockConfiguredFirebasePlatform(
-          throwOnSubsequentAccess: true,
-        );
-        FirebasePlatform.instance = platform;
+    test('Database initialization error recovery falls back to InMemoryDatabaseService when platform channel throws during init', () async {
+      // Configure FirebasePlatform.instance with MockConfiguredFirebasePlatform
+      // where Firebase.apps.isNotEmpty is true initially, but platform channel access during init throws
+      final platform = MockConfiguredFirebasePlatform(
+        throwOnSubsequentAccess: true,
+      );
+      FirebasePlatform.instance = platform;
 
-        expect(Firebase.apps.isNotEmpty, isTrue);
+      expect(Firebase.apps.isNotEmpty, isTrue);
 
-        await Services.init();
+      await Services.init();
 
-        expect(Services.db, isA<InMemoryDatabaseService>());
-        expect(
-          Services.logger.logs.any(
-            (log) =>
-                log.level == LogLevel.error &&
-                log.category == 'init' &&
-                log.message ==
-                    'Exception initializing services, falling back to InMemoryDatabaseService',
-          ),
-          isTrue,
-        );
-      },
-    );
+      expect(Services.db, isA<InMemoryDatabaseService>());
+      expect(
+        Services.logger.logs.any(
+          (log) =>
+              log.level == LogLevel.error &&
+              log.category == 'init' &&
+              log.message == 'Exception initializing services, falling back to InMemoryDatabaseService',
+        ),
+        isTrue,
+      );
+    });
 
-    test(
-      'Database initialization error recovery when platform throws on direct apps query',
-      () async {
-        FirebasePlatform.instance = MockConfiguredFirebasePlatform(
-          throwOnApps: true,
-        );
+    test('Database initialization error recovery when platform throws on direct apps query', () async {
+      FirebasePlatform.instance = MockConfiguredFirebasePlatform(
+        throwOnApps: true,
+      );
 
-        await Services.init();
+      await Services.init();
 
-        expect(Services.db, isA<InMemoryDatabaseService>());
-        expect(
-          Services.logger.logs.any(
-            (log) =>
-                log.level == LogLevel.error &&
-                log.category == 'init' &&
-                log.message ==
-                    'Exception initializing services, falling back to InMemoryDatabaseService',
-          ),
-          isTrue,
-        );
-      },
-    );
+      expect(Services.db, isA<InMemoryDatabaseService>());
+      expect(
+        Services.logger.logs.any(
+          (log) =>
+              log.level == LogLevel.error &&
+              log.category == 'init' &&
+              log.message == 'Exception initializing services, falling back to InMemoryDatabaseService',
+        ),
+        isTrue,
+      );
+    });
 
-    test(
-      'Notification initialization error recovery falls back to InMemoryNotificationService',
-      () async {
-        final throwingNotification = ThrowingNotificationService();
+    test('Notification initialization error recovery falls back to InMemoryNotificationService', () async {
+      final throwingNotification = ThrowingNotificationService();
 
-        await Services.init(notificationService: throwingNotification);
+      await Services.init(notificationService: throwingNotification);
 
-        expect(Services.notifications, isA<InMemoryNotificationService>());
-        expect(identical(Services.notifications, throwingNotification), isFalse);
-        expect(
-          (Services.notifications as InMemoryNotificationService).isInitialized,
-          isTrue,
-        );
-        expect(
-          Services.logger.logs.any(
-            (log) =>
-                log.level == LogLevel.error &&
-                log.category == 'init' &&
-                log.message ==
-                    'Exception initializing NotificationService, falling back to InMemoryNotificationService',
-          ),
-          isTrue,
-        );
-      },
-    );
+      expect(Services.notifications, isA<InMemoryNotificationService>());
+      expect(identical(Services.notifications, throwingNotification), isFalse);
+      expect(
+        (Services.notifications as InMemoryNotificationService).isInitialized,
+        isTrue,
+      );
+      expect(
+        Services.logger.logs.any(
+          (log) =>
+              log.level == LogLevel.error &&
+              log.category == 'init' &&
+              log.message == 'Exception initializing NotificationService, falling back to InMemoryNotificationService',
+        ),
+        isTrue,
+      );
+    });
   });
 
   group('Group 5: Configured Firebase Initialization Branch', () {
-    test(
-      'Services.init() with Firebase configured selects FirebaseDatabaseService and LocalNotificationService',
-      () async {
-        FirebasePlatform.instance = MockConfiguredFirebasePlatform();
-        expect(Firebase.apps.isNotEmpty, isTrue);
+    test('Services.init() with Firebase configured selects FirebaseDatabaseService and LocalNotificationService', () async {
+      FirebasePlatform.instance = MockConfiguredFirebasePlatform();
+      expect(Firebase.apps.isNotEmpty, isTrue);
 
-        await Services.init();
+      await Services.init();
 
-        expect(Services.db, isA<FirebaseDatabaseService>());
-        expect(Services.notifications, isA<LocalNotificationService>());
-        expect(
-          Services.logger.logs.any(
-            (log) =>
-                log.level == LogLevel.info &&
-                log.category == 'init' &&
-                log.message ==
-                    'Firebase initialized and FirebaseDatabaseService selected.',
-          ),
-          isTrue,
-        );
-        expect(
-          Services.logger.logs.any(
-            (log) =>
-                log.level == LogLevel.info &&
-                log.category == 'init' &&
-                log.message == 'NotificationService initialized.',
-          ),
-          isTrue,
-        );
-      },
-    );
+      expect(Services.db, isA<FirebaseDatabaseService>());
+      expect(Services.notifications, isA<LocalNotificationService>());
+      expect(
+        Services.logger.logs.any(
+          (log) =>
+              log.level == LogLevel.info &&
+              log.category == 'init' &&
+              log.message ==
+                  'Firebase initialized and FirebaseDatabaseService selected.',
+        ),
+        isTrue,
+      );
+      expect(
+        Services.logger.logs.any(
+          (log) =>
+              log.level == LogLevel.info &&
+              log.category == 'init' &&
+              log.message == 'NotificationService initialized.',
+        ),
+        isTrue,
+      );
+    });
   });
 }
