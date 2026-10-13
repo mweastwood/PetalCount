@@ -282,9 +282,7 @@ class FirebaseDatabaseService implements DatabaseService {
     await chartRef.set({
       'id': chartId,
       'userIds': [user.uid],
-      'emails': [
-        if (user.email != null && user.email!.isNotEmpty) user.email!,
-      ],
+      'emails': [if (user.email != null && user.email!.isNotEmpty) user.email!],
       'reminderEnabled': true,
       if (userTimezone != null && userTimezone.isNotEmpty)
         'timezone': userTimezone,
@@ -584,8 +582,10 @@ class FirebaseDatabaseService implements DatabaseService {
 
       final userIds = List<String>.from(chartSnap.data()?['userIds'] ?? []);
       final rawEmails = (chartSnap.data()?['emails'] as List?) ?? const [];
-      final emails =
-          rawEmails.whereType<String>().where((e) => e.isNotEmpty).toList();
+      final emails = rawEmails
+          .whereType<String>()
+          .where((e) => e.isNotEmpty)
+          .toList();
 
       if (userIds.length <= 1) {
         throw Exception(

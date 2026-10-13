@@ -546,8 +546,10 @@ class InMemoryDatabaseService implements DatabaseService {
     if (chart != null) {
       final userIds = List<String>.from(chart['userIds'] ?? []);
       final rawEmails = (chart['emails'] as List?) ?? const [];
-      final emails =
-          rawEmails.whereType<String>().where((e) => e.isNotEmpty).toList();
+      final emails = rawEmails
+          .whereType<String>()
+          .where((e) => e.isNotEmpty)
+          .toList();
 
       if (userIds.length <= 1) {
         throw Exception(

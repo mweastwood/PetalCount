@@ -922,10 +922,7 @@ void main() {
       'createChart: does not store null in emails array when user email is null',
       () async {
         fakeAuth.currentUser = FakeUser(uid: 'anon_user', email: null);
-        fakeDb.store['users/anon_user'] = {
-          'uid': 'anon_user',
-          'email': '',
-        };
+        fakeDb.store['users/anon_user'] = {'uid': 'anon_user', 'email': ''};
 
         await service.createChart();
 
