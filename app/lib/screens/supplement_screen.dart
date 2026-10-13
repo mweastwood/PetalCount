@@ -15,6 +15,20 @@ class SupplementScreen extends StatefulWidget {
     this.initialRole,
   });
 
+  @visibleForTesting
+  static Cycle? findCycleForDate(List<Cycle> cycles, DateTime date) {
+    if (cycles.isEmpty) return null;
+    final targetDate = date.toNormalizedDate();
+    final sorted = List<Cycle>.from(cycles)
+      ..sort((a, b) => a.startDate.compareTo(b.startDate));
+    for (int i = sorted.length - 1; i >= 0; i--) {
+      if (!sorted[i].startDate.isAfter(targetDate)) {
+        return sorted[i];
+      }
+    }
+    return null;
+  }
+
   @override
   State<SupplementScreen> createState() => _SupplementScreenState();
 }
@@ -64,24 +78,16 @@ class _SupplementScreenState extends State<SupplementScreen>
     });
   }
 
-  Cycle? _findCycleForDate(List<Cycle> cycles, DateTime date) {
-    final sorted = List<Cycle>.from(cycles)
-      ..sort((a, b) => a.startDate.compareTo(b.startDate));
-    for (int i = sorted.length - 1; i >= 0; i--) {
-      if (!sorted[i].startDate.isAfter(date)) {
-        return sorted[i];
-      }
-    }
-    return sorted.isNotEmpty ? sorted.last : null;
-  }
+  Cycle? _findCycleForDate(List<Cycle> cycles, DateTime date) =>
+      SupplementScreen.findCycleForDate(cycles, date);
 
   int _calculateCycleDay(Cycle? cycle, DateTime date) {
-    if (cycle == null) return 1;
+    if (cycle == null || date.isBefore(cycle.startDate)) return 1;
     return calendarDaysBetween(cycle.startDate, date) + 1;
   }
 
   int? _calculateDaysPastPeak(Cycle? cycle, DateTime date) {
-    if (cycle == null) return null;
+    if (cycle == null || date.isBefore(cycle.startDate)) return null;
     DateTime? peakDate;
     for (final entry in cycle.sortedEntries) {
       if (entry.isPeakDay) {
@@ -157,8 +163,9 @@ class _SupplementScreenState extends State<SupplementScreen>
       stream: _cyclesStream,
       builder: (context, cycleSnapshot) {
         final cycles = cycleSnapshot.data ?? [];
-        final activeCycle =
-            _findCycleForDate(cycles, _selectedDate) ?? widget.activeCycle;
+        final activeCycle = cycles.isNotEmpty
+            ? _findCycleForDate(cycles, _selectedDate)
+            : widget.activeCycle;
         final cycleDay = _calculateCycleDay(activeCycle, _selectedDate);
         final daysPastPeak = _calculateDaysPastPeak(activeCycle, _selectedDate);
         final hasPeakOccurred = daysPastPeak != null;
