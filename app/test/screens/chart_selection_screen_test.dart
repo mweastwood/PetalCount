@@ -492,6 +492,28 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets(
+      'handles charts where emails array contains null or empty strings without crashing',
+      (WidgetTester tester) async {
+        testDb.availableChartsToReturn = [
+          {
+            'id': 'chart_null_email',
+            'emails': [null],
+          },
+          {
+            'id': 'chart_null_and_partner',
+            'emails': ['user@example.com', null, '', 'partner@example.com'],
+          },
+        ];
+
+        await tester.pumpWidget(buildTestApp());
+        await tester.pumpAndSettle();
+
+        expect(find.text('My Solo Chart'), findsOneWidget);
+        expect(find.text('Shared with: partner@example.com'), findsOneWidget);
+      },
+    );
   });
 
   group('Group C: Empty States & Chart Creation', () {

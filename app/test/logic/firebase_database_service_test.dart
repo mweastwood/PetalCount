@@ -919,6 +919,24 @@ void main() {
     );
 
     test(
+      'createChart: does not store null in emails array when user email is null',
+      () async {
+        fakeAuth.currentUser = FakeUser(uid: 'anon_user', email: null);
+        fakeDb.store['users/anon_user'] = {'uid': 'anon_user', 'email': ''};
+
+        await service.createChart();
+
+        final createdChartId = service.currentChartId;
+        expect(createdChartId, isNotNull);
+
+        final chartData = fakeDb.store['charts/$createdChartId'];
+        expect(chartData, isNotNull);
+        expect(chartData!['userIds'], equals(['anon_user']));
+        expect(chartData['emails'], isEmpty);
+      },
+    );
+
+    test(
       'unlinkChart: unlinks chart from user doc and emits null currentChartId',
       () async {
         service.cachedChartId = 'active_chart_1';
@@ -970,6 +988,28 @@ void main() {
           'id': chartId,
           'userIds': ['user_123', 'partner_456'],
           'emails': ['user@example.com', 'partner@example.com'],
+        };
+        fakeDb.store['users/user_123'] = {'chartId': chartId};
+
+        await service.leaveChart(chartId);
+
+        final chartData = fakeDb.store['charts/$chartId']!;
+        expect(chartData['userIds'], equals(['partner_456']));
+        expect(chartData['emails'], equals(['partner@example.com']));
+        expect(service.currentChartId, isNull);
+        expect(fakeDb.store['users/user_123']!['chartId'], isNull);
+      },
+    );
+
+    test(
+      'leaveChart: does not throw TypeError when chart emails contains null',
+      () async {
+        const chartId = 'shared_chart_null_email';
+        service.cachedChartId = chartId;
+        fakeDb.store['charts/$chartId'] = {
+          'id': chartId,
+          'userIds': ['user_123', 'partner_456'],
+          'emails': ['user@example.com', null, 'partner@example.com'],
         };
         fakeDb.store['users/user_123'] = {'chartId': chartId};
 

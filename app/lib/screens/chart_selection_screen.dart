@@ -183,7 +183,11 @@ class _ChartSelectionScreenState extends State<ChartSelectionScreen> {
                       final chartId = chart['id'] as String;
                       final isActive = currentChartId == chartId;
 
-                      final emails = List<String>.from(chart['emails'] ?? []);
+                      final rawEmails = (chart['emails'] as List?) ?? const [];
+                      final emails = rawEmails
+                          .whereType<String>()
+                          .where((e) => e.isNotEmpty)
+                          .toList();
                       final partners = emails
                           .where((e) => e != currentUserEmail)
                           .toList();
