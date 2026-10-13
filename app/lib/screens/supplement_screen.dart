@@ -25,7 +25,7 @@ class SupplementScreen extends StatefulWidget {
         return sorted[i];
       }
     }
-    return sorted.first;
+    return null;
   }
 
   @override
@@ -81,12 +81,12 @@ class _SupplementScreenState extends State<SupplementScreen>
       SupplementScreen.findCycleForDate(cycles, date);
 
   int _calculateCycleDay(Cycle? cycle, DateTime date) {
-    if (cycle == null) return 1;
+    if (cycle == null || date.isBefore(cycle.startDate)) return 1;
     return calendarDaysBetween(cycle.startDate, date) + 1;
   }
 
   int? _calculateDaysPastPeak(Cycle? cycle, DateTime date) {
-    if (cycle == null) return null;
+    if (cycle == null || date.isBefore(cycle.startDate)) return null;
     DateTime? peakDate;
     for (final entry in cycle.sortedEntries) {
       if (entry.isPeakDay) {
@@ -162,8 +162,9 @@ class _SupplementScreenState extends State<SupplementScreen>
       stream: _cyclesStream,
       builder: (context, cycleSnapshot) {
         final cycles = cycleSnapshot.data ?? [];
-        final activeCycle =
-            _findCycleForDate(cycles, _selectedDate) ?? widget.activeCycle;
+        final activeCycle = cycles.isNotEmpty
+            ? _findCycleForDate(cycles, _selectedDate)
+            : widget.activeCycle;
         final cycleDay = _calculateCycleDay(activeCycle, _selectedDate);
         final daysPastPeak = _calculateDaysPastPeak(activeCycle, _selectedDate);
         final hasPeakOccurred = daysPastPeak != null;

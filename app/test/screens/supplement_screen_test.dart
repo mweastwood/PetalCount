@@ -581,7 +581,7 @@ void main() {
     );
 
     testWidgets(
-      'Pre-cycle date binds to earliest cycle rather than latest cycle',
+      'Pre-cycle date does not bind to future cycles and displays non-negative cycle day',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
         tester.view.devicePixelRatio = 1.0;
@@ -599,21 +599,18 @@ void main() {
 
         // Navigate to a date before Cycle 1 (e.g. 2026-05-20)
         await tester.pumpWidget(
-          createTestWidget(
-            initialDate: DateTime(2026, 5, 20),
-            cycle: null,
-          ),
+          createTestWidget(initialDate: DateTime(2026, 5, 20), cycle: null),
         );
         await tester.pumpAndSettle();
 
         // Verify date is May 20, 2026
         expect(find.text('May 20, 2026'), findsOneWidget);
 
-        // Verify cycleDay binds to Cycle 1 (2026-06-01):
-        // calendarDaysBetween(2026-06-01, 2026-05-20) + 1 = -12 + 1 = -11
-        // Prior to fix, it bound to Cycle 2 (2026-07-01), giving 'Cycle Day -41'
-        expect(find.text('Cycle Day -11'), findsOneWidget);
+        // Verify pre-cycle date does not produce negative cycle day or bind to future cycles:
+        expect(find.text('Cycle Day 1'), findsOneWidget);
+        expect(find.text('Cycle Day -11'), findsNothing);
         expect(find.text('Cycle Day -41'), findsNothing);
+        expect(find.textContaining('Peak'), findsNothing);
       },
     );
   });
@@ -630,37 +627,39 @@ void main() {
       );
     });
 
-    test('returns earliest cycle when date precedes all cycles', () {
-      // Issue #280: dates preceding all cycles must resolve to sorted.first,
-      // not sorted.last.
-      final result = SupplementScreen.findCycleForDate(
-        [cycle2, cycle1, cycle3],
-        DateTime(2026, 5, 20),
-      );
-      expect(result?.id, equals('c1'));
+    test('returns null when date precedes all cycles', () {
+      final result = SupplementScreen.findCycleForDate([
+        cycle2,
+        cycle1,
+        cycle3,
+      ], DateTime(2026, 5, 20));
+      expect(result, isNull);
     });
 
     test('returns exact cycle when date matches start date', () {
-      final result = SupplementScreen.findCycleForDate(
-        [cycle1, cycle2, cycle3],
-        DateTime(2026, 7, 1),
-      );
+      final result = SupplementScreen.findCycleForDate([
+        cycle1,
+        cycle2,
+        cycle3,
+      ], DateTime(2026, 7, 1));
       expect(result?.id, equals('c2'));
     });
 
     test('returns appropriate cycle when date falls between cycles', () {
-      final result = SupplementScreen.findCycleForDate(
-        [cycle3, cycle1, cycle2],
-        DateTime(2026, 7, 15),
-      );
+      final result = SupplementScreen.findCycleForDate([
+        cycle3,
+        cycle1,
+        cycle2,
+      ], DateTime(2026, 7, 15));
       expect(result?.id, equals('c2'));
     });
 
     test('returns latest cycle when date is after all cycle start dates', () {
-      final result = SupplementScreen.findCycleForDate(
-        [cycle1, cycle2, cycle3],
-        DateTime(2026, 8, 20),
-      );
+      final result = SupplementScreen.findCycleForDate([
+        cycle1,
+        cycle2,
+        cycle3,
+      ], DateTime(2026, 8, 20));
       expect(result?.id, equals('c3'));
     });
   });
