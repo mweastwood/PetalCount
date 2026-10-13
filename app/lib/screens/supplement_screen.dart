@@ -18,10 +18,11 @@ class SupplementScreen extends StatefulWidget {
   @visibleForTesting
   static Cycle? findCycleForDate(List<Cycle> cycles, DateTime date) {
     if (cycles.isEmpty) return null;
+    final targetDate = date.toNormalizedDate();
     final sorted = List<Cycle>.from(cycles)
       ..sort((a, b) => a.startDate.compareTo(b.startDate));
     for (int i = sorted.length - 1; i >= 0; i--) {
-      if (!sorted[i].startDate.isAfter(date)) {
+      if (!sorted[i].startDate.isAfter(targetDate)) {
         return sorted[i];
       }
     }

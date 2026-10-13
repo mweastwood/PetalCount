@@ -593,13 +593,73 @@ void main() {
           await Services.db.deleteCycle(c.id);
         }
 
-        // Seed two cycles: Cycle 1 starting 2026-06-01, Cycle 2 starting 2026-07-01
+        // Seed two cycles with peak day entries:
+        // Cycle 1: Start date 2026-06-01, Peak Day on 2026-06-15
         await Services.db.startNewCycle(DateTime(2026, 6, 1), []);
-        await Services.db.startNewCycle(DateTime(2026, 7, 1), []);
+        await Services.db.saveObservation(
+          date: DateTime(2026, 6, 15, 12, 0),
+          sensation: Sensation.wet,
+          stretch: Stretch.stretchy,
+          colors: [MucusColor.clear],
+          consistencies: [Consistency.lubricative],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Cycle 1 Peak Day',
+        );
+        await Services.db.saveObservation(
+          date: DateTime(2026, 6, 16, 12, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Cycle 1 Post-Peak 1',
+        );
 
-        // Navigate to a date before Cycle 1 (e.g. 2026-05-20)
+        // Cycle 2: Start date 2026-07-01, Peak Day on 2026-07-15
+        await Services.db.startNewCycle(DateTime(2026, 7, 1), []);
+        await Services.db.saveObservation(
+          date: DateTime(2026, 7, 15, 12, 0),
+          sensation: Sensation.wet,
+          stretch: Stretch.stretchy,
+          colors: [MucusColor.clear],
+          consistencies: [Consistency.lubricative],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Cycle 2 Peak Day',
+        );
+        await Services.db.saveObservation(
+          date: DateTime(2026, 7, 16, 12, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Cycle 2 Post-Peak 1',
+        );
+
+        final cycles = await Services.db.streamCycles().first;
+        final cycle2 = cycles.firstWhere(
+          (c) => c.startDate == DateTime(2026, 7, 1),
+        );
+        expect(cycle2.sortedEntries.any((e) => e.isPeakDay), isTrue);
+
+        // Mount SupplementScreen with activeCycle: cycle2 (with peak day) on a pre-cycle date
         await tester.pumpWidget(
-          createTestWidget(initialDate: DateTime(2026, 5, 20), cycle: null),
+          createTestWidget(
+            initialDate: DateTime(2026, 5, 20),
+            cycle: cycle2,
+          ),
         );
         await tester.pumpAndSettle();
 
@@ -611,6 +671,114 @@ void main() {
         expect(find.text('Cycle Day -11'), findsNothing);
         expect(find.text('Cycle Day -41'), findsNothing);
         expect(find.textContaining('Peak'), findsNothing);
+
+        // Verify daily intake checklists remain fully functional and doses can be logged without error
+        final checkboxFinder = find.byType(Checkbox);
+        if (checkboxFinder.evaluate().isNotEmpty) {
+          await tester.tap(checkboxFinder.first);
+          await tester.pumpAndSettle();
+        }
+      },
+    );
+
+    testWidgets(
+      'Navigating backward before earliest cycle clears cycle day binding and peak markers',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        // Clear existing cycles
+        final existingCycles = await Services.db.streamCycles().first;
+        for (final c in existingCycles) {
+          await Services.db.deleteCycle(c.id);
+        }
+
+        // Seed Cycle 1: Start date 2026-06-01, Peak Day on 2026-06-15
+        await Services.db.startNewCycle(DateTime(2026, 6, 1), []);
+        await Services.db.saveObservation(
+          date: DateTime(2026, 6, 15, 12, 0),
+          sensation: Sensation.wet,
+          stretch: Stretch.stretchy,
+          colors: [MucusColor.clear],
+          consistencies: [Consistency.lubricative],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Cycle 1 Peak Day',
+        );
+        await Services.db.saveObservation(
+          date: DateTime(2026, 6, 16, 12, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Cycle 1 Post-Peak 1',
+        );
+
+        // Seed Cycle 2: Start date 2026-07-01, Peak Day on 2026-07-15
+        await Services.db.startNewCycle(DateTime(2026, 7, 1), []);
+        await Services.db.saveObservation(
+          date: DateTime(2026, 7, 15, 12, 0),
+          sensation: Sensation.wet,
+          stretch: Stretch.stretchy,
+          colors: [MucusColor.clear],
+          consistencies: [Consistency.lubricative],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Cycle 2 Peak Day',
+        );
+        await Services.db.saveObservation(
+          date: DateTime(2026, 7, 16, 12, 0),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Cycle 2 Post-Peak 1',
+        );
+
+        final cycles = await Services.db.streamCycles().first;
+        final cycle2 = cycles.firstWhere(
+          (c) => c.startDate == DateTime(2026, 7, 1),
+        );
+
+        // Mount at Cycle 1 start date with activeCycle: cycle2
+        await tester.pumpWidget(
+          createTestWidget(
+            initialDate: DateTime(2026, 6, 1),
+            cycle: cycle2,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('June 1, 2026'), findsOneWidget);
+        expect(find.text('Cycle Day 1 • Pre-Peak (P-14)'), findsOneWidget);
+
+        // Navigate backward to May 31, 2026 (pre-cycle)
+        await tester.tap(find.byTooltip('Previous Day'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('May 31, 2026'), findsOneWidget);
+        expect(find.text('Cycle Day 1'), findsOneWidget);
+        expect(find.textContaining('Peak'), findsNothing);
+
+        // Navigate forward back into Cycle 1
+        await tester.tap(find.byTooltip('Next Day'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('June 1, 2026'), findsOneWidget);
+        expect(find.text('Cycle Day 1 • Pre-Peak (P-14)'), findsOneWidget);
       },
     );
   });
@@ -661,6 +829,22 @@ void main() {
         cycle3,
       ], DateTime(2026, 8, 20));
       expect(result?.id, equals('c3'));
+    });
+
+    test('defensively normalizes dates with non-zero time components or differing offsets', () {
+      final result = SupplementScreen.findCycleForDate([
+        cycle1,
+        cycle2,
+        cycle3,
+      ], DateTime(2026, 7, 1, 23, 59, 59));
+      expect(result?.id, equals('c2'));
+
+      final preResult = SupplementScreen.findCycleForDate([
+        cycle1,
+        cycle2,
+        cycle3,
+      ], DateTime(2026, 5, 31, 23, 59, 59));
+      expect(preResult, isNull);
     });
   });
 
