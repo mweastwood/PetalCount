@@ -958,7 +958,9 @@ void main() {
     });
 
     group('Default timestamp handling (now omitted)', () {
-      test('domain notification methods default now to DateTime.now()', () async {
+      test(
+        'domain notification methods default now to DateTime.now()',
+        () async {
           final now = DateTime.now();
           final allowedDateKeys = {
             now.subtractCalendarDays(1).dateKey,
@@ -997,7 +999,8 @@ void main() {
             expect(
               RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(datePrefix),
               isTrue,
-              reason: 'Date prefix "$datePrefix" should follow YYYY-MM-DD format',
+              reason:
+                  'Date prefix "$datePrefix" should follow YYYY-MM-DD format',
             );
             expect(
               allowedDateKeys,
@@ -1006,7 +1009,8 @@ void main() {
                   'Date prefix "$datePrefix" should be within the execution date window',
             );
           }
-      });
+        },
+      );
     });
   });
 
