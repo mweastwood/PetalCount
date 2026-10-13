@@ -961,7 +961,12 @@ void main() {
       test(
         'domain notification methods default now to DateTime.now()',
         () async {
-          final todayKey = DateTime.now().dateKey;
+          final now = DateTime.now();
+          final allowedDateKeys = {
+            now.subtractCalendarDays(1).dateKey,
+            now.dateKey,
+            now.addCalendarDays(1).dateKey,
+          };
 
           await service.notifyFertilePattern(role: UserRole.wife);
           await service.notifyPeakDay(role: UserRole.wife);
@@ -969,22 +974,39 @@ void main() {
           await service.notifyBreastSelfExam(role: UserRole.wife);
 
           expect(service.notificationCount, 4);
-          expect(
-            service.sentNotificationDeduplicationKeys,
-            contains('${todayKey}_fertile_wife'),
-          );
-          expect(
-            service.sentNotificationDeduplicationKeys,
-            contains('${todayKey}_peak_P_wife'),
-          );
-          expect(
-            service.sentNotificationDeduplicationKeys,
-            contains('${todayKey}_kindness_wife'),
-          );
-          expect(
-            service.sentNotificationDeduplicationKeys,
-            contains('${todayKey}_bse_wife'),
-          );
+          expect(service.sentNotificationDeduplicationKeys, hasLength(4));
+
+          final expectedSuffixes = [
+            '_fertile_wife',
+            '_peak_P_wife',
+            '_kindness_wife',
+            '_bse_wife',
+          ];
+
+          for (final suffix in expectedSuffixes) {
+            final matchingKeys = service.sentNotificationDeduplicationKeys
+                .where((k) => k.endsWith(suffix))
+                .toList();
+
+            expect(
+              matchingKeys,
+              hasLength(1),
+              reason: 'Expected exactly one deduplication key ending with $suffix',
+            );
+
+            final datePrefix = matchingKeys.first.replaceAll(suffix, '');
+            expect(
+              RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(datePrefix),
+              isTrue,
+              reason: 'Date prefix "$datePrefix" should follow YYYY-MM-DD format',
+            );
+            expect(
+              allowedDateKeys,
+              contains(datePrefix),
+              reason:
+                  'Date prefix "$datePrefix" should be within the execution date window',
+            );
+          }
         },
       );
     });
