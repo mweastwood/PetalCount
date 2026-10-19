@@ -875,11 +875,22 @@ class InMemoryDatabaseService implements DatabaseService {
       );
       _cycles[chartId]![dateStr] = newCycle.toMap();
       cycles.add(newCycle);
-    } else if (isHeavyOrModerate) {
+    } else {
       final eligible = cycles
           .where((c) => c.startDate.compareTo(date) <= 0)
           .toList();
-      if (eligible.isNotEmpty) {
+      if (eligible.isEmpty) {
+        // Observation date is before all existing cycles — create a new cycle
+        // starting on this date so the observation is not attached to a future
+        // cycle (which would produce a negative day index).
+        final earliestBips = cycles.first.bipCodes;
+        await startNewCycle(
+          date,
+          earliestBips.isNotEmpty
+              ? List<String>.from(earliestBips)
+              : const <String>['6C'],
+        );
+      } else if (isHeavyOrModerate) {
         final latest = eligible.last;
         final autoStart = CreightonLogic.evaluateAutoCycleStart(latest, date);
         if (autoStart != null) {

@@ -55,6 +55,8 @@ class FakeFirebaseAuth extends Fake implements FirebaseAuth {
 
 class FakeFirebaseFirestore extends Fake implements FirebaseFirestore {
   final Map<String, Map<String, dynamic>> store = {};
+  final Map<String, FirebaseException> getDocErrors = {};
+  final Map<String, FirebaseException> snapshotErrors = {};
   int _autoIdCounter = 1;
 
   final Map<
@@ -473,6 +475,9 @@ class FakeDocumentReference extends Fake
   Future<DocumentSnapshot<Map<String, dynamic>>> get([
     GetOptions? options,
   ]) async {
+    if (firestoreInstance.getDocErrors.containsKey(path)) {
+      throw firestoreInstance.getDocErrors[path]!;
+    }
     final data = firestoreInstance.store[path];
     return FakeDocumentSnapshot<Map<String, dynamic>>(
       id: id,
@@ -506,6 +511,10 @@ class FakeDocumentReference extends Fake
         StreamController<DocumentSnapshot<Map<String, dynamic>>>.broadcast(
           onListen: () {
             firestoreInstance.registerDocListener(path, controller);
+            if (firestoreInstance.snapshotErrors.containsKey(path)) {
+              controller.addError(firestoreInstance.snapshotErrors[path]!);
+              return;
+            }
             final data = firestoreInstance.store[path];
             controller.add(
               FakeDocumentSnapshot<Map<String, dynamic>>(
@@ -1312,6 +1321,259 @@ void main() {
         expect(fakeDb.store['charts/$chartId/cycles/$dateKey'], isNull);
       },
     );
+
+    test(
+      'saveObservation: before all existing cycles creates a new cycle starting on observation date (fixes #245)',
+      () async {
+        final sep1 = DateTime(2026, 9, 1);
+        await service.startNewCycle(sep1, ['6C']);
+
+        final aug25 = DateTime(2026, 8, 25);
+        await service.saveObservation(
+          date: aug25,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Backfilled observation before first cycle',
+        );
+
+        final cycles = await service.streamCycles().first;
+        expect(cycles.length, 2);
+        final preCycle = cycles.firstWhere(
+          (c) => c.startDate == aug25,
+          orElse: () =>
+              throw TestFailure('Expected a cycle with startDate 2026-08-25'),
+        );
+        expect(preCycle.dailyEntries.containsKey('2026-08-25'), isTrue);
+        expect(preCycle.dayNumberFor(aug25), equals(1));
+
+        final subDoc = fakeDb
+            .store['charts/$chartId/cycles/2026-08-25/dailyEntries/2026-08-25'];
+        expect(subDoc, isNull);
+      },
+    );
+
+    test(
+      'saveObservation: pre-cycle observation inherits BIP codes from earliest existing cycle',
+      () async {
+        final sep1 = DateTime(2026, 9, 1);
+        await service.startNewCycle(sep1, ['6C', '8Y']);
+
+        final aug20 = DateTime(2026, 8, 20);
+        await service.saveObservation(
+          date: aug20,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Pre-cycle observation',
+        );
+
+        final cycles = await service.streamCycles().first;
+        final preCycle = cycles.firstWhere((c) => c.startDate == aug20);
+        expect(preCycle.bipCodes, equals(['6C', '8Y']));
+      },
+    );
+
+    test(
+      'saveObservation: pre-cycle observation falls back to default 6C when earliest existing cycle has empty BIP codes',
+      () async {
+        final sep1 = DateTime(2026, 9, 1);
+        await service.startNewCycle(sep1, []);
+
+        final aug20 = DateTime(2026, 8, 20);
+        await service.saveObservation(
+          date: aug20,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Pre-cycle observation with empty bipCodes',
+        );
+
+        final cycles = await service.streamCycles().first;
+        final preCycle = cycles.firstWhere((c) => c.startDate == aug20);
+        expect(preCycle.bipCodes, equals(['6C']));
+      },
+    );
+
+    test(
+      'saveObservation: pre-cycle heavy bleeding observation creates cycle with positive day index',
+      () async {
+        final sep1 = DateTime(2026, 9, 1);
+        await service.startNewCycle(sep1, ['6C']);
+
+        final aug28 = DateTime(2026, 8, 28);
+        await service.saveObservation(
+          date: aug28,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.heavy,
+          bleedingColor: 'R',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Backfilled period bleeding',
+        );
+
+        final cycles = await service.streamCycles().first;
+        final preCycle = cycles.firstWhere(
+          (c) => c.startDate == aug28,
+          orElse: () =>
+              throw TestFailure('Expected a cycle with startDate 2026-08-28'),
+        );
+        expect(preCycle.dailyEntries.containsKey('2026-08-28'), isTrue);
+        expect(preCycle.dayNumberFor(aug28), equals(1));
+      },
+    );
+
+    test(
+      'saveObservation: multiple pre-cycle observations end up in same cycle and trigger daily entry reallocation',
+      () async {
+        final oct1 = DateTime(2026, 10, 1);
+        await service.startNewCycle(oct1, ['6C']);
+
+        final sep27 = DateTime(2026, 9, 27);
+        final sep28 = DateTime(2026, 9, 28);
+
+        await service.saveObservation(
+          date: sep27,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'First pre-cycle obs',
+        );
+
+        await service.saveObservation(
+          date: sep28,
+          sensation: Sensation.damp,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Second pre-cycle obs',
+        );
+
+        final cycles = await service.streamCycles().first;
+        final preCycle = cycles.firstWhere(
+          (c) => c.startDate == sep27,
+          orElse: () =>
+              throw TestFailure('Expected a cycle with startDate 2026-09-27'),
+        );
+        expect(preCycle.dailyEntries.containsKey('2026-09-27'), isTrue);
+        expect(preCycle.dailyEntries.containsKey('2026-09-28'), isTrue);
+        expect(preCycle.dayNumberFor(sep28), equals(2));
+
+        expect(
+          fakeDb
+              .store['charts/$chartId/cycles/2026-09-27/dailyEntries/2026-09-27'],
+          isNull,
+        );
+        expect(
+          fakeDb
+              .store['charts/$chartId/cycles/2026-09-27/dailyEntries/2026-09-28'],
+          isNull,
+        );
+      },
+    );
+
+    test(
+      'saveObservation: reallocates misplaced daily entry to newly created pre-cycle and cleans up old cycle subcollection doc',
+      () async {
+        final sep10 = DateTime(2026, 9, 10);
+        await service.startNewCycle(sep10, ['6C']);
+
+        // Manually place a daily entry with date Sep 5 inside Sep 10 cycle (e.g. legacy data before fix)
+        final sep5 = DateTime(2026, 9, 5);
+        final legacyObs = Observation(
+          id: 'legacy_obs_1',
+          timestamp: sep5,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          userId: 'user_123',
+          comment: 'Misplaced observation before fix',
+        );
+        final legacyEntry = DailyEntry(
+          date: sep5,
+          resolvedVdrsCode: '',
+          stampType: StampType.green,
+          observations: [legacyObs],
+          painLevel: 0,
+          painTypes: const [],
+          comments: 'Misplaced observation before fix',
+        );
+        final sep10Doc = fakeDb.store['charts/$chartId/cycles/2026-09-10']!;
+        final sep10Entries = Map<String, dynamic>.from(
+          sep10Doc['dailyEntries'] as Map? ?? {},
+        );
+        sep10Entries['2026-09-05'] = legacyEntry.toMap();
+        fakeDb.store['charts/$chartId/cycles/2026-09-10'] = {
+          ...sep10Doc,
+          'dailyEntries': sep10Entries,
+        };
+        fakeDb.store['charts/$chartId/cycles/2026-09-10/dailyEntries/2026-09-05'] =
+            legacyEntry.toMap();
+
+        // Now save a pre-cycle observation on Sep 1
+        final sep1 = DateTime(2026, 9, 1);
+        await service.saveObservation(
+          date: sep1,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: [],
+          comment: 'Pre-cycle observation triggering reallocation',
+        );
+
+        final cycles = await service.streamCycles().first;
+        final preCycle = cycles.firstWhere((c) => c.startDate == sep1);
+        final postCycle = cycles.firstWhere((c) => c.startDate == sep10);
+
+        expect(preCycle.dailyEntries.containsKey('2026-09-01'), isTrue);
+        expect(preCycle.dailyEntries.containsKey('2026-09-05'), isTrue);
+        expect(postCycle.dailyEntries.containsKey('2026-09-05'), isFalse);
+
+        expect(
+          fakeDb
+              .store['charts/$chartId/cycles/2026-09-01/dailyEntries/2026-09-05'],
+          isNull,
+        );
+        expect(
+          fakeDb
+              .store['charts/$chartId/cycles/2026-09-10/dailyEntries/2026-09-05'],
+          isNull,
+        );
+      },
+    );
   });
 
   // ===========================================================================
@@ -1536,5 +1798,206 @@ void main() {
         );
       },
     );
+
+    group('Deleted chart and access loss handling (Issue #266)', () {
+      const testChartId = 'chart_deleted_test';
+      const partnerUid = 'partner_456';
+
+      test(
+        '_fetchChartId returns null and resets users/{uid}.chartId when chart document does not exist',
+        () async {
+          fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
+          // charts/chart_deleted_test does not exist in store
+
+          final result = await service.fetchChartId(partnerUid);
+
+          expect(result, isNull);
+          expect(fakeDb.store['users/$partnerUid']?['chartId'], isNull);
+        },
+      );
+
+      test(
+        '_fetchChartId returns null and resets users/{uid}.chartId when uid is absent from userIds',
+        () async {
+          fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
+          fakeDb.store['charts/$testChartId'] = {
+            'userIds': ['other_user_789'],
+          };
+
+          final result = await service.fetchChartId(partnerUid);
+
+          expect(result, isNull);
+          expect(fakeDb.store['users/$partnerUid']?['chartId'], isNull);
+        },
+      );
+
+      test(
+        '_fetchChartId returns chartId when chart exists and uid is in userIds',
+        () async {
+          fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
+          fakeDb.store['charts/$testChartId'] = {
+            'userIds': ['other_user_789', partnerUid],
+          };
+
+          final result = await service.fetchChartId(partnerUid);
+
+          expect(result, equals(testChartId));
+          expect(
+            fakeDb.store['users/$partnerUid']?['chartId'],
+            equals(testChartId),
+          );
+        },
+      );
+
+      test(
+        '_fetchChartId returns null and resets Firestore when fetching chart throws permission-denied',
+        () async {
+          fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
+          fakeDb.getDocErrors['charts/$testChartId'] = FirebaseException(
+            plugin: 'firestore',
+            code: 'permission-denied',
+            message: 'Permission denied for deleted chart',
+          );
+
+          final result = await service.fetchChartId(partnerUid);
+
+          expect(result, isNull);
+          expect(fakeDb.store['users/$partnerUid']?['chartId'], isNull);
+        },
+      );
+
+      test(
+        '_fetchChartId preserves Firestore users/{uid}.chartId and returns chartId on transient errors',
+        () async {
+          fakeDb.store['users/$partnerUid'] = {'chartId': testChartId};
+          fakeDb.getDocErrors['charts/$testChartId'] = FirebaseException(
+            plugin: 'firestore',
+            code: 'unavailable',
+            message: 'Network connection unavailable',
+          );
+
+          final result = await service.fetchChartId(partnerUid);
+
+          expect(result, equals(testChartId));
+          expect(
+            fakeDb.store['users/$partnerUid']?['chartId'],
+            equals(testChartId),
+          );
+        },
+      );
+
+      test(
+        '_handleChartAccessLost clears cached state, updates Firestore, and emits auth event',
+        () async {
+          service.cachedChartId = testChartId;
+          fakeDb.store['users/user_123'] = {'chartId': testChartId};
+
+          final authEmitted = <User?>[];
+          final sub = service.authStateChanges.listen(authEmitted.add);
+          addTearDown(sub.cancel);
+          await pumpEventQueue();
+
+          await service.handleChartAccessLost(testChartId);
+          await pumpEventQueue();
+
+          expect(service.currentChartId, isNull);
+          expect(fakeDb.store['users/user_123']?['chartId'], isNull);
+          expect(authEmitted, contains(currentUser));
+        },
+      );
+
+      test(
+        'streamChartReminderEnabled handles permission-denied gracefully, invalidates access, and emits fallback',
+        () async {
+          service.cachedChartId = testChartId;
+          fakeDb.store['users/user_123'] = {'chartId': testChartId};
+          fakeDb.snapshotErrors['charts/$testChartId'] = FirebaseException(
+            plugin: 'firestore',
+            code: 'permission-denied',
+          );
+
+          final emitted = <bool>[];
+          final sub = service
+              .streamChartReminderEnabled(testChartId)
+              .listen(emitted.add);
+          addTearDown(sub.cancel);
+          await pumpEventQueue();
+
+          // Should not throw an unhandled exception, should trigger access lost, and emit fallback true
+          expect(service.currentChartId, isNull);
+          expect(fakeDb.store['users/user_123']?['chartId'], isNull);
+          expect(emitted, [isTrue]);
+
+          // Consumers awaiting .first should not stall
+          final firstVal = await service
+              .streamChartReminderEnabled(testChartId)
+              .first;
+          expect(firstVal, isTrue);
+        },
+      );
+
+      test(
+        'streamNotificationPreferences handles permission-denied gracefully, invalidates access, and emits fallback',
+        () async {
+          service.cachedChartId = testChartId;
+          fakeDb.store['users/user_123'] = {'chartId': testChartId};
+          fakeDb.snapshotErrors['charts/$testChartId'] = FirebaseException(
+            plugin: 'firestore',
+            code: 'permission-denied',
+          );
+
+          final emitted = <NotificationPreferences>[];
+          final sub = service
+              .streamNotificationPreferences(testChartId)
+              .listen(emitted.add);
+          addTearDown(sub.cancel);
+          await pumpEventQueue();
+
+          // Should not throw an unhandled exception, should trigger access lost, and emit fallback const NotificationPreferences()
+          expect(service.currentChartId, isNull);
+          expect(fakeDb.store['users/user_123']?['chartId'], isNull);
+          expect(emitted, [equals(const NotificationPreferences())]);
+
+          // Consumers awaiting .first should not stall
+          final firstVal = await service
+              .streamNotificationPreferences(testChartId)
+              .first;
+          expect(firstVal, equals(const NotificationPreferences()));
+        },
+      );
+
+      test(
+        'streamCycles handles permission-denied in gated stream by clearing cached chart and resetting profile',
+        () async {
+          service.cachedChartId = testChartId;
+          fakeDb.store['users/user_123'] = {'chartId': testChartId};
+
+          final stream =
+              FirebaseDatabaseService.buildAuthGatedStreamHelper<List<String>>(
+                getCurrentChartId: () => service.currentChartId,
+                authStateChanges: service.authStateChanges,
+                emptyValue: const [],
+                subscribe: (chartId) {
+                  return Stream.error(
+                    FirebaseException(
+                      plugin: 'firestore',
+                      code: 'permission-denied',
+                    ),
+                  );
+                },
+                onAccessLost: service.handleChartAccessLost,
+              );
+
+          final emitted = <List<String>>[];
+          final sub = stream.listen(emitted.add);
+          addTearDown(sub.cancel);
+          await pumpEventQueue();
+
+          expect(emitted, [isEmpty]);
+          expect(service.currentChartId, isNull);
+          expect(fakeDb.store['users/user_123']?['chartId'], isNull);
+        },
+      );
+    });
   });
 }

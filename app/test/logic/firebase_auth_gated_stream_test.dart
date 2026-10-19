@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/services/database/firebase_database_service.dart';
@@ -173,6 +174,72 @@ void main() {
             ),
           ),
         );
+      },
+    );
+
+    test(
+      'invokes onAccessLost callback when data stream errors with permission-denied FirebaseException',
+      () async {
+        final authController = StreamController<dynamic>.broadcast();
+        final dataController = StreamController<List<String>>.broadcast();
+        addTearDown(authController.close);
+        addTearDown(dataController.close);
+
+        String? lostChartId;
+        final stream =
+            FirebaseDatabaseService.buildAuthGatedStreamHelper<List<String>>(
+              getCurrentChartId: () => 'chart_lost',
+              authStateChanges: authController.stream,
+              emptyValue: const [],
+              subscribe: (_) => dataController.stream,
+              onAccessLost: (chartId) async {
+                lostChartId = chartId;
+              },
+            );
+
+        final emitted = <List<String>>[];
+        final sub = stream.listen(emitted.add);
+        addTearDown(sub.cancel);
+
+        dataController.addError(
+          FirebaseException(plugin: 'firestore', code: 'permission-denied'),
+        );
+        await pumpEventQueue();
+
+        expect(emitted, [isEmpty]);
+        expect(lostChartId, equals('chart_lost'));
+      },
+    );
+
+    test(
+      'does not invoke onAccessLost callback for standard non-permission errors',
+      () async {
+        final authController = StreamController<dynamic>.broadcast();
+        final dataController = StreamController<List<String>>.broadcast();
+        addTearDown(authController.close);
+        addTearDown(dataController.close);
+
+        String? lostChartId;
+        final stream =
+            FirebaseDatabaseService.buildAuthGatedStreamHelper<List<String>>(
+              getCurrentChartId: () => 'chart_normal',
+              authStateChanges: authController.stream,
+              emptyValue: const [],
+              subscribe: (_) => dataController.stream,
+              onAccessLost: (chartId) async {
+                lostChartId = chartId;
+              },
+            );
+
+        final emitted = <List<String>>[];
+        final sub = stream.listen(emitted.add);
+        addTearDown(sub.cancel);
+
+        dataController.addError(Exception('Network socket error'));
+        await pumpEventQueue();
+
+        expect(emitted, [isEmpty]);
+        expect(lostChartId, isNull);
       },
     );
 
@@ -472,6 +539,94 @@ void main() {
           {'id': 'chart_2'},
         ],
       ]);
+    });
+  });
+
+  group('FirebaseDatabaseService.buildGatedStreamHelper error handling', () {
+    test(
+      'non-permission errors do not suppress emptyValue when key becomes null',
+      () async {
+        final authController = StreamController<dynamic>.broadcast();
+        final dataController = StreamController<String?>.broadcast();
+        addTearDown(authController.close);
+        addTearDown(dataController.close);
+
+        String? key = 'chart_1';
+        final stream = FirebaseDatabaseService.buildGatedStreamHelper<String?>(
+          getKey: () => key,
+          authStateChanges: authController.stream,
+          emptyValue: null,
+          subscribe: (_) => dataController.stream,
+        );
+
+        final emitted = <String?>[];
+        final sub = stream.listen(emitted.add);
+        addTearDown(sub.cancel);
+        await pumpEventQueue();
+
+        dataController.addError(Exception('transient socket failure'));
+        await pumpEventQueue();
+        expect(emitted, [isNull]);
+
+        key = null;
+        authController.add(null);
+        await pumpEventQueue();
+
+        expect(emitted, [isNull, isNull]);
+      },
+    );
+
+    test(
+      're-subscribing after error cancellation emits emptyValue when key is null',
+      () async {
+        final authController = StreamController<dynamic>.broadcast();
+        final dataController = StreamController<String?>.broadcast();
+        addTearDown(authController.close);
+        addTearDown(dataController.close);
+
+        String? key = 'chart_1';
+        final stream = FirebaseDatabaseService.buildGatedStreamHelper<String?>(
+          getKey: () => key,
+          authStateChanges: authController.stream,
+          emptyValue: 'empty',
+          subscribe: (_) => dataController.stream,
+          onAccessLost: (_) async {},
+        );
+
+        final sub1 = stream.listen((_) {});
+        await pumpEventQueue();
+        dataController.addError(
+          FirebaseException(plugin: 'firestore', code: 'permission-denied'),
+        );
+        await pumpEventQueue();
+        await sub1.cancel();
+        await pumpEventQueue();
+
+        key = null;
+        final first = await stream.first.timeout(const Duration(seconds: 2));
+        expect(first, 'empty');
+      },
+    );
+
+    test('normalizes uppercase/underscore access-lost codes', () {
+      expect(
+        FirebaseDatabaseService.isAccessLostError(
+          FirebaseException(plugin: 'firestore', code: 'PERMISSION_DENIED'),
+        ),
+        isTrue,
+      );
+      expect(
+        FirebaseDatabaseService.isAccessLostError(
+          FirebaseException(plugin: 'firestore', code: 'NOT_FOUND'),
+        ),
+        isTrue,
+      );
+      expect(
+        FirebaseDatabaseService.isAccessLostError(
+          FirebaseException(plugin: 'firestore', code: 'unavailable'),
+        ),
+        isFalse,
+      );
     });
   });
 }
