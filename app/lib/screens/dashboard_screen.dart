@@ -173,7 +173,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       context: context,
       builder: (context) => AddObservationDialog(
         cycle: cycle,
-        defaultDate: DateTime.now(),
+        defaultDate: widget.todayOverride ?? DateTime.now(),
         category: category,
       ),
     );
@@ -360,7 +360,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           body: GestureDetector(
             onTap: _isSpeedDialOpen ? _closeSpeedDial : null,
             behavior: HitTestBehavior.opaque,
-            child: cycles.isEmpty
+            child: (cycles.isEmpty && _viewMode != ViewMode.supplements)
                 ? EmptyDashboardView(
                     onLogFirstObservation: () =>
                         _showAddObservationDialog(context, null),
@@ -402,7 +402,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                         )
                       : content),
           ),
-          bottomNavigationBar: (isWide || cycles.isEmpty)
+          bottomNavigationBar:
+              (isWide || (cycles.isEmpty && _viewMode != ViewMode.supplements))
               ? null
               : NavigationBar(
                   selectedIndex: _viewMode.index,

@@ -261,26 +261,30 @@ void main() {
           reason: 'Old dailyEntries entry 2 should be deleted',
         );
 
-        // New cycle doc AND its dailyEntries subcollection documents must exist
+        // New cycle doc must exist with dailyEntries in its document map (and no redundant subcollection docs)
         final newCycleDocPath = 'charts/$chartId/cycles/$newCycleId';
         expect(
           fakeFirestore.store.containsKey(newCycleDocPath),
           isTrue,
           reason: 'New cycle document should exist',
         );
+        final newCycleEntries =
+            fakeFirestore.store[newCycleDocPath]!['dailyEntries'] as Map;
+        expect(
+          newCycleEntries.containsKey(entry1Date.dateKey),
+          isTrue,
+          reason: 'New dailyEntries map entry 1 should be populated',
+        );
+        expect(
+          newCycleEntries.containsKey(entry2Date.dateKey),
+          isTrue,
+          reason: 'New dailyEntries map entry 2 should be populated',
+        );
         expect(
           fakeFirestore.store.containsKey(
             '$newCycleDocPath/dailyEntries/${entry1Date.dateKey}',
           ),
-          isTrue,
-          reason: 'New dailyEntries entry 1 should be populated',
-        );
-        expect(
-          fakeFirestore.store.containsKey(
-            '$newCycleDocPath/dailyEntries/${entry2Date.dateKey}',
-          ),
-          isTrue,
-          reason: 'New dailyEntries entry 2 should be populated',
+          isFalse,
         );
       },
     );
@@ -300,25 +304,19 @@ void main() {
 
       final cycleDocPath = 'charts/$chartId/cycles/$cycleId';
       fakeFirestore.store[cycleDocPath] = cycle.toMap();
-      fakeFirestore.store['$cycleDocPath/dailyEntries/${entryDate.dateKey}'] =
-          entry.toMap();
 
       // Update with same start date
       await service.updateCycleStartDate(cycleId, startDate);
 
       expect(fakeFirestore.store.containsKey(cycleDocPath), isTrue);
-      expect(
-        fakeFirestore.store.containsKey(
-          '$cycleDocPath/dailyEntries/${entryDate.dateKey}',
-        ),
-        isTrue,
-      );
+      final entries = fakeFirestore.store[cycleDocPath]!['dailyEntries'] as Map;
+      expect(entries.containsKey(entryDate.dateKey), isTrue);
     });
   });
 
-  group('_reallocateAndRecalculate migrated dailyEntries subcollection pruning', () {
+  group('_reallocateAndRecalculate migrated dailyEntries map pruning', () {
     test(
-      'removes migrated daily entries from source cycle subcollection when shifted to target cycle',
+      'migrates daily entries from source cycle map to target cycle map without writing subcollections',
       () async {
         final cycle1Start = DateTime(2026, 6, 1);
         final cycle2Start = DateTime(2026, 6, 15);
@@ -329,7 +327,6 @@ void main() {
         final entryJune5 = createDailyEntry(june5, comment: 'Cycle 1 entry');
         final entryJune20 = createDailyEntry(june20, comment: 'Migrated entry');
 
-        // Simulate initial state where June 20 is erroneously filed under Cycle 1 (e.g. before Cycle 2 was added)
         final cycle1 = Cycle(
           id: cycle1Start.dateKey,
           startDate: cycle1Start,
@@ -351,43 +348,12 @@ void main() {
         final c2DocPath = 'charts/$chartId/cycles/${cycle2Start.dateKey}';
 
         fakeFirestore.store[c1DocPath] = cycle1.toMap();
-        fakeFirestore.store['$c1DocPath/dailyEntries/${june5.dateKey}'] =
-            entryJune5.toMap();
-        fakeFirestore.store['$c1DocPath/dailyEntries/${june20.dateKey}'] =
-            entryJune20.toMap();
-
         fakeFirestore.store[c2DocPath] = cycle2.toMap();
 
         // Run reallocation
         await service.reallocateAndRecalculate(chartId);
 
-        // Cycle 1 dailyEntries subcollection: June 5 remains, June 20 must be DELETED
-        expect(
-          fakeFirestore.store.containsKey(
-            '$c1DocPath/dailyEntries/${june5.dateKey}',
-          ),
-          isTrue,
-          reason: 'June 5 should remain under Cycle 1',
-        );
-        expect(
-          fakeFirestore.store.containsKey(
-            '$c1DocPath/dailyEntries/${june20.dateKey}',
-          ),
-          isFalse,
-          reason:
-              'June 20 must be pruned from Cycle 1 subcollection after migrating to Cycle 2',
-        );
-
-        // Cycle 2 dailyEntries subcollection: June 20 must be present
-        expect(
-          fakeFirestore.store.containsKey(
-            '$c2DocPath/dailyEntries/${june20.dateKey}',
-          ),
-          isTrue,
-          reason: 'June 20 must exist in Cycle 2 subcollection',
-        );
-
-        // Cycle 1 document dailyEntries map should also only contain June 5
+        // Cycle 1 document dailyEntries map should only contain June 5
         final c1Data = fakeFirestore.store[c1DocPath]!;
         final c1Entries = c1Data['dailyEntries'] as Map;
         expect(c1Entries.containsKey(june5.dateKey), isTrue);
@@ -430,27 +396,16 @@ void main() {
         final c2DocPath = 'charts/$chartId/cycles/${cycle2Start.dateKey}';
 
         fakeFirestore.store[c1DocPath] = cycle1.toMap();
-        fakeFirestore.store['$c1DocPath/dailyEntries/${june5.dateKey}'] =
-            entryJune5.toMap();
-
         fakeFirestore.store[c2DocPath] = cycle2.toMap();
-        fakeFirestore.store['$c2DocPath/dailyEntries/${june18.dateKey}'] =
-            entryJune18.toMap();
 
         await service.reallocateAndRecalculate(chartId);
 
-        expect(
-          fakeFirestore.store.containsKey(
-            '$c1DocPath/dailyEntries/${june5.dateKey}',
-          ),
-          isTrue,
-        );
-        expect(
-          fakeFirestore.store.containsKey(
-            '$c2DocPath/dailyEntries/${june18.dateKey}',
-          ),
-          isTrue,
-        );
+        final c1Entries =
+            fakeFirestore.store[c1DocPath]!['dailyEntries'] as Map;
+        final c2Entries =
+            fakeFirestore.store[c2DocPath]!['dailyEntries'] as Map;
+        expect(c1Entries.containsKey(june5.dateKey), isTrue);
+        expect(c2Entries.containsKey(june18.dateKey), isTrue);
       },
     );
   });

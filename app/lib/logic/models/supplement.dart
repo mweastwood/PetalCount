@@ -1,5 +1,10 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 import '../utils/date_utils.dart';
 import 'user_role.dart';
+
+part 'supplement.freezed.dart';
+part 'supplement.g.dart';
 
 /// Default total cycle days represented in the supplement schedule matrix.
 const int kSupplementPlanTotalCycleDays = 35;
@@ -34,50 +39,102 @@ enum SupplementScheduleRuleType {
   const SupplementScheduleRuleType(this.label, this.description);
 }
 
-class SupplementItem {
-  final String id;
-  final String name;
-  final String quantity;
-  final bool takeWithFood;
-  final int morningDose;
-  final int afternoonDose;
-  final int eveningDose;
-  final SupplementScheduleRuleType ruleType;
-  final int? startCycleDay;
-  final int? endCycleDay;
-  final int? startPeakOffset;
-  final int? endPeakOffset;
-  final int? durationDays;
-  final String instructions;
-  final bool isActive;
-  final UserRole targetRole;
+String _parseSupplementStringFromJson(Object? rawValue) =>
+    rawValue?.toString() ?? '';
 
-  const SupplementItem({
-    required this.id,
-    required this.name,
-    required this.quantity,
-    this.takeWithFood = false,
-    this.morningDose = 0,
-    this.afternoonDose = 0,
-    this.eveningDose = 0,
-    this.ruleType = SupplementScheduleRuleType.allDays,
-    this.startCycleDay,
-    this.endCycleDay,
-    this.startPeakOffset,
-    this.endPeakOffset,
-    this.durationDays,
-    this.instructions = '',
-    this.isActive = true,
-    this.targetRole = UserRole.wife,
-  });
+bool _parseSupplementBoolFalseFromJson(Object? rawValue) {
+  if (rawValue is bool) return rawValue;
+  if (rawValue is String) return rawValue.trim().toLowerCase() == 'true';
+  if (rawValue is num) return rawValue != 0;
+  return false;
+}
+
+bool _parseSupplementBoolTrueFromJson(Object? rawValue) {
+  if (rawValue is bool) return rawValue;
+  if (rawValue is String) return rawValue.trim().toLowerCase() != 'false';
+  if (rawValue is num) return rawValue != 0;
+  return true;
+}
+
+int _parseSupplementDoseFromJson(Object? rawValue) {
+  if (rawValue is num) return rawValue.toInt();
+  if (rawValue is String) return int.tryParse(rawValue) ?? 0;
+  return 0;
+}
+
+int? _parseNullableIntFromJson(Object? rawValue) {
+  if (rawValue is num) return rawValue.toInt();
+  if (rawValue is String) return int.tryParse(rawValue);
+  return null;
+}
+
+SupplementScheduleRuleType _parseRuleTypeFromJson(Object? rawValue) {
+  final ruleTypeName = rawValue?.toString() ?? '';
+  return SupplementScheduleRuleType.values.firstWhere(
+    (element) => element.name == ruleTypeName,
+    orElse: () => SupplementScheduleRuleType.allDays,
+  );
+}
+
+String _serializeRuleTypeToJson(SupplementScheduleRuleType ruleType) =>
+    ruleType.name;
+
+UserRole _parseTargetRoleFromJson(Object? rawValue) =>
+    UserRole.fromString(rawValue?.toString());
+
+String _serializeTargetRoleToJson(UserRole role) => role.code;
+
+@freezed
+abstract class SupplementItem with _$SupplementItem {
+  const SupplementItem._();
+
+  const factory SupplementItem({
+    @Default('') @JsonKey(fromJson: _parseSupplementStringFromJson) String id,
+    @Default('') @JsonKey(fromJson: _parseSupplementStringFromJson) String name,
+    @Default('')
+    @JsonKey(fromJson: _parseSupplementStringFromJson)
+    String quantity,
+    @Default(false)
+    @JsonKey(fromJson: _parseSupplementBoolFalseFromJson)
+    bool takeWithFood,
+    @Default(0)
+    @JsonKey(fromJson: _parseSupplementDoseFromJson)
+    int morningDose,
+    @Default(0)
+    @JsonKey(fromJson: _parseSupplementDoseFromJson)
+    int afternoonDose,
+    @Default(0)
+    @JsonKey(fromJson: _parseSupplementDoseFromJson)
+    int eveningDose,
+    @Default(SupplementScheduleRuleType.allDays)
+    @JsonKey(fromJson: _parseRuleTypeFromJson, toJson: _serializeRuleTypeToJson)
+    SupplementScheduleRuleType ruleType,
+    @JsonKey(fromJson: _parseNullableIntFromJson) int? startCycleDay,
+    @JsonKey(fromJson: _parseNullableIntFromJson) int? endCycleDay,
+    @JsonKey(fromJson: _parseNullableIntFromJson) int? startPeakOffset,
+    @JsonKey(fromJson: _parseNullableIntFromJson) int? endPeakOffset,
+    @JsonKey(fromJson: _parseNullableIntFromJson) int? durationDays,
+    @Default('')
+    @JsonKey(fromJson: _parseSupplementStringFromJson)
+    String instructions,
+    @Default(true)
+    @JsonKey(fromJson: _parseSupplementBoolTrueFromJson)
+    bool isActive,
+    @Default(UserRole.wife)
+    @JsonKey(
+      fromJson: _parseTargetRoleFromJson,
+      toJson: _serializeTargetRoleToJson,
+    )
+    UserRole targetRole,
+  }) = _SupplementItem;
 
   bool get takesInMorning => morningDose > 0;
   bool get takesInAfternoon => afternoonDose > 0;
   bool get takesInEvening => eveningDose > 0;
   int get totalDailyDoses => morningDose + afternoonDose + eveningDose;
 
-  int doseForTime(SupplementTimeOfDay time) {
-    switch (time) {
+  int doseForTime(SupplementTimeOfDay timeOfDay) {
+    switch (timeOfDay) {
       case SupplementTimeOfDay.morning:
         return morningDose;
       case SupplementTimeOfDay.afternoon:
@@ -108,25 +165,28 @@ class SupplementItem {
         if (hasPeakOccurred &&
             daysPastPeak != null &&
             startPeakOffset != null) {
-          final start = startPeakOffset!;
-          final end = durationDays != null
-              ? (start + durationDays! - 1)
-              : start;
-          return daysPastPeak >= start && daysPastPeak <= end;
+          final startOffset = startPeakOffset!;
+          final endOffset = durationDays != null
+              ? (startOffset + durationDays! - 1)
+              : (endPeakOffset ?? startOffset);
+          return daysPastPeak >= startOffset && daysPastPeak <= endOffset;
         }
         // Fallback to cycle day rule if peak not yet identified (e.g. Day 21+ for 10 days)
         if (startCycleDay != null) {
-          final start = startCycleDay!;
-          final end = durationDays != null
-              ? (start + durationDays! - 1)
-              : (endCycleDay ?? start);
-          return cycleDay >= start && cycleDay <= end;
+          final startDay = startCycleDay!;
+          final endDay = durationDays != null
+              ? (startDay + durationDays! - 1)
+              : (endCycleDay ?? startDay);
+          return cycleDay >= startDay && cycleDay <= endDay;
         }
         return false;
 
       case SupplementScheduleRuleType.cycleDaysOrPeak:
         if (startCycleDay != null && cycleDay < startCycleDay!) return false;
-        if (hasPeakOccurred && daysPastPeak != null && endPeakOffset != null) {
+        if (hasPeakOccurred &&
+            daysPastPeak != null &&
+            daysPastPeak >= 0 &&
+            endPeakOffset != null) {
           return daysPastPeak <= endPeakOffset!;
         }
         if (endCycleDay != null && cycleDay > endCycleDay!) return false;
@@ -139,179 +199,142 @@ class SupplementItem {
       case SupplementScheduleRuleType.allDays:
         return 'Daily (All Days)';
       case SupplementScheduleRuleType.cycleDays:
-        final start = startCycleDay ?? 1;
-        final end = endCycleDay != null ? ' – Day $endCycleDay' : '+';
-        return 'Cycle Day $start$end';
+        final startDay = startCycleDay ?? 1;
+        final endSuffix = endCycleDay != null ? ' – Day $endCycleDay' : '+';
+        return 'Cycle Day $startDay$endSuffix';
       case SupplementScheduleRuleType.peakOffset:
-        final dur = durationDays != null ? ' for $durationDays days' : '';
-        final fallback = startCycleDay != null
+        final durationSuffix = durationDays != null
+            ? ' for $durationDays days'
+            : (endPeakOffset != null ? ' to P+$endPeakOffset' : '');
+        final fallbackSuffix = startCycleDay != null
             ? ' (or Day $startCycleDay)'
             : '';
         final peakPrefix = (startPeakOffset ?? 0) >= 0
             ? 'P+${startPeakOffset ?? 0}'
             : 'P${startPeakOffset ?? 0}';
-        return '$peakPrefix$fallback$dur';
+        return '$peakPrefix$fallbackSuffix$durationSuffix';
       case SupplementScheduleRuleType.cycleDaysOrPeak:
-        final start = startCycleDay ?? 1;
-        final peakEnd = endPeakOffset != null ? 'P+$endPeakOffset' : 'Peak';
-        final fallback = endCycleDay != null ? ' (or Day $endCycleDay)' : '';
-        return 'Day $start to $peakEnd$fallback';
+        final startDay = startCycleDay ?? 1;
+        final peakEnd = endPeakOffset != null
+            ? (endPeakOffset! >= 0 ? 'P+$endPeakOffset' : 'P$endPeakOffset')
+            : 'Peak';
+        final fallbackSuffix = endCycleDay != null
+            ? ' (or Day $endCycleDay)'
+            : '';
+        return 'Day $startDay to $peakEnd$fallbackSuffix';
     }
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'name': name,
-      'quantity': quantity,
-      'takeWithFood': takeWithFood,
-      'morningDose': morningDose,
-      'afternoonDose': afternoonDose,
-      'eveningDose': eveningDose,
-      'ruleType': ruleType.name,
-      'startCycleDay': startCycleDay,
-      'endCycleDay': endCycleDay,
-      'startPeakOffset': startPeakOffset,
-      'endPeakOffset': endPeakOffset,
-      'durationDays': durationDays,
-      'instructions': instructions,
-      'isActive': isActive,
-      'targetRole': targetRole.code,
-    };
-  }
+  factory SupplementItem.fromJson(Map<String, dynamic> json) =>
+      _$SupplementItemFromJson(json);
 
-  factory SupplementItem.fromMap(Map<String, dynamic> map) {
-    final ruleTypeName = map['ruleType']?.toString() ?? '';
-    final ruleType = SupplementScheduleRuleType.values.firstWhere(
-      (e) => e.name == ruleTypeName,
-      orElse: () => SupplementScheduleRuleType.allDays,
-    );
+  factory SupplementItem.fromMap(Map<String, dynamic> map) =>
+      SupplementItem.fromJson(map);
 
-    return SupplementItem(
-      id: map['id']?.toString() ?? '',
-      name: map['name']?.toString() ?? '',
-      quantity: map['quantity']?.toString() ?? '',
-      takeWithFood: map['takeWithFood'] as bool? ?? false,
-      morningDose: (map['morningDose'] as num?)?.toInt() ?? 0,
-      afternoonDose: (map['afternoonDose'] as num?)?.toInt() ?? 0,
-      eveningDose: (map['eveningDose'] as num?)?.toInt() ?? 0,
-      ruleType: ruleType,
-      startCycleDay: (map['startCycleDay'] as num?)?.toInt(),
-      endCycleDay: (map['endCycleDay'] as num?)?.toInt(),
-      startPeakOffset: (map['startPeakOffset'] as num?)?.toInt(),
-      endPeakOffset: (map['endPeakOffset'] as num?)?.toInt(),
-      durationDays: (map['durationDays'] as num?)?.toInt(),
-      instructions: map['instructions']?.toString() ?? '',
-      isActive: map['isActive'] as bool? ?? true,
-      targetRole: UserRole.fromString(map['targetRole']?.toString()),
-    );
-  }
-
-  SupplementItem copyWith({
-    String? id,
-    String? name,
-    String? quantity,
-    bool? takeWithFood,
-    int? morningDose,
-    int? afternoonDose,
-    int? eveningDose,
-    SupplementScheduleRuleType? ruleType,
-    int? startCycleDay,
-    int? endCycleDay,
-    int? startPeakOffset,
-    int? endPeakOffset,
-    int? durationDays,
-    String? instructions,
-    bool? isActive,
-    UserRole? targetRole,
-  }) {
-    return SupplementItem(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      quantity: quantity ?? this.quantity,
-      takeWithFood: takeWithFood ?? this.takeWithFood,
-      morningDose: morningDose ?? this.morningDose,
-      afternoonDose: afternoonDose ?? this.afternoonDose,
-      eveningDose: eveningDose ?? this.eveningDose,
-      ruleType: ruleType ?? this.ruleType,
-      startCycleDay: startCycleDay ?? this.startCycleDay,
-      endCycleDay: endCycleDay ?? this.endCycleDay,
-      startPeakOffset: startPeakOffset ?? this.startPeakOffset,
-      endPeakOffset: endPeakOffset ?? this.endPeakOffset,
-      durationDays: durationDays ?? this.durationDays,
-      instructions: instructions ?? this.instructions,
-      isActive: isActive ?? this.isActive,
-      targetRole: targetRole ?? this.targetRole,
-    );
-  }
+  Map<String, dynamic> toMap() => toJson();
 }
 
-class DailySupplementLog {
-  final DateTime date;
-  final Map<String, List<SupplementTimeOfDay>> takenDoses;
+DateTime _parseSupplementLogDateFromJson(Object? rawDate) =>
+    parseIsoDate(rawDate?.toString() ?? '');
 
-  DailySupplementLog({required DateTime date, required this.takenDoses})
-    : date = date.toNormalizedDate();
+String _serializeSupplementLogDateToDateKey(DateTime date) => date.dateKey;
 
-  bool isTaken(String supplementId, SupplementTimeOfDay time) {
+Map<String, List<SupplementTimeOfDay>> _parseTakenDosesFromJson(
+  Object? rawDoses,
+) {
+  if (rawDoses is! Map) return const {};
+  final doses = <String, List<SupplementTimeOfDay>>{};
+  rawDoses.forEach((key, value) {
+    final list = ((value is List ? value : const []))
+        .map((item) {
+          return SupplementTimeOfDay.values
+              .cast<SupplementTimeOfDay?>()
+              .firstWhere(
+                (element) => element?.name == item,
+                orElse: () => null,
+              );
+        })
+        .whereType<SupplementTimeOfDay>()
+        .toList();
+    doses[key.toString()] = list;
+  });
+  return doses;
+}
+
+Map<String, List<String>> _serializeTakenDosesToJson(
+  Map<String, List<SupplementTimeOfDay>> takenDoses,
+) => takenDoses.map(
+  (key, times) =>
+      MapEntry(key, times.map((timeOfDay) => timeOfDay.name).toList()),
+);
+
+@freezed
+abstract class DailySupplementLog with _$DailySupplementLog {
+  const DailySupplementLog._();
+
+  const factory DailySupplementLog.raw({
+    @JsonKey(
+      fromJson: _parseSupplementLogDateFromJson,
+      toJson: _serializeSupplementLogDateToDateKey,
+    )
+    required DateTime date,
+    @Default(<String, List<SupplementTimeOfDay>>{})
+    @JsonKey(
+      fromJson: _parseTakenDosesFromJson,
+      toJson: _serializeTakenDosesToJson,
+    )
+    Map<String, List<SupplementTimeOfDay>> takenDoses,
+  }) = _DailySupplementLog;
+
+  factory DailySupplementLog({
+    required DateTime date,
+    required Map<String, List<SupplementTimeOfDay>> takenDoses,
+  }) {
+    return DailySupplementLog.raw(
+      date: date.toNormalizedDate(),
+      takenDoses: takenDoses,
+    );
+  }
+
+  bool isTaken(String supplementId, SupplementTimeOfDay timeOfDay) {
     final times = takenDoses[supplementId];
-    return times != null && times.contains(time);
+    return times != null && times.contains(timeOfDay);
   }
 
   DailySupplementLog withToggled(
     String supplementId,
-    SupplementTimeOfDay time,
+    SupplementTimeOfDay timeOfDay,
     bool taken,
   ) {
-    final updated = Map<String, List<SupplementTimeOfDay>>.from(
-      takenDoses.map((k, v) => MapEntry(k, List<SupplementTimeOfDay>.from(v))),
+    final updatedDoses = Map<String, List<SupplementTimeOfDay>>.from(
+      takenDoses.map(
+        (key, value) => MapEntry(key, List<SupplementTimeOfDay>.from(value)),
+      ),
     );
-    final currentList = updated[supplementId] ?? [];
+    final currentList = updatedDoses[supplementId] ?? [];
     if (taken) {
-      if (!currentList.contains(time)) {
-        currentList.add(time);
+      if (!currentList.contains(timeOfDay)) {
+        currentList.add(timeOfDay);
       }
-      updated[supplementId] = currentList;
+      updatedDoses[supplementId] = currentList;
     } else {
-      currentList.remove(time);
+      currentList.remove(timeOfDay);
       if (currentList.isEmpty) {
-        updated.remove(supplementId);
+        updatedDoses.remove(supplementId);
       } else {
-        updated[supplementId] = currentList;
+        updatedDoses[supplementId] = currentList;
       }
     }
-    return DailySupplementLog(date: date, takenDoses: updated);
+    return DailySupplementLog(date: date, takenDoses: updatedDoses);
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'date': date.dateKey,
-      'takenDoses': takenDoses.map(
-        (k, v) => MapEntry(k, v.map((time) => time.name).toList()),
-      ),
-    };
-  }
+  factory DailySupplementLog.fromJson(Map<String, dynamic> json) =>
+      _$DailySupplementLogFromJson(json);
 
-  factory DailySupplementLog.fromMap(Map<String, dynamic> map) {
-    final dateStr = map['date']?.toString() ?? '';
-    final parsedDate = parseIsoDate(dateStr);
+  factory DailySupplementLog.fromMap(Map<String, dynamic> map) =>
+      DailySupplementLog.fromJson(map);
 
-    final rawDoses = map['takenDoses'] as Map? ?? {};
-    final doses = <String, List<SupplementTimeOfDay>>{};
-    rawDoses.forEach((k, v) {
-      final list = ((v as List?) ?? [])
-          .map(
-            (item) => SupplementTimeOfDay.values
-                .cast<SupplementTimeOfDay?>()
-                .firstWhere((e) => e?.name == item, orElse: () => null),
-          )
-          .whereType<SupplementTimeOfDay>()
-          .toList();
-      doses[k.toString()] = list;
-    });
-
-    return DailySupplementLog(date: parsedDate, takenDoses: doses);
-  }
+  Map<String, dynamic> toMap() => toJson();
 }
 
 class SupplementPresets {

@@ -451,6 +451,22 @@ void main() {
         '2 x1 I',
       );
 
+      // Intercourse-only entry without mucus or sensation code
+      expect(
+        PdfExportService.formatObservationCode(
+          DailyEntry(
+            date: date,
+            resolvedVdrsCode: 'I',
+            stampType: StampType.green,
+            observations: [],
+            painLevel: 0,
+            painTypes: [],
+            comments: '',
+          ),
+        ),
+        'I',
+      );
+
       // Count matching observations from entry.observations
       final obsA = Observation(
         id: '1',

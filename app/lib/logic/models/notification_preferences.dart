@@ -1,69 +1,69 @@
-class NotificationPreferences {
-  final bool fertilePatternAlerts;
-  final bool partnerSupportReminders;
-  final bool dailyLoggingReminder;
-  final bool breastSelfExamReminder;
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-  const NotificationPreferences({
-    this.fertilePatternAlerts = true,
-    this.partnerSupportReminders = true,
-    this.dailyLoggingReminder = true,
-    this.breastSelfExamReminder = true,
-  });
+part 'notification_preferences.freezed.dart';
+part 'notification_preferences.g.dart';
 
-  Map<String, dynamic> toMap() {
-    return {
-      'fertilePatternAlerts': fertilePatternAlerts,
-      'partnerSupportReminders': partnerSupportReminders,
-      'dailyLoggingReminder': dailyLoggingReminder,
-      'breastSelfExamReminder': breastSelfExamReminder,
-    };
+bool _parseBooleanWithDefaultTrue(Object? rawValue) {
+  if (rawValue is bool) {
+    return rawValue;
   }
+  if (rawValue is String) {
+    final normalized = rawValue.trim().toLowerCase();
+    if (normalized == 'false' || normalized == '0') {
+      return false;
+    }
+    if (normalized == 'true' || normalized == '1') {
+      return true;
+    }
+  }
+  if (rawValue is num) {
+    return rawValue != 0;
+  }
+  return true;
+}
+
+Object? _readDailyLoggingReminderValue(Map<dynamic, dynamic> map, String key) {
+  if (map.containsKey('dailyLoggingReminder') &&
+      map['dailyLoggingReminder'] != null) {
+    return map['dailyLoggingReminder'];
+  }
+  if (map.containsKey('reminderEnabled') && map['reminderEnabled'] != null) {
+    return map['reminderEnabled'];
+  }
+  return true;
+}
+
+@freezed
+abstract class NotificationPreferences with _$NotificationPreferences {
+  const NotificationPreferences._();
+
+  const factory NotificationPreferences({
+    @Default(true)
+    @JsonKey(fromJson: _parseBooleanWithDefaultTrue)
+    bool fertilePatternAlerts,
+    @Default(true)
+    @JsonKey(fromJson: _parseBooleanWithDefaultTrue)
+    bool partnerSupportReminders,
+    @Default(true)
+    @JsonKey(
+      readValue: _readDailyLoggingReminderValue,
+      fromJson: _parseBooleanWithDefaultTrue,
+    )
+    bool dailyLoggingReminder,
+    @Default(true)
+    @JsonKey(fromJson: _parseBooleanWithDefaultTrue)
+    bool breastSelfExamReminder,
+  }) = _NotificationPreferences;
+
+  factory NotificationPreferences.fromJson(Map<String, dynamic> json) =>
+      _$NotificationPreferencesFromJson(json);
 
   factory NotificationPreferences.fromMap(Map<String, dynamic>? map) {
-    if (map == null) return const NotificationPreferences();
-    return NotificationPreferences(
-      fertilePatternAlerts: (map['fertilePatternAlerts'] as bool?) ?? true,
-      partnerSupportReminders:
-          (map['partnerSupportReminders'] as bool?) ?? true,
-      dailyLoggingReminder:
-          (map['dailyLoggingReminder'] as bool?) ??
-          (map['reminderEnabled'] as bool?) ??
-          true,
-      breastSelfExamReminder: (map['breastSelfExamReminder'] as bool?) ?? true,
-    );
+    if (map == null) {
+      return const NotificationPreferences();
+    }
+    return NotificationPreferences.fromJson(map);
   }
 
-  NotificationPreferences copyWith({
-    bool? fertilePatternAlerts,
-    bool? partnerSupportReminders,
-    bool? dailyLoggingReminder,
-    bool? breastSelfExamReminder,
-  }) {
-    return NotificationPreferences(
-      fertilePatternAlerts: fertilePatternAlerts ?? this.fertilePatternAlerts,
-      partnerSupportReminders:
-          partnerSupportReminders ?? this.partnerSupportReminders,
-      dailyLoggingReminder: dailyLoggingReminder ?? this.dailyLoggingReminder,
-      breastSelfExamReminder:
-          breastSelfExamReminder ?? this.breastSelfExamReminder,
-    );
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is NotificationPreferences &&
-          runtimeType == other.runtimeType &&
-          fertilePatternAlerts == other.fertilePatternAlerts &&
-          partnerSupportReminders == other.partnerSupportReminders &&
-          dailyLoggingReminder == other.dailyLoggingReminder &&
-          breastSelfExamReminder == other.breastSelfExamReminder;
-
-  @override
-  int get hashCode =>
-      fertilePatternAlerts.hashCode ^
-      partnerSupportReminders.hashCode ^
-      dailyLoggingReminder.hashCode ^
-      breastSelfExamReminder.hashCode;
+  Map<String, dynamic> toMap() => toJson();
 }

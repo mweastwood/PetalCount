@@ -42,9 +42,19 @@ class ChartScreen extends StatelessWidget {
         media.size.width < media.size.height || media.size.width < 600;
 
     if (isNarrow) {
-      return _buildVerticalSpreadsheet(context, maxDays, displayDaysMap);
+      return _buildVerticalSpreadsheet(
+        context,
+        cycles,
+        maxDays,
+        displayDaysMap,
+      );
     } else {
-      return _buildHorizontalSpreadsheet(context, maxDays, displayDaysMap);
+      return _buildHorizontalSpreadsheet(
+        context,
+        cycles,
+        maxDays,
+        displayDaysMap,
+      );
     }
   }
 
@@ -92,6 +102,7 @@ class ChartScreen extends StatelessWidget {
   /// Narrow Screens (Portrait): Vertical Cycle Columns with a shared Day column on the left
   Widget _buildVerticalSpreadsheet(
     BuildContext context,
+    List<Cycle> sortedCycles,
     int maxDays,
     Map<String, int> displayDaysMap,
   ) {
@@ -169,7 +180,7 @@ class ChartScreen extends StatelessWidget {
                       ],
                     ),
                     // Cycle Columns (Side-by-Side)
-                    ...cycles.map((cycle) {
+                    ...sortedCycles.map((cycle) {
                       final displayDays = displayDaysMap[cycle.id] ?? maxDays;
                       return Container(
                         margin: const EdgeInsets.only(right: kCellGap),
@@ -180,7 +191,7 @@ class ChartScreen extends StatelessWidget {
                               onTap: () => CycleOptionsDialog.show(
                                 context,
                                 cycle: cycle,
-                                cycles: cycles,
+                                cycles: sortedCycles,
                               ),
                               child: Container(
                                 width: kCellWidth,
@@ -273,7 +284,7 @@ class ChartScreen extends StatelessWidget {
                                               CycleOptionsDialog.show(
                                                 context,
                                                 cycle: cycle,
-                                                cycles: cycles,
+                                                cycles: sortedCycles,
                                               ),
                                         ),
                                       ],
@@ -318,6 +329,7 @@ class ChartScreen extends StatelessWidget {
   /// Wide Screens (Landscape): Horizontal Cycle Rows with a shared Day header row across the top
   Widget _buildHorizontalSpreadsheet(
     BuildContext context,
+    List<Cycle> sortedCycles,
     int maxDays,
     Map<String, int> displayDaysMap,
   ) {
@@ -355,9 +367,9 @@ class ChartScreen extends StatelessWidget {
                         padding: EdgeInsets.zero,
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: cycles.length,
+                        itemCount: sortedCycles.length,
                         itemBuilder: (context, index) {
-                          final cycle = cycles[index];
+                          final cycle = sortedCycles[index];
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 6.0),
                             child: _buildCycleRow(
@@ -546,7 +558,9 @@ class ChartScreen extends StatelessWidget {
     final borderCol = entry != null
         ? (entry.stampType == StampType.whiteBaby
               ? CreightonTheme.greenBorder
-              : theme.colorScheme.outline)
+              : (entry.stampType == StampType.yellowBaby
+                    ? CreightonTheme.yellowBorder
+                    : theme.colorScheme.outline))
         : theme.colorScheme.outlineVariant.withValues(alpha: 0.5);
 
     final hasPain = entry != null && entry.painLevel > 0;

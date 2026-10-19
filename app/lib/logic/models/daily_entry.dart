@@ -1,5 +1,10 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 import '../utils/date_utils.dart';
 import 'observation.dart';
+
+part 'daily_entry.freezed.dart';
+part 'daily_entry.g.dart';
 
 enum StampType {
   red('Red', 'Bleeding'),
@@ -14,92 +19,120 @@ enum StampType {
   const StampType(this.name, this.label);
 }
 
-class DailyEntry {
-  final DateTime date; // Year, Month, Day only
-  final String resolvedVdrsCode;
-  final StampType stampType;
-  final List<Observation> observations;
-  final double painLevel;
-  final List<String> painTypes;
-  final String comments;
-  final String? peakDayLabel; // 'P', '1', '2', '3', or null
+DateTime _parseNormalizedDateFromJson(Object? rawDate) =>
+    parseIsoDate(rawDate?.toString() ?? '');
 
-  DailyEntry({
+String _serializeDateToDateKey(DateTime date) => date.dateKey;
+
+StampType _parseStampTypeFromJson(Object? rawStampType) =>
+    StampType.values.firstWhere(
+      (element) => element.name == rawStampType,
+      orElse: () => StampType.green,
+    );
+
+String _serializeStampTypeToJson(StampType stampType) => stampType.name;
+
+List<Observation> _parseObservationsFromJson(Object? rawObservations) {
+  if (rawObservations is! List) return const [];
+  return rawObservations
+      .whereType<Map>()
+      .map((item) => Observation.fromMap(Map<String, dynamic>.from(item)))
+      .toList();
+}
+
+List<Map<String, dynamic>> _serializeObservationsToJson(
+  List<Observation> observations,
+) => observations.map((observation) => observation.toMap()).toList();
+
+double _parsePainLevelFromJson(Object? rawValue) {
+  if (rawValue is num) return rawValue.toDouble();
+  if (rawValue is String) return double.tryParse(rawValue) ?? 0.0;
+  return 0.0;
+}
+
+List<String> _parsePainTypesFromJson(Object? rawValue) {
+  if (rawValue is! List) return const [];
+  return rawValue.map((item) => item.toString()).toList();
+}
+
+String _parseStringFromJson(Object? rawValue) => rawValue?.toString() ?? '';
+
+@freezed
+abstract class DailyEntry with _$DailyEntry {
+  const DailyEntry._();
+
+  const factory DailyEntry.raw({
+    @JsonKey(
+      fromJson: _parseNormalizedDateFromJson,
+      toJson: _serializeDateToDateKey,
+    )
     required DateTime date,
-    required this.resolvedVdrsCode,
-    required this.stampType,
-    required this.observations,
-    required this.painLevel,
-    required this.painTypes,
-    required this.comments,
-    this.peakDayLabel,
-  }) : date = date.toNormalizedDate();
+    @Default('')
+    @JsonKey(fromJson: _parseStringFromJson)
+    String resolvedVdrsCode,
+    @Default(StampType.green)
+    @JsonKey(
+      fromJson: _parseStampTypeFromJson,
+      toJson: _serializeStampTypeToJson,
+    )
+    StampType stampType,
+    @Default(<Observation>[])
+    @JsonKey(
+      fromJson: _parseObservationsFromJson,
+      toJson: _serializeObservationsToJson,
+    )
+    List<Observation> observations,
+    @Default(0.0) @JsonKey(fromJson: _parsePainLevelFromJson) double painLevel,
+    @Default(<String>[])
+    @JsonKey(fromJson: _parsePainTypesFromJson)
+    List<String> painTypes,
+    @Default('') @JsonKey(fromJson: _parseStringFromJson) String comments,
+    String? peakDayLabel,
+  }) = _DailyEntry;
+
+  factory DailyEntry({
+    required DateTime date,
+    required String resolvedVdrsCode,
+    required StampType stampType,
+    required List<Observation> observations,
+    required double painLevel,
+    required List<String> painTypes,
+    required String comments,
+    String? peakDayLabel,
+  }) {
+    return DailyEntry.raw(
+      date: date.toNormalizedDate(),
+      resolvedVdrsCode: resolvedVdrsCode,
+      stampType: stampType,
+      observations: observations,
+      painLevel: painLevel,
+      painTypes: painTypes,
+      comments: comments,
+      peakDayLabel: peakDayLabel,
+    );
+  }
 
   bool get isPeakDay => peakDayLabel == 'P';
 
-  bool get hasBleeding => observations.any((o) => o.hasBleeding);
+  bool get hasBleeding =>
+      observations.any((observation) => observation.hasBleeding);
 
-  bool get hasMenstrualFlow => observations.any((o) => o.isMenstrualFlow);
+  bool get hasMenstrualFlow =>
+      observations.any((observation) => observation.isMenstrualFlow);
 
-  bool get hasMucus => observations.any((o) => o.hasMucus);
+  bool get hasMucus => observations.any((observation) => observation.hasMucus);
 
-  bool get isPeakType => observations.any((o) => o.isPeakType);
+  bool get isPeakType =>
+      observations.any((observation) => observation.isPeakType);
 
-  bool get hasIntercourse => observations.any((o) => o.intercourse);
+  bool get hasIntercourse =>
+      observations.any((observation) => observation.intercourse);
 
-  Map<String, dynamic> toMap() {
-    return {
-      'date': date.dateKey,
-      'resolvedVdrsCode': resolvedVdrsCode,
-      'stampType': stampType.name,
-      'observations': observations.map((o) => o.toMap()).toList(),
-      'painLevel': painLevel,
-      'painTypes': painTypes,
-      'comments': comments,
-      'peakDayLabel': peakDayLabel,
-    };
-  }
+  factory DailyEntry.fromJson(Map<String, dynamic> json) =>
+      _$DailyEntryFromJson(json);
 
-  factory DailyEntry.fromMap(Map<String, dynamic> map) {
-    final dateStr = map['date']?.toString() ?? '';
-    final parsedDate = parseIsoDate(dateStr);
+  factory DailyEntry.fromMap(Map<String, dynamic> map) =>
+      DailyEntry.fromJson(map);
 
-    return DailyEntry(
-      date: parsedDate,
-      resolvedVdrsCode: map['resolvedVdrsCode'] ?? '',
-      stampType: StampType.values.firstWhere(
-        (e) => e.name == map['stampType'],
-        orElse: () => StampType.green,
-      ),
-      observations: ((map['observations'] as List?) ?? [])
-          .map((item) => Observation.fromMap(Map<String, dynamic>.from(item)))
-          .toList(),
-      painLevel: (map['painLevel'] as num?)?.toDouble() ?? 0.0,
-      painTypes: List<String>.from(map['painTypes'] ?? []),
-      comments: map['comments'] ?? '',
-      peakDayLabel: map['peakDayLabel'],
-    );
-  }
-
-  DailyEntry copyWith({
-    DateTime? date,
-    String? resolvedVdrsCode,
-    StampType? stampType,
-    List<Observation>? observations,
-    double? painLevel,
-    List<String>? painTypes,
-    String? comments,
-    String? peakDayLabel,
-  }) {
-    return DailyEntry(
-      date: date ?? this.date,
-      resolvedVdrsCode: resolvedVdrsCode ?? this.resolvedVdrsCode,
-      stampType: stampType ?? this.stampType,
-      observations: observations ?? this.observations,
-      painLevel: painLevel ?? this.painLevel,
-      painTypes: painTypes ?? this.painTypes,
-      comments: comments ?? this.comments,
-      peakDayLabel: peakDayLabel ?? this.peakDayLabel,
-    );
-  }
+  Map<String, dynamic> toMap() => toJson();
 }

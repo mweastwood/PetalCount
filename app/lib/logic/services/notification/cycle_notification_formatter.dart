@@ -66,6 +66,21 @@ class CycleNotificationFormatter {
     UserRole role, {
     String? peakLabel,
   }) {
+    if (peakLabel == '1' || peakLabel == '2' || peakLabel == '3') {
+      switch (role) {
+        case UserRole.husband:
+          return NotificationMessage(
+            title: '🌿 Post-Peak Day P+$peakLabel',
+            body:
+                'Post-Peak count P+$peakLabel is underway today in the fertility window.',
+          );
+        case UserRole.wife:
+          return NotificationMessage(
+            title: '🌿 Post-Peak Day P+$peakLabel',
+            body: 'Post-Peak day P+$peakLabel recorded in your cycle count.',
+          );
+      }
+    }
     switch (role) {
       case UserRole.husband:
         return const NotificationMessage(

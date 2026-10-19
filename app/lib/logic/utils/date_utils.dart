@@ -27,14 +27,14 @@ extension DateTimeNormalizationX on DateTime {
     return calendarDaysBetween(this, other);
   }
 
-  /// Adds [days] calendar days without clock drift or DST 23/25-hour duration issues.
+  /// Adds [days] calendar days without clock drift or Daylight Saving Time 23/25-hour duration issues.
   DateTime addCalendarDays(int days) {
     return isUtc
         ? DateTime.utc(year, month, day + days)
         : DateTime(year, month, day + days);
   }
 
-  /// Subtracts [days] calendar days without clock drift or DST 23/25-hour duration issues.
+  /// Subtracts [days] calendar days without clock drift or Daylight Saving Time 23/25-hour duration issues.
   DateTime subtractCalendarDays(int days) {
     return isUtc
         ? DateTime.utc(year, month, day - days)
@@ -43,7 +43,7 @@ extension DateTimeNormalizationX on DateTime {
 
   /// Safely parses an ISO 8601 date string or YYYY-MM-DD date string with
   /// fallback handling.
-  static DateTime parseIso(String dateStr) => parseIsoDate(dateStr);
+  static DateTime parseIso(String dateString) => parseIsoDate(dateString);
 }
 
 /// Extension providing standardized date key formatting for [DateTime] instances.
@@ -73,7 +73,7 @@ class AppDateFormats {
 /// 2026-03-01 to 2026-03-02 is 1).
 ///
 /// Normalizes both [DateTime] instances to UTC midnight (`DateTime.utc(year, month, day)`)
-/// to prevent Daylight Saving Time (DST) 23-hour / 25-hour day truncation bugs.
+/// to prevent Daylight Saving Time 23-hour / 25-hour day truncation bugs.
 int calendarDaysBetween(DateTime from, DateTime to) {
   final fromUtc = DateTime.utc(from.year, from.month, from.day);
   final toUtc = DateTime.utc(to.year, to.month, to.day);
@@ -82,11 +82,34 @@ int calendarDaysBetween(DateTime from, DateTime to) {
 
 /// Safely parses an ISO 8601 date string or YYYY-MM-DD date string with
 /// fallback handling.
-DateTime parseIsoDate(String dateStr) {
+///
+/// Preserves the literal calendar date components (`YYYY-MM-DD`) when an
+/// ISO 8601 timestamp includes a timezone offset (e.g. `2026-03-15T23:00:00-05:00`)
+/// so that UTC conversion does not shift the date to the next or previous day.
+DateTime parseIsoDate(String dateString) {
+  final trimmed = dateString.trim();
+  if (trimmed.isEmpty) {
+    return DateTime(1970, 1, 1);
+  }
+
+  // If the string starts with a standard YYYY-MM-DD prefix followed by 'T',
+  // extract the literal calendar date before timezone offset conversion can shift the day.
+  final isoPrefixMatch = RegExp(
+    r'^(\d{4})-(\d{2})-(\d{2})T',
+  ).firstMatch(trimmed);
+  if (isoPrefixMatch != null) {
+    final year = int.tryParse(isoPrefixMatch.group(1)!);
+    final month = int.tryParse(isoPrefixMatch.group(2)!);
+    final day = int.tryParse(isoPrefixMatch.group(3)!);
+    if (year != null && month != null && day != null) {
+      return DateTime(year, month, day);
+    }
+  }
+
   try {
-    return DateTime.parse(dateStr).toNormalizedDate();
+    return DateTime.parse(trimmed).toNormalizedDate();
   } catch (_) {
-    final dateOnly = dateStr.contains('T') ? dateStr.split('T')[0] : dateStr;
+    final dateOnly = trimmed.contains('T') ? trimmed.split('T')[0] : trimmed;
     final parts = dateOnly.split('-');
     if (parts.length >= 3) {
       final year = int.tryParse(parts[0]) ?? 1970;

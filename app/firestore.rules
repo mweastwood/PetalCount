@@ -13,25 +13,31 @@ service cloud.firestore {
              get(/databases/$(database)/documents/invitations/$(request.auth.token.email.lower())).data.status == 'pending';
     }
 
+    function isValidInvitationAcceptanceUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userIds', 'emails']) &&
+             request.resource.data.userIds.hasAll(resource.data.userIds) &&
+             request.auth.uid in request.resource.data.userIds &&
+             request.resource.data.userIds.size() <= resource.data.userIds.size() + 1 &&
+             (!('emails' in resource.data) || request.resource.data.emails.hasAll(resource.data.emails));
+    }
+
     match /users/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
 
     match /charts/{chartId} {
       allow create: if isSignedIn() && request.auth.uid in request.resource.data.userIds;
-      allow read, update, delete: if isSignedIn() && (
-        request.auth.uid in resource.data.userIds || hasPendingInvitation(chartId)
+      allow read, delete: if isSignedIn() && request.auth.uid in resource.data.userIds;
+      allow update: if isSignedIn() && (
+        request.auth.uid in resource.data.userIds ||
+        (hasPendingInvitation(chartId) && isValidInvitationAcceptanceUpdate())
       );
 
       match /cycles/{cycleId} {
         allow read, write: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/charts/$(chartId)).data.userIds;
 
-        match /observations/{observationId} {
-          allow read, write: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/charts/$(chartId)).data.userIds;
-        }
-
         match /dailyEntries/{entryId} {
-          allow read, write: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/charts/$(chartId)).data.userIds;
+          allow read, delete: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/charts/$(chartId)).data.userIds;
         }
       }
 
@@ -47,17 +53,22 @@ service cloud.firestore {
     match /invitations/{invitationId} {
       allow create: if isSignedIn() && request.resource.data.senderUid == request.auth.uid;
       allow read: if isSignedIn() && (
-        resource.data.senderUid == request.auth.uid || 
+        resource.data.senderUid == request.auth.uid ||
         (request.auth.token.email != null && (
           resource.data.invitationId == request.auth.token.email.lower() ||
           invitationId == request.auth.token.email.lower()
         ))
       );
       allow update: if isSignedIn() && (
-        (request.auth.token.email != null && (
-          resource.data.invitationId == request.auth.token.email.lower() ||
-          invitationId == request.auth.token.email.lower()
-        ))
+        (resource.data.senderUid == request.auth.uid &&
+         request.resource.data.senderUid == request.auth.uid) ||
+        (request.auth.token.email != null &&
+         (resource.data.invitationId == request.auth.token.email.lower() ||
+          invitationId == request.auth.token.email.lower()) &&
+         request.resource.data.chartId == resource.data.chartId &&
+         request.resource.data.senderUid == resource.data.senderUid &&
+         request.resource.data.invitationId == resource.data.invitationId &&
+         request.resource.data.status in ['accepted', 'declined'])
       );
       allow delete: if false;
     }

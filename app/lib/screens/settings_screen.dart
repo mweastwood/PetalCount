@@ -15,110 +15,128 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late final Stream<List<Map<String, dynamic>>> _chartsStream;
   late final Stream<String?> _roleStream;
+  late final Stream<List<Cycle>> _cyclesStream;
 
   @override
   void initState() {
     super.initState();
     _chartsStream = Services.db.streamAvailableCharts();
     _roleStream = Services.db.streamUserRole();
+    _cyclesStream = Services.db.streamCycles();
   }
 
   @override
   Widget build(BuildContext context) {
     final chartId = Services.db.currentChartId;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings & Configuration')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // User profile info card
-            ProfileSettingsCard(roleStream: _roleStream),
-            const SizedBox(height: 24),
+    return StreamBuilder<List<Cycle>>(
+      stream: _cyclesStream,
+      builder: (context, cycleSnapshot) {
+        Cycle? currentActiveCycle = widget.activeCycle;
+        final streamedCycles = cycleSnapshot.data;
+        if (currentActiveCycle != null &&
+            streamedCycles != null &&
+            streamedCycles.isNotEmpty) {
+          currentActiveCycle = streamedCycles.firstWhere(
+            (cycle) => cycle.id == currentActiveCycle!.id,
+            orElse: () => currentActiveCycle!,
+          );
+        }
 
-            // Base Infertile Pattern (BIP) Configuration
-            if (widget.activeCycle != null) ...[
-              BipConfigCard(activeCycle: widget.activeCycle!),
-              const SizedBox(height: 24),
-              const Divider(),
-              const SizedBox(height: 24),
-            ],
+        return Scaffold(
+          appBar: AppBar(title: const Text('Settings & Configuration')),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // User profile info card
+                ProfileSettingsCard(roleStream: _roleStream),
+                const SizedBox(height: 24),
 
-            // Invite Partner Form
-            const PartnerInviteCard(),
+                // Base Infertile Pattern (BIP) Configuration
+                if (currentActiveCycle != null) ...[
+                  BipConfigCard(activeCycle: currentActiveCycle),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 24),
+                ],
 
-            // Notification preferences & Danger zone
-            if (chartId != null)
-              StreamBuilder<List<Map<String, dynamic>>>(
-                stream: _chartsStream,
-                builder: (context, snapshot) {
-                  final charts = snapshot.data ?? [];
-                  final activeChart = charts.firstWhere(
-                    (c) => c['id'] == chartId,
-                    orElse: () => <String, dynamic>{},
-                  );
-                  final userIds = List<String>.from(
-                    activeChart['userIds'] ?? [],
-                  );
-                  final hasOtherCollaborators = userIds.length > 1;
-                  final isEnabled =
-                      (activeChart['reminderEnabled'] as bool?) ?? true;
-                  final rawPrefs = activeChart['notificationPreferences'];
-                  final preferences = NotificationPreferences.fromMap(
-                    rawPrefs != null
-                        ? Map<String, dynamic>.from(rawPrefs)
-                        : {'reminderEnabled': isEnabled},
-                  );
+                // Invite Partner Form
+                const PartnerInviteCard(),
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 40),
-                      const Divider(),
-                      const SizedBox(height: 24),
-                      NotificationPreferencesSection(
-                        chartId: chartId,
-                        preferences: preferences,
-                        activeCycle: widget.activeCycle,
-                      ),
-                      const SizedBox(height: 40),
-                      const Divider(),
-                      const SizedBox(height: 24),
-                      DangerZoneCard(
-                        chartId: chartId,
-                        hasOtherCollaborators: hasOtherCollaborators,
-                      ),
-                    ],
-                  );
-                },
-              ),
+                // Notification preferences & Danger zone
+                if (chartId != null)
+                  StreamBuilder<List<Map<String, dynamic>>>(
+                    stream: _chartsStream,
+                    builder: (context, snapshot) {
+                      final charts = snapshot.data ?? [];
+                      final activeChart = charts.firstWhere(
+                        (c) => c['id'] == chartId,
+                        orElse: () => <String, dynamic>{},
+                      );
+                      final userIds = List<String>.from(
+                        activeChart['userIds'] ?? [],
+                      );
+                      final hasOtherCollaborators = userIds.length > 1;
+                      final isEnabled =
+                          (activeChart['reminderEnabled'] as bool?) ?? true;
+                      final rawPrefs = activeChart['notificationPreferences'];
+                      final preferences = NotificationPreferences.fromMap(
+                        rawPrefs != null
+                            ? Map<String, dynamic>.from(rawPrefs)
+                            : {'reminderEnabled': isEnabled},
+                      );
 
-            // Logout Button
-            OutlinedButton.icon(
-              onPressed: () {
-                Services.db.signOut();
-                Navigator.of(context).pop();
-              },
-              icon: const Icon(Icons.logout, color: Colors.red),
-              label: const Text(
-                'Sign Out',
-                style: TextStyle(color: Colors.red),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.red),
-              ),
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 40),
+                          const Divider(),
+                          const SizedBox(height: 24),
+                          NotificationPreferencesSection(
+                            chartId: chartId,
+                            preferences: preferences,
+                            activeCycle: currentActiveCycle,
+                          ),
+                          const SizedBox(height: 40),
+                          const Divider(),
+                          const SizedBox(height: 24),
+                          DangerZoneCard(
+                            chartId: chartId,
+                            hasOtherCollaborators: hasOtherCollaborators,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+
+                // Logout Button
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Services.db.signOut();
+                    Navigator.of(context).pop();
+                  },
+                  icon: const Icon(Icons.logout, color: Colors.red),
+                  label: const Text(
+                    'Sign Out',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.red),
+                  ),
+                ),
+                const SizedBox(height: 40),
+                const Divider(),
+                const SizedBox(height: 24),
+
+                // Debug & Diagnostics Card
+                const DebugDiagnosticsCard(),
+              ],
             ),
-            const SizedBox(height: 40),
-            const Divider(),
-            const SizedBox(height: 24),
-
-            // Debug & Diagnostics Card
-            const DebugDiagnosticsCard(),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

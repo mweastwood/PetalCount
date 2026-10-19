@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -79,8 +80,12 @@ class LocalNotificationService implements NotificationService {
 
     try {
       tz.initializeTimeZones();
-    } catch (e) {
-      debugPrint('Warning: Timezone initialization failed: $e');
+      if (!kIsWeb) {
+        final localTimezoneInfo = await FlutterTimezone.getLocalTimezone();
+        tz.setLocalLocation(tz.getLocation(localTimezoneInfo.identifier));
+      }
+    } catch (error) {
+      debugPrint('Warning: Timezone initialization failed: $error');
     }
 
     if (kIsWeb) {
@@ -97,17 +102,17 @@ class LocalNotificationService implements NotificationService {
         requestBadgePermission: false,
         requestSoundPermission: false,
       );
-      const initSettings = InitializationSettings(
+      const initializationSettings = InitializationSettings(
         android: androidSettings,
         iOS: darwinSettings,
         macOS: darwinSettings,
       );
 
-      await _notificationsPlugin.initialize(settings: initSettings);
+      await _notificationsPlugin.initialize(settings: initializationSettings);
       _isInitialized = true;
-    } catch (e) {
+    } catch (error) {
       debugPrint(
-        'Warning: FlutterLocalNotificationsPlugin initialize failed: $e',
+        'Warning: FlutterLocalNotificationsPlugin initialize failed: $error',
       );
       _isInitialized = true;
     }
@@ -222,6 +227,7 @@ class LocalNotificationService implements NotificationService {
         scheduledDate: scheduledTzDate,
         notificationDetails: notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
       );
     } catch (e) {
       debugPrint('Warning: Failed to zonedSchedule notification: $e');

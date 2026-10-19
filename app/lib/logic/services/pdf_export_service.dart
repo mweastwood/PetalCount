@@ -92,7 +92,7 @@ class PdfExportService {
           'Creighton_Chart_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
       if (kIsWeb) {
-        downloadFileWeb(bytes, filename);
+        downloadFileWeb(bytes, filename, mimeType: 'application/pdf');
         debugPrint('Web PDF generation and download completed');
         return;
       }
@@ -103,7 +103,7 @@ class PdfExportService {
 
       await SharePlus.instance.share(
         ShareParams(
-          files: [XFile(file.path)],
+          files: [XFile(file.path, mimeType: 'application/pdf')],
           subject: 'My Creighton Model Fertility Chart',
         ),
       );
@@ -403,7 +403,7 @@ class PdfExportService {
       final withoutI = code.substring(0, code.length - 2);
       return '$withoutI $freqStr I';
     } else if (code == 'I') {
-      return '$freqStr I';
+      return 'I';
     } else {
       return '$code $freqStr';
     }

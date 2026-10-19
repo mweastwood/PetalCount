@@ -1,31 +1,106 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+
 import '../utils/date_utils.dart';
 import 'daily_entry.dart';
 
-class Cycle {
-  final String id;
-  final DateTime startDate;
-  final DateTime? endDate;
-  final List<String> bipCodes; // e.g., ['6C', '8Y']
-  final Map<String, DailyEntry> dailyEntries; // Key: 'YYYY-MM-DD'
+part 'cycle.freezed.dart';
+part 'cycle.g.dart';
 
-  Cycle({
-    required this.id,
+DateTime _parseCycleStartDateFromJson(Object? rawDate) =>
+    parseIsoDate(rawDate?.toString() ?? '');
+
+String _serializeCycleDateToDateKey(DateTime date) => date.dateKey;
+
+DateTime? _parseCycleEndDateFromJson(Object? rawDate) {
+  if (rawDate == null) return null;
+  return parseIsoDate(rawDate.toString());
+}
+
+String? _serializeCycleEndDateToDateKey(DateTime? date) => date?.dateKey;
+
+List<String> _parseBasicInfertilePatternCodesFromJson(Object? rawValue) {
+  if (rawValue is! List) return const [];
+  return rawValue.map((item) => item.toString()).toList();
+}
+
+Map<String, DailyEntry> _parseDailyEntriesFromJson(Object? rawEntries) {
+  if (rawEntries is! Map) return const {};
+  final entries = <String, DailyEntry>{};
+  rawEntries.forEach((key, value) {
+    if (value is Map) {
+      final parsedEntry = DailyEntry.fromMap(Map<String, dynamic>.from(value));
+      final normalizedKey = key.toString().isNotEmpty
+          ? key.toString()
+          : parsedEntry.date.dateKey;
+      entries[normalizedKey] = parsedEntry;
+    }
+  });
+  return entries;
+}
+
+Map<String, dynamic> _serializeDailyEntriesToJson(
+  Map<String, DailyEntry> dailyEntries,
+) => dailyEntries.map((key, entry) => MapEntry(key, entry.toMap()));
+
+String _parseCycleIdFromJson(Object? rawId) => rawId?.toString() ?? '';
+
+@freezed
+abstract class Cycle with _$Cycle {
+  const Cycle._();
+
+  const factory Cycle.raw({
+    @Default('') @JsonKey(fromJson: _parseCycleIdFromJson) String id,
+    @JsonKey(
+      fromJson: _parseCycleStartDateFromJson,
+      toJson: _serializeCycleDateToDateKey,
+    )
+    required DateTime startDate,
+    @JsonKey(
+      fromJson: _parseCycleEndDateFromJson,
+      toJson: _serializeCycleEndDateToDateKey,
+    )
+    DateTime? endDate,
+    @Default(<String>[])
+    @JsonKey(fromJson: _parseBasicInfertilePatternCodesFromJson)
+    List<String> bipCodes,
+    @Default(<String, DailyEntry>{})
+    @JsonKey(
+      fromJson: _parseDailyEntriesFromJson,
+      toJson: _serializeDailyEntriesToJson,
+    )
+    Map<String, DailyEntry> dailyEntries,
+  }) = _Cycle;
+
+  factory Cycle({
+    required String id,
     required DateTime startDate,
     DateTime? endDate,
-    this.bipCodes = const [],
-    this.dailyEntries = const {},
-  }) : startDate = startDate.toNormalizedDate(),
-       endDate = endDate?.toNormalizedDate();
-
-  List<DailyEntry>? _sortedEntries;
+    List<String> bipCodes = const [],
+    Map<String, DailyEntry> dailyEntries = const {},
+  }) {
+    return Cycle.raw(
+      id: id,
+      startDate: startDate.toNormalizedDate(),
+      endDate: endDate?.toNormalizedDate(),
+      bipCodes: bipCodes,
+      dailyEntries: dailyEntries,
+    );
+  }
 
   bool get isActive => endDate == null;
 
+  static final Expando<List<DailyEntry>> _sortedEntriesCache =
+      Expando<List<DailyEntry>>('Cycle.sortedEntries');
+
   List<DailyEntry> get sortedEntries {
-    if (_sortedEntries != null) return _sortedEntries!;
-    final list = dailyEntries.values.toList();
-    list.sort((a, b) => a.date.compareTo(b.date));
-    return _sortedEntries = list;
+    final cached = _sortedEntriesCache[this];
+    if (cached != null) return cached;
+    final list = List<DailyEntry>.unmodifiable(
+      dailyEntries.values.toList()
+        ..sort((first, second) => first.date.compareTo(second.date)),
+    );
+    _sortedEntriesCache[this] = list;
+    return list;
   }
 
   /// Returns the date of the latest entry in this cycle, or null if [dailyEntries] is empty.
@@ -37,15 +112,15 @@ class Cycle {
   int get maxDayNumber {
     int cycleMaxDay = 0;
     for (final entry in sortedEntries) {
-      final dayNum = calendarDaysBetween(startDate, entry.date) + 1;
-      if (dayNum > cycleMaxDay) {
-        cycleMaxDay = dayNum;
+      final dayNumber = calendarDaysBetween(startDate, entry.date) + 1;
+      if (dayNumber > cycleMaxDay) {
+        cycleMaxDay = dayNumber;
       }
     }
     if (endDate != null) {
-      final endDayNum = calendarDaysBetween(startDate, endDate!) + 1;
-      if (endDayNum > cycleMaxDay) {
-        cycleMaxDay = endDayNum;
+      final endDayNumber = calendarDaysBetween(startDate, endDate!) + 1;
+      if (endDayNumber > cycleMaxDay) {
+        cycleMaxDay = endDayNumber;
       }
     }
     return cycleMaxDay;
@@ -63,18 +138,18 @@ class Cycle {
     int minDays = 35,
   }) {
     int maxDays = minDays;
-    final sorted = List<Cycle>.from(cycles)
-      ..sort((a, b) => a.startDate.compareTo(b.startDate));
+    final sortedCycles = List<Cycle>.from(cycles)
+      ..sort((first, second) => first.startDate.compareTo(second.startDate));
 
-    for (int i = 0; i < sorted.length; i++) {
-      final cycle = sorted[i];
+    for (int index = 0; index < sortedCycles.length; index++) {
+      final cycle = sortedCycles[index];
       int cycleMax = cycle.maxDayNumber;
       if (cycle.endDate != null) {
         final endDays =
             calendarDaysBetween(cycle.startDate, cycle.endDate!) + 1;
         if (endDays > cycleMax) cycleMax = endDays;
-      } else if (i < sorted.length - 1) {
-        final nextStart = sorted[i + 1].startDate;
+      } else if (index < sortedCycles.length - 1) {
+        final nextStart = sortedCycles[index + 1].startDate;
         final cycleDays = calendarDaysBetween(cycle.startDate, nextStart);
         if (cycleDays > cycleMax) cycleMax = cycleDays;
       }
@@ -85,53 +160,9 @@ class Cycle {
     return maxDays;
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'startDate': startDate.dateKey,
-      'endDate': endDate?.dateKey,
-      'bipCodes': bipCodes,
-      'dailyEntries': dailyEntries.map((k, v) => MapEntry(k, v.toMap())),
-    };
-  }
+  factory Cycle.fromJson(Map<String, dynamic> json) => _$CycleFromJson(json);
 
-  factory Cycle.fromMap(Map<String, dynamic> map) {
-    final startStr = map['startDate']?.toString() ?? '';
-    final parsedStart = parseIsoDate(startStr);
+  factory Cycle.fromMap(Map<String, dynamic> map) => Cycle.fromJson(map);
 
-    DateTime? parsedEnd;
-    if (map['endDate'] != null) {
-      parsedEnd = parseIsoDate(map['endDate'].toString());
-    }
-
-    final rawEntries = map['dailyEntries'] as Map? ?? {};
-    final entries = <String, DailyEntry>{};
-    rawEntries.forEach((k, v) {
-      entries[k.toString()] = DailyEntry.fromMap(Map<String, dynamic>.from(v));
-    });
-
-    return Cycle(
-      id: map['id'] ?? '',
-      startDate: parsedStart,
-      endDate: parsedEnd,
-      bipCodes: List<String>.from(map['bipCodes'] ?? []),
-      dailyEntries: entries,
-    );
-  }
-
-  Cycle copyWith({
-    String? id,
-    DateTime? startDate,
-    DateTime? endDate,
-    List<String>? bipCodes,
-    Map<String, DailyEntry>? dailyEntries,
-  }) {
-    return Cycle(
-      id: id ?? this.id,
-      startDate: startDate ?? this.startDate,
-      endDate: endDate ?? this.endDate,
-      bipCodes: bipCodes ?? this.bipCodes,
-      dailyEntries: dailyEntries ?? this.dailyEntries,
-    );
-  }
+  Map<String, dynamic> toMap() => toJson();
 }

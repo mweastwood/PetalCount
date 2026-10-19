@@ -9,6 +9,7 @@ export 'models/observation.dart';
 export 'models/supplement.dart';
 export 'models/user_role.dart';
 export 'services/creighton_logic.dart';
+export 'services/cycle_coordinator.dart';
 export 'services/database_service.dart';
 export 'services/notification/notification_service.dart';
 export 'services/pdf_export_service.dart';

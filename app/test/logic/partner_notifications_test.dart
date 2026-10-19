@@ -234,6 +234,14 @@ void main() {
           notifications.dispatchedNotifications.last['body'],
           contains('routine Breast Self-Exam day for your spouse'),
         );
+
+        // Post-Peak P+1 formatting
+        final postPeakWifeMessage = CycleNotificationFormatter.peakDayMessage(
+          UserRole.wife,
+          peakLabel: '1',
+        );
+        expect(postPeakWifeMessage.title, contains('P+1'));
+        expect(postPeakWifeMessage.body, contains('P+1'));
       },
     );
   });

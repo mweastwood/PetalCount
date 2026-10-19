@@ -74,8 +74,8 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
     final picked = await showDatePicker(
       context: context,
       initialDate: _controller.selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
     );
     if (picked != null) {
       _controller.setSelectedDate(picked);
@@ -425,7 +425,9 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
           hasMucus: _controller.hasMucus ?? false,
           stretch: _controller.stretch,
           selectedColors: _controller.selectedColors,
-          frequency: _controller.frequency,
+          frequency: _controller.isHeavyOrModerateBleeding
+              ? Frequency.none
+              : _controller.frequency,
           showPain: _controller.showPain,
           hasPain: _controller.hasPain ?? false,
           formattedPainTypes: _controller.formattedPainTypes,

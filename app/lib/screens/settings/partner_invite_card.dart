@@ -20,9 +20,20 @@ class _PartnerInviteCardState extends State<PartnerInviteCard> {
     super.dispose();
   }
 
+  static final RegExp _emailFormatExpression = RegExp(
+    r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+  );
+
   Future<void> _sendInvite() async {
     final email = _inviteEmailController.text.trim();
     if (email.isEmpty) return;
+
+    if (!_emailFormatExpression.hasMatch(email)) {
+      setState(() {
+        _inviteStatus = 'Error: Please enter a valid email address.';
+      });
+      return;
+    }
 
     setState(() {
       _isInviting = true;

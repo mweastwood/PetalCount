@@ -254,5 +254,25 @@ void main() {
         expect(result.roleToCache, isNull);
       },
     );
+
+    test(
+      'caches default wife role when user document exists without an explicit role field',
+      () async {
+        int userCalls = 0;
+
+        final result = await FirebaseDatabaseService.resolveObservationRole(
+          uid: testUid,
+          cachedRole: null,
+          getUserData: (uid) async {
+            userCalls++;
+            return {'uid': uid, 'email': 'wife@example.com'};
+          },
+        );
+
+        expect(userCalls, 1);
+        expect(result.userRole, UserRole.wife);
+        expect(result.roleToCache, 'wife');
+      },
+    );
   });
 }

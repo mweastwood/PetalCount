@@ -1124,6 +1124,7 @@ void main() {
         final c1 = Cycle(
           id: c1Start.dateKey,
           startDate: c1Start,
+          endDate: DateTime(2026, 8, 31),
           bipCodes: ['6C'],
         );
         final c2 = Cycle(
@@ -1159,13 +1160,14 @@ void main() {
 
         final prevDoc = fakeDb.store['charts/$chartId/cycles/${c1.id}'];
         expect(prevDoc, isNotNull);
-        final dailyEntries = prevDoc!['dailyEntries'] as Map;
+        expect(prevDoc!['endDate'], isNull);
+        final dailyEntries = prevDoc['dailyEntries'] as Map;
         expect(dailyEntries.containsKey(c2Start.dateKey), isTrue);
       },
     );
 
     test(
-      'updateBipCodes: recalculates cycle entries and updates cycle doc and dailyEntries',
+      'updateBipCodes: recalculates cycle entries and updates cycle doc dailyEntries map',
       () async {
         final dateKey = startDate.dateKey;
         final entry = DailyEntry(
@@ -1185,16 +1187,17 @@ void main() {
         );
 
         fakeDb.store['charts/$chartId/cycles/$dateKey'] = cycle.toMap();
-        fakeDb.store['charts/$chartId/cycles/$dateKey/dailyEntries/$dateKey'] =
-            entry.toMap();
 
         await service.updateBipCodes(dateKey, ['8Y']);
 
         final cycleDoc = fakeDb.store['charts/$chartId/cycles/$dateKey'];
         expect(cycleDoc!['bipCodes'], equals(['8Y']));
-        final subDoc = fakeDb
-            .store['charts/$chartId/cycles/$dateKey/dailyEntries/$dateKey'];
-        expect(subDoc, isNotNull);
+        final dailyEntries = cycleDoc['dailyEntries'] as Map;
+        expect(dailyEntries.containsKey(dateKey), isTrue);
+        expect(
+          fakeDb.store['charts/$chartId/cycles/$dateKey/dailyEntries/$dateKey'],
+          isNull,
+        );
       },
     );
 
@@ -1233,7 +1236,7 @@ void main() {
     });
 
     test(
-      'saveObservation: creates initial cycle if none exists and persists daily entry in subcollection',
+      'saveObservation: creates initial cycle if none exists and persists daily entry in cycle dailyEntries map only',
       () async {
         await service.saveObservation(
           date: testDate,
@@ -1253,13 +1256,16 @@ void main() {
         final dailyEntries = cycleDoc!['dailyEntries'] as Map;
         expect(dailyEntries.containsKey(dateKey), isTrue);
 
-        final subDoc = fakeDb
-            .store['charts/$chartId/cycles/$dateKey/dailyEntries/$dateKey'];
-        expect(subDoc, isNotNull);
-        final obsList = subDoc!['observations'] as List;
+        final entryMap = dailyEntries[dateKey] as Map;
+        final obsList = entryMap['observations'] as List;
         expect(obsList.length, equals(1));
         expect(obsList.first['comment'], equals('Testing observation'));
         expect(obsList.first['userRole'], equals('wife'));
+
+        expect(
+          fakeDb.store['charts/$chartId/cycles/$dateKey/dailyEntries/$dateKey'],
+          isNull,
+        );
       },
     );
 
@@ -1279,9 +1285,10 @@ void main() {
           comment: 'To be deleted',
         );
 
-        final subDoc = fakeDb
-            .store['charts/$chartId/cycles/$dateKey/dailyEntries/$dateKey'];
-        final obsId = (subDoc!['observations'] as List).first['id'].toString();
+        final cycleDoc = fakeDb.store['charts/$chartId/cycles/$dateKey'];
+        final dailyEntries = cycleDoc!['dailyEntries'] as Map;
+        final entryMap = dailyEntries[dateKey] as Map;
+        final obsId = (entryMap['observations'] as List).first['id'].toString();
 
         await service.deleteObservation(
           cycleId: dateKey,
@@ -1289,11 +1296,6 @@ void main() {
           observationId: obsId,
         );
 
-        // Subcollection doc should be removed because no observations remain
-        expect(
-          fakeDb.store['charts/$chartId/cycles/$dateKey/dailyEntries/$dateKey'],
-          isNull,
-        );
         final updatedCycle = fakeDb.store['charts/$chartId/cycles/$dateKey'];
         expect(
           (updatedCycle!['dailyEntries'] as Map).containsKey(dateKey),
@@ -1354,7 +1356,7 @@ void main() {
 
         final subDoc = fakeDb
             .store['charts/$chartId/cycles/2026-08-25/dailyEntries/2026-08-25'];
-        expect(subDoc, isNotNull);
+        expect(subDoc, isNull);
       },
     );
 
@@ -1489,12 +1491,12 @@ void main() {
         expect(
           fakeDb
               .store['charts/$chartId/cycles/2026-09-27/dailyEntries/2026-09-27'],
-          isNotNull,
+          isNull,
         );
         expect(
           fakeDb
               .store['charts/$chartId/cycles/2026-09-27/dailyEntries/2026-09-28'],
-          isNotNull,
+          isNull,
         );
       },
     );
@@ -1565,7 +1567,7 @@ void main() {
         expect(
           fakeDb
               .store['charts/$chartId/cycles/2026-09-01/dailyEntries/2026-09-05'],
-          isNotNull,
+          isNull,
         );
         expect(
           fakeDb

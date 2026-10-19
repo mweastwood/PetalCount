@@ -381,6 +381,50 @@ void main() {
       controller.dispose();
     });
 
+    test(
+      'setBleedingFlow(Bleeding.none) clears hasBleeding and bleedingColor',
+      () {
+        final controller = WizardController(
+          category: ObservationCategory.full,
+          defaultDate: defaultDate,
+          dbService: db,
+        );
+
+        controller.setBleedingFlow(Bleeding.light);
+        controller.setBleedingColor('R');
+        expect(controller.hasBleeding, isTrue);
+
+        controller.setBleedingFlow(Bleeding.none);
+        expect(controller.hasBleeding, isFalse);
+        expect(controller.bleedingFlow, Bleeding.none);
+        expect(controller.bleedingColor, isNull);
+
+        controller.dispose();
+      },
+    );
+
+    test('setStretch to non-sticky clears gummy and pasty consistencies', () {
+      final controller = WizardController(
+        category: ObservationCategory.full,
+        defaultDate: defaultDate,
+        dbService: db,
+      );
+
+      controller.setHasMucus(true);
+      controller.setStretch(Stretch.sticky);
+      controller.setConsistency(isGummy: true, isPasty: true);
+      expect(controller.isGummy, isTrue);
+      expect(controller.isPasty, isTrue);
+      expect(controller.hasSelectedConsistency, isTrue);
+
+      controller.setStretch(Stretch.stretchy);
+      expect(controller.isGummy, isFalse);
+      expect(controller.isPasty, isFalse);
+      expect(controller.hasSelectedConsistency, isFalse);
+
+      controller.dispose();
+    });
+
     test('pain mutators and formattedPainTypes formatting', () {
       final controller = WizardController(
         category: ObservationCategory.pain,
@@ -688,6 +732,7 @@ void main() {
       // Pre-set mucus fields before selecting heavy bleeding
       controller.setHasMucus(true);
       controller.setStretch(Stretch.stretchy);
+      controller.setFrequency(Frequency.allDay);
       controller.setBleedingFlow(Bleeding.heavy);
       controller.setBleedingColor('R');
 
@@ -701,6 +746,7 @@ void main() {
       expect(obs.stretch, Stretch.none);
       expect(obs.colors, isEmpty);
       expect(obs.consistencies, isEmpty);
+      expect(obs.frequency, Frequency.none);
 
       controller.dispose();
     });

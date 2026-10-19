@@ -5,8 +5,8 @@ import '../utils/date_utils.dart';
 
 class CreightonLogic {
   // Helper values for comparing fertility levels of observations
-  static int _stretchValue(Stretch s) {
-    switch (s) {
+  static int _stretchValue(Stretch stretch) {
+    switch (stretch) {
       case Stretch.stretchy:
         return 3;
       case Stretch.tacky:
@@ -18,8 +18,8 @@ class CreightonLogic {
     }
   }
 
-  static int _sensationValue(Sensation s) {
-    switch (s) {
+  static int _sensationValue(Sensation sensation) {
+    switch (sensation) {
       case Sensation.shiny:
         return 3;
       case Sensation.wet:
@@ -31,38 +31,69 @@ class CreightonLogic {
     }
   }
 
-  // Compares two observations. Returns > 0 if a is more fertile than b,
-  // < 0 if b is more fertile than a, and 0 if they are equivalent.
-  static int compareFertility(Observation a, Observation b) {
+  /// Evaluates whether [mucusCode] matches a Basic Infertile Pattern ([bipCodes])
+  /// without allowing a Peak-type suffix (like `'6CK'`) to match a non-Peak prefix (`'6C'`).
+  static bool matchesBasicInfertilePattern({
+    required Observation observation,
+    required List<String> bipCodes,
+  }) {
+    if (!observation.hasMucus || observation.isPeakType) {
+      return false;
+    }
+    final mucusCode = observation.mucusPart();
+    for (final rawCode in bipCodes) {
+      final normalizedBipCode = rawCode.trim();
+      if (normalizedBipCode.isEmpty) continue;
+      if (mucusCode == normalizedBipCode ||
+          mucusCode == '${normalizedBipCode}G' ||
+          mucusCode == '${normalizedBipCode}P' ||
+          mucusCode == '${normalizedBipCode}GP') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Compares two observations. Returns > 0 if first is more fertile than second,
+  // < 0 if second is more fertile than first, and 0 if they are equivalent.
+  static int compareFertility(Observation first, Observation second) {
     // 1. Peak-type mucus is more fertile than non-peak
-    if (a.isPeakType && !b.isPeakType) return 1;
-    if (!a.isPeakType && b.isPeakType) return -1;
+    if (first.isPeakType && !second.isPeakType) return 1;
+    if (!first.isPeakType && second.isPeakType) return -1;
 
-    // 2. Compare stretch level
-    final stretchA = _stretchValue(a.stretch);
-    final stretchB = _stretchValue(b.stretch);
-    if (stretchA != stretchB) {
-      return stretchA.compareTo(stretchB);
+    // 2. Any mucus observation is more fertile than a non-mucus observation
+    if (first.hasMucus && !second.hasMucus) return 1;
+    if (!first.hasMucus && second.hasMucus) return -1;
+
+    // 3. Compare stretch level
+    final firstStretch = _stretchValue(first.stretch);
+    final secondStretch = _stretchValue(second.stretch);
+    if (firstStretch != secondStretch) {
+      return firstStretch.compareTo(secondStretch);
     }
 
-    // 3. Compare sensation level
-    final sensationA = _sensationValue(a.sensation);
-    final sensationB = _sensationValue(b.sensation);
-    if (sensationA != sensationB) {
-      return sensationA.compareTo(sensationB);
+    // 4. Compare sensation level
+    final firstSensation = _sensationValue(first.sensation);
+    final secondSensation = _sensationValue(second.sensation);
+    if (firstSensation != secondSensation) {
+      return firstSensation.compareTo(secondSensation);
     }
 
-    // 4. Lubricative sensation check
-    final hasLA = a.consistencies.contains(Consistency.lubricative);
-    final hasLB = b.consistencies.contains(Consistency.lubricative);
-    if (hasLA && !hasLB) return 1;
-    if (!hasLA && hasLB) return -1;
+    // 5. Lubricative sensation check
+    final firstHasLubricative = first.consistencies.contains(
+      Consistency.lubricative,
+    );
+    final secondHasLubricative = second.consistencies.contains(
+      Consistency.lubricative,
+    );
+    if (firstHasLubricative && !secondHasLubricative) return 1;
+    if (!firstHasLubricative && secondHasLubricative) return -1;
 
-    // 5. Clear color check
-    final hasKA = a.colors.contains(MucusColor.clear);
-    final hasKB = b.colors.contains(MucusColor.clear);
-    if (hasKA && !hasKB) return 1;
-    if (!hasKA && hasKB) return -1;
+    // 6. Clear color check
+    final firstHasClear = first.colors.contains(MucusColor.clear);
+    final secondHasClear = second.colors.contains(MucusColor.clear);
+    if (firstHasClear && !secondHasClear) return 1;
+    if (!firstHasClear && secondHasClear) return -1;
 
     return 0;
   }
@@ -86,10 +117,10 @@ class CreightonLogic {
     }
 
     // 1. Find the most fertile observation for sensation and mucus
-    Observation bestObs = observations.first;
-    for (int i = 1; i < observations.length; i++) {
-      if (compareFertility(observations[i], bestObs) > 0) {
-        bestObs = observations[i];
+    Observation mostFertileObservation = observations.first;
+    for (int index = 1; index < observations.length; index++) {
+      if (compareFertility(observations[index], mostFertileObservation) > 0) {
+        mostFertileObservation = observations[index];
       }
     }
 
@@ -98,31 +129,36 @@ class CreightonLogic {
     Bleeding worstBleeding = Bleeding.none;
     String worstBleedingColor = '';
 
-    for (var obs in observations) {
-      if (obs.hasBleeding) {
+    for (final observation in observations) {
+      if (observation.hasBleeding) {
         hasAnyBleeding = true;
         // Compare bleeding intensity (Heavy > Moderate > Light > Very Light / Spotting)
-        final currentFlow = obs.bleeding.flowIntensity;
+        final currentFlow = observation.bleeding.flowIntensity;
         final worstFlow = worstBleeding.flowIntensity;
 
         if (worstBleeding == Bleeding.none || currentFlow > worstFlow) {
-          worstBleeding = obs.bleeding;
-          worstBleedingColor = obs.bleedingColor;
+          worstBleeding = observation.bleeding;
+          worstBleedingColor = observation.bleedingColor;
         } else if (currentFlow == worstFlow &&
             worstBleedingColor.isEmpty &&
-            obs.bleedingColor.isNotEmpty) {
-          worstBleedingColor = obs.bleedingColor;
+            observation.bleedingColor.isNotEmpty) {
+          worstBleedingColor = observation.bleedingColor;
         }
       }
     }
 
     // 3. Combine VDRS codes
     String resolvedCode;
-    Frequency resolvedFrequency = bestObs.frequency;
+    Frequency resolvedFrequency = mostFertileObservation.frequency;
     if (resolvedFrequency == Frequency.none) {
-      for (var obs in observations) {
-        if (obs.frequency != Frequency.none) {
-          resolvedFrequency = obs.frequency;
+      for (final observation in observations) {
+        final matchesMostFertile = mostFertileObservation.hasMucus
+            ? (observation.hasMucus &&
+                  observation.mucusPart() == mostFertileObservation.mucusPart())
+            : (!observation.hasMucus &&
+                  observation.sensation == mostFertileObservation.sensation);
+        if (matchesMostFertile && observation.frequency != Frequency.none) {
+          resolvedFrequency = observation.frequency;
           break;
         }
       }
@@ -130,17 +166,19 @@ class CreightonLogic {
 
     final isPureMenstrualFlow =
         worstBleeding.isMenstrualFlow &&
-        !bestObs.hasMucus &&
-        bestObs.sensation == Sensation.dry;
+        !mostFertileObservation.hasMucus &&
+        mostFertileObservation.sensation == Sensation.dry;
 
     if (resolvedFrequency == Frequency.none &&
         !isPureMenstrualFlow &&
         observations.isNotEmpty) {
-      final matchingCount = observations.where((obs) {
-        if (bestObs.hasMucus) {
-          return obs.hasMucus && obs.mucusPart() == bestObs.mucusPart();
+      final matchingCount = observations.where((observation) {
+        if (mostFertileObservation.hasMucus) {
+          return observation.hasMucus &&
+              observation.mucusPart() == mostFertileObservation.mucusPart();
         } else {
-          return !obs.hasMucus && obs.sensation == bestObs.sensation;
+          return !observation.hasMucus &&
+              observation.sensation == mostFertileObservation.sensation;
         }
       }).length;
 
@@ -155,31 +193,35 @@ class CreightonLogic {
       }
     }
 
-    bool hasAnyIntercourse = observations.any((o) => o.intercourse);
+    final hasAnyIntercourse = observations.any(
+      (observation) => observation.intercourse,
+    );
 
     if (hasAnyBleeding) {
-      final bCode = worstBleeding.code;
+      final bleedingBaseCode = worstBleeding.code;
       final colorSuffix =
           (worstBleedingColor.isNotEmpty &&
               worstBleedingColor != Bleeding.red.code)
           ? '-$worstBleedingColor'
           : '';
-      final bleedingPart = '$bCode$colorSuffix';
+      final bleedingPart = '$bleedingBaseCode$colorSuffix';
 
       final isVeryLightOrSpotting =
           worstBleeding == Bleeding.veryLight ||
           worstBleeding == Bleeding.spotting;
 
       if (isVeryLightOrSpotting ||
-          bestObs.hasMucus ||
-          (bestObs.isVdrsExplicit && bestObs.sensation != Sensation.dry) ||
-          (resolvedFrequency != Frequency.none && bestObs.isVdrsExplicit)) {
-        resolvedCode = '$bleedingPart ${bestObs.mucusPart()}';
+          mostFertileObservation.hasMucus ||
+          (mostFertileObservation.isVdrsExplicit &&
+              mostFertileObservation.sensation != Sensation.dry) ||
+          (resolvedFrequency != Frequency.none &&
+              mostFertileObservation.isVdrsExplicit)) {
+        resolvedCode = '$bleedingPart ${mostFertileObservation.mucusPart()}';
       } else {
         resolvedCode = bleedingPart;
       }
     } else {
-      resolvedCode = bestObs.mucusPart();
+      resolvedCode = mostFertileObservation.mucusPart();
     }
 
     if (resolvedFrequency != Frequency.none) {
@@ -197,13 +239,13 @@ class CreightonLogic {
     final allPainTypes = <String>{};
     final commentsList = <String>[];
 
-    for (var obs in observations) {
-      if (obs.painLevel > maxPainLevel) {
-        maxPainLevel = obs.painLevel;
+    for (final observation in observations) {
+      if (observation.painLevel > maxPainLevel) {
+        maxPainLevel = observation.painLevel;
       }
-      allPainTypes.addAll(obs.painTypes);
-      if (obs.comment.trim().isNotEmpty) {
-        commentsList.add(obs.comment.trim());
+      allPainTypes.addAll(observation.painTypes);
+      if (observation.comment.trim().isNotEmpty) {
+        commentsList.add(observation.comment.trim());
       }
     }
 
@@ -211,7 +253,7 @@ class CreightonLogic {
     StampType initialStamp;
     if (hasAnyBleeding) {
       initialStamp = StampType.red;
-    } else if (bestObs.hasMucus) {
+    } else if (mostFertileObservation.hasMucus) {
       initialStamp = StampType.whiteBaby;
     } else {
       initialStamp = StampType.green;
@@ -236,12 +278,12 @@ class CreightonLogic {
     if (entries.isEmpty) return {};
 
     // Sort entries chronologically
-    final sorted = List<DailyEntry>.from(entries);
-    sorted.sort((a, b) => a.date.compareTo(b.date));
+    final sortedEntries = List<DailyEntry>.from(entries);
+    sortedEntries.sort((first, second) => first.date.compareTo(second.date));
 
     // Initialize map of dates to entries
-    final map = <String, DailyEntry>{
-      for (var entry in sorted) entry.date.dateKey: entry,
+    final entryMap = <String, DailyEntry>{
+      for (final entry in sortedEntries) entry.date.dateKey: entry,
     };
 
     // --- STEP A: IDENTIFY THE PEAK DAY ---
@@ -253,34 +295,38 @@ class CreightonLogic {
     // is disrupted and resets until another shift is observed.
     int peakIndex = -1;
 
-    for (int i = sorted.length - 1; i >= 0; i--) {
-      if (sorted[i].isPeakType) {
+    for (int index = sortedEntries.length - 1; index >= 0; index--) {
+      if (sortedEntries[index].isPeakType) {
         // Check if followed by at least 1 day of non-Peak observations
         bool hasNonPeakShift = true;
-        int count = 0;
+        int postPeakObservationCount = 0;
 
-        for (int j = i + 1; j < sorted.length; j++) {
-          if (sorted[j].isPeakType) {
+        for (
+          int nextIndex = index + 1;
+          nextIndex < sortedEntries.length;
+          nextIndex++
+        ) {
+          if (sortedEntries[nextIndex].isPeakType) {
             hasNonPeakShift = false;
             break;
           }
-          count++;
+          postPeakObservationCount++;
         }
 
         // Standard Creighton rules infer Peak Day on the abrupt shift
         // to non-Peak/dry observations (>= 1 post-Peak observation).
-        if (hasNonPeakShift && count >= 1) {
-          peakIndex = i;
+        if (hasNonPeakShift && postPeakObservationCount >= 1) {
+          peakIndex = index;
           break; // Found the last true Peak Day in the cycle
         }
       }
     }
 
     // --- STEP B: ASSIGN STAMPS AND LABELS ---
-    final peakDate = peakIndex != -1 ? sorted[peakIndex].date : null;
+    final peakDate = peakIndex != -1 ? sortedEntries[peakIndex].date : null;
 
-    for (int i = 0; i < sorted.length; i++) {
-      final entry = sorted[i];
+    for (int index = 0; index < sortedEntries.length; index++) {
+      final entry = sortedEntries[index];
 
       // Determine Peak Day Label
       String? label;
@@ -303,20 +349,25 @@ class CreightonLogic {
       if (entry.hasBleeding) {
         stamp = StampType.red;
       } else if (entry.hasMucus) {
-        Observation? bestObs;
-        for (final obs in entry.observations) {
-          if (obs.hasMucus) {
-            if (bestObs == null || compareFertility(obs, bestObs) > 0) {
-              bestObs = obs;
+        Observation? mostFertileMucusObservation;
+        for (final observation in entry.observations) {
+          if (observation.hasMucus) {
+            if (mostFertileMucusObservation == null ||
+                compareFertility(observation, mostFertileMucusObservation) >
+                    0) {
+              mostFertileMucusObservation = observation;
             }
           }
         }
 
-        final isBip =
-            bestObs != null &&
-            bipCodes.any((bip) => bestObs!.mucusPart().startsWith(bip));
+        final isBasicInfertilePattern =
+            mostFertileMucusObservation != null &&
+            matchesBasicInfertilePattern(
+              observation: mostFertileMucusObservation,
+              bipCodes: bipCodes,
+            );
 
-        if (isBip) {
+        if (isBasicInfertilePattern) {
           // Under Yellow Stamp Protocol:
           // BIP mucus gets a Yellow stamp (infertile)
           // Unless it is the Peak Day or in the Peak+1/2/3 fertile window
@@ -342,15 +393,15 @@ class CreightonLogic {
         }
       }
 
-      // Update the entry in our map
+      // Update the entry in our map (Freezed copyWith properly clears peakDayLabel when label is null)
       final updatedEntry = entry.copyWith(
         stampType: stamp,
         peakDayLabel: label,
       );
-      map[entry.date.dateKey] = updatedEntry;
+      entryMap[entry.date.dateKey] = updatedEntry;
     }
 
-    return map;
+    return entryMap;
   }
 
   /// Evaluates whether a new cycle should be automatically started based on
@@ -358,8 +409,8 @@ class CreightonLogic {
   /// over consecutive prior days with true menstrual flow: Heavy, Moderate, or Light).
   /// Premenstrual spotting / very light bleeding (VL) does NOT roll back or start a new cycle.
   static DateTime? evaluateAutoCycleStart(Cycle latestCycle, DateTime date) {
-    final daysDiff = calendarDaysBetween(latestCycle.startDate, date);
-    if (daysDiff >= 16) {
+    final daysDifference = calendarDaysBetween(latestCycle.startDate, date);
+    if (daysDifference >= 16) {
       DateTime newCycleStart = date;
       DateTime checkDate = date.subtractCalendarDays(1);
       while (calendarDaysBetween(latestCycle.startDate, checkDate) >= 16) {
@@ -383,7 +434,7 @@ class CreightonLogic {
     if (cycles.isEmpty) return [];
 
     final sortedCycles = List<Cycle>.from(cycles)
-      ..sort((a, b) => a.startDate.compareTo(b.startDate));
+      ..sort((first, second) => first.startDate.compareTo(second.startDate));
 
     final allEntries = <String, DailyEntry>{};
     for (final cycle in sortedCycles) {
@@ -397,9 +448,9 @@ class CreightonLogic {
     allEntries.forEach((dateKey, entry) {
       final entryDate = entry.date;
       Cycle targetCycle = sortedCycles.first;
-      for (int i = sortedCycles.length - 1; i >= 0; i--) {
-        if (sortedCycles[i].startDate.compareTo(entryDate) <= 0) {
-          targetCycle = sortedCycles[i];
+      for (int index = sortedCycles.length - 1; index >= 0; index--) {
+        if (sortedCycles[index].startDate.compareTo(entryDate) <= 0) {
+          targetCycle = sortedCycles[index];
           break;
         }
       }
@@ -408,12 +459,18 @@ class CreightonLogic {
     });
 
     final result = <Cycle>[];
-    for (final cycle in sortedCycles) {
+    for (int index = 0; index < sortedCycles.length; index++) {
+      final cycle = sortedCycles[index];
       final updatedEntries = recalculateCycle(
         entries: cycleEntriesMap[cycle.id]!.values.toList(),
         bipCodes: cycle.bipCodes,
       );
-      result.add(cycle.copyWith(dailyEntries: updatedEntries));
+      final updatedEndDate = index < sortedCycles.length - 1
+          ? sortedCycles[index + 1].startDate.subtractCalendarDays(1)
+          : null;
+      result.add(
+        cycle.copyWith(endDate: updatedEndDate, dailyEntries: updatedEntries),
+      );
     }
     return result;
   }
@@ -427,10 +484,13 @@ class CreightonLogic {
     if (entry.hasBleeding) return false;
     if (!entry.hasMucus) return false;
     if (entry.isPeakType) return true;
-    for (final obs in entry.observations) {
-      if (obs.hasMucus) {
-        final isBip = bipCodes.any((bip) => obs.mucusPart().startsWith(bip));
-        if (!isBip) return true;
+    for (final observation in entry.observations) {
+      if (observation.hasMucus) {
+        final isBasicInfertilePattern = matchesBasicInfertilePattern(
+          observation: observation,
+          bipCodes: bipCodes,
+        );
+        if (!isBasicInfertilePattern) return true;
       }
     }
     return entry.stampType == StampType.whiteBaby ||
