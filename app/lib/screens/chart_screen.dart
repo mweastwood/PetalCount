@@ -558,7 +558,9 @@ class ChartScreen extends StatelessWidget {
     final borderCol = entry != null
         ? (entry.stampType == StampType.whiteBaby
               ? CreightonTheme.greenBorder
-              : theme.colorScheme.outline)
+              : (entry.stampType == StampType.yellowBaby
+                    ? CreightonTheme.yellowBorder
+                    : theme.colorScheme.outline))
         : theme.colorScheme.outlineVariant.withValues(alpha: 0.5);
 
     final hasPain = entry != null && entry.painLevel > 0;

@@ -36,14 +36,14 @@ class AddEditSupplementDialog extends StatefulWidget {
 }
 
 class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
-  late final TextEditingController _nameCtrl;
-  late final TextEditingController _quantityCtrl;
-  late final TextEditingController _instructionsCtrl;
-  late final TextEditingController _startDayCtrl;
-  late final TextEditingController _endDayCtrl;
-  late final TextEditingController _startPeakCtrl;
-  late final TextEditingController _endPeakCtrl;
-  late final TextEditingController _durationCtrl;
+  late final TextEditingController _nameController;
+  late final TextEditingController _quantityController;
+  late final TextEditingController _instructionsController;
+  late final TextEditingController _startDayController;
+  late final TextEditingController _endDayController;
+  late final TextEditingController _startPeakController;
+  late final TextEditingController _endPeakController;
+  late final TextEditingController _durationController;
 
   late bool _takeWithFood;
   late int _morningDose;
@@ -61,9 +61,9 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
   void initState() {
     super.initState();
     final existing = widget.supplement;
-    _nameCtrl = TextEditingController(text: existing?.name ?? '');
-    _quantityCtrl = TextEditingController(text: existing?.quantity ?? '');
-    _instructionsCtrl = TextEditingController(
+    _nameController = TextEditingController(text: existing?.name ?? '');
+    _quantityController = TextEditingController(text: existing?.quantity ?? '');
+    _instructionsController = TextEditingController(
       text: existing?.instructions ?? '',
     );
     _takeWithFood = existing?.takeWithFood ?? false;
@@ -73,41 +73,41 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
     _ruleType = existing?.ruleType ?? SupplementScheduleRuleType.allDays;
     _targetRole = existing?.targetRole ?? widget.defaultRole ?? UserRole.wife;
 
-    _startDayCtrl = TextEditingController(
+    _startDayController = TextEditingController(
       text: existing?.startCycleDay?.toString() ?? '',
     );
-    _endDayCtrl = TextEditingController(
+    _endDayController = TextEditingController(
       text: existing?.endCycleDay?.toString() ?? '',
     );
-    _startPeakCtrl = TextEditingController(
+    _startPeakController = TextEditingController(
       text: existing?.startPeakOffset?.toString() ?? '',
     );
-    _endPeakCtrl = TextEditingController(
+    _endPeakController = TextEditingController(
       text: existing?.endPeakOffset?.toString() ?? '',
     );
-    _durationCtrl = TextEditingController(
+    _durationController = TextEditingController(
       text: existing?.durationDays?.toString() ?? '',
     );
   }
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _quantityCtrl.dispose();
-    _instructionsCtrl.dispose();
-    _startDayCtrl.dispose();
-    _endDayCtrl.dispose();
-    _startPeakCtrl.dispose();
-    _endPeakCtrl.dispose();
-    _durationCtrl.dispose();
+    _nameController.dispose();
+    _quantityController.dispose();
+    _instructionsController.dispose();
+    _startDayController.dispose();
+    _endDayController.dispose();
+    _startPeakController.dispose();
+    _endPeakController.dispose();
+    _durationController.dispose();
     super.dispose();
   }
 
   Future<void> _handleSave() async {
     if (_isSaving) return;
 
-    final name = _nameCtrl.text.trim();
-    final quantity = _quantityCtrl.text.trim();
+    final name = _nameController.text.trim();
+    final quantity = _quantityController.text.trim();
     bool hasError = false;
 
     if (name.isEmpty) {
@@ -130,11 +130,13 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
       return;
     }
 
-    final parsedStartCycleDay = int.tryParse(_startDayCtrl.text.trim());
-    final parsedEndCycleDay = int.tryParse(_endDayCtrl.text.trim());
-    final parsedStartPeakOffset = int.tryParse(_startPeakCtrl.text.trim());
-    final parsedEndPeakOffset = int.tryParse(_endPeakCtrl.text.trim());
-    final parsedDurationDays = int.tryParse(_durationCtrl.text.trim());
+    final parsedStartCycleDay = int.tryParse(_startDayController.text.trim());
+    final parsedEndCycleDay = int.tryParse(_endDayController.text.trim());
+    final parsedStartPeakOffset = int.tryParse(
+      _startPeakController.text.trim(),
+    );
+    final parsedEndPeakOffset = int.tryParse(_endPeakController.text.trim());
+    final parsedDurationDays = int.tryParse(_durationController.text.trim());
 
     final int? effectiveStartCycleDay =
         (_ruleType == SupplementScheduleRuleType.cycleDays ||
@@ -177,7 +179,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
       startPeakOffset: effectiveStartPeakOffset,
       endPeakOffset: effectiveEndPeakOffset,
       durationDays: effectiveDurationDays,
-      instructions: _instructionsCtrl.text.trim(),
+      instructions: _instructionsController.text.trim(),
       isActive: widget.supplement?.isActive ?? true,
       targetRole: _targetRole,
     );
@@ -252,7 +254,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
               ),
               const SizedBox(height: 16),
               TextField(
-                controller: _nameCtrl,
+                controller: _nameController,
                 decoration: InputDecoration(
                   labelText: 'Supplement Name *',
                   hintText: 'e.g. CoQ10, Prenatal, Clomid',
@@ -266,7 +268,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
               ),
               const SizedBox(height: 12),
               TextField(
-                controller: _quantityCtrl,
+                controller: _quantityController,
                 decoration: InputDecoration(
                   labelText: 'Dosage / Quantity *',
                   hintText: 'e.g. 200 mg, 1 tablet, 2 g',
@@ -284,9 +286,9 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
                 title: const Text('Take with food?'),
                 subtitle: const Text('Required with meals for absorption'),
                 value: _takeWithFood,
-                onChanged: (val) {
+                onChanged: (value) {
                   setState(() {
-                    _takeWithFood = val;
+                    _takeWithFood = value;
                   });
                 },
               ),
@@ -301,25 +303,25 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
               _buildDoseRow(
                 label: '🌅 Morning Dose',
                 count: _morningDose,
-                onChanged: (val) => setState(() {
-                  _morningDose = val;
-                  if (val > 0) _doseError = null;
+                onChanged: (value) => setState(() {
+                  _morningDose = value;
+                  if (value > 0) _doseError = null;
                 }),
               ),
               _buildDoseRow(
                 label: '☀️ Afternoon Dose',
                 count: _afternoonDose,
-                onChanged: (val) => setState(() {
-                  _afternoonDose = val;
-                  if (val > 0) _doseError = null;
+                onChanged: (value) => setState(() {
+                  _afternoonDose = value;
+                  if (value > 0) _doseError = null;
                 }),
               ),
               _buildDoseRow(
                 label: '🌙 Evening Dose',
                 count: _eveningDose,
-                onChanged: (val) => setState(() {
-                  _eveningDose = val;
-                  if (val > 0) _doseError = null;
+                onChanged: (value) => setState(() {
+                  _eveningDose = value;
+                  if (value > 0) _doseError = null;
                 }),
               ),
               if (_doseError != null) ...[
@@ -346,10 +348,10 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
                 items: SupplementScheduleRuleType.values.map((type) {
                   return DropdownMenuItem(value: type, child: Text(type.label));
                 }).toList(),
-                onChanged: (val) {
-                  if (val != null) {
+                onChanged: (value) {
+                  if (value != null) {
                     setState(() {
-                      _ruleType = val;
+                      _ruleType = value;
                     });
                   }
                 },
@@ -360,7 +362,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
                   children: [
                     Expanded(
                       child: TextField(
-                        controller: _startDayCtrl,
+                        controller: _startDayController,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           labelText: 'Start Cycle Day',
@@ -371,7 +373,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextField(
-                        controller: _endDayCtrl,
+                        controller: _endDayController,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           labelText: 'End Cycle Day',
@@ -387,7 +389,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
                   children: [
                     Expanded(
                       child: TextField(
-                        controller: _startPeakCtrl,
+                        controller: _startPeakController,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           labelText: 'Peak Offset (e.g. 3 for P+3)',
@@ -397,7 +399,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextField(
-                        controller: _durationCtrl,
+                        controller: _durationController,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           labelText: 'Duration (Days)',
@@ -409,7 +411,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
                 ),
                 const SizedBox(height: 8),
                 TextField(
-                  controller: _startDayCtrl,
+                  controller: _startDayController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
                     labelText: 'Fallback Start Cycle Day (if no peak)',
@@ -422,7 +424,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
                   children: [
                     Expanded(
                       child: TextField(
-                        controller: _startDayCtrl,
+                        controller: _startDayController,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           labelText: 'Start Cycle Day',
@@ -433,7 +435,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextField(
-                        controller: _endPeakCtrl,
+                        controller: _endPeakController,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
                           labelText: 'End Peak Offset',
@@ -445,7 +447,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
                 ),
                 const SizedBox(height: 8),
                 TextField(
-                  controller: _endDayCtrl,
+                  controller: _endDayController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
                     labelText: 'Fallback End Cycle Day (if no peak)',
@@ -455,7 +457,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
               ],
               const SizedBox(height: 12),
               TextField(
-                controller: _instructionsCtrl,
+                controller: _instructionsController,
                 decoration: const InputDecoration(
                   labelText: 'Clinical Notes / Instructions',
                   hintText: 'e.g. Take with dinner, sustained release',

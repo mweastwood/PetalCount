@@ -21,20 +21,20 @@ class DailyDetailSheet extends StatelessWidget {
   });
 
   static String resolveAuthor(
-    Observation obs, {
+    Observation observation, {
     String? currentUserRole,
     String? currentUserId,
   }) {
-    // 1. Direct Role: If obs.userRole is present, display resolved displayName ("Husband" or "Wife").
-    if (obs.userRole != null && obs.userRole!.isNotEmpty) {
-      return UserRole.fromString(obs.userRole).displayName;
+    // 1. Direct Role: If observation.userRole is present, display resolved displayName ("Husband" or "Wife").
+    if (observation.userRole != null && observation.userRole!.isNotEmpty) {
+      return UserRole.fromString(observation.userRole).displayName;
     }
 
     // 2. Mock UID Fallback: For in-memory / legacy mock UIDs.
-    if (obs.userId == 'husband_uid') {
+    if (observation.userId == 'husband_uid') {
       return UserRole.husband.displayName;
     }
-    if (obs.userId == 'wife_uid') {
+    if (observation.userId == 'wife_uid') {
       return UserRole.wife.displayName;
     }
 
@@ -46,13 +46,15 @@ class DailyDetailSheet extends StatelessWidget {
     }
 
     // If observation has no userId or currentUserId is unavailable, do not falsely attribute.
-    if (currentUserId == null || currentUserId.isEmpty || obs.userId.isEmpty) {
+    if (currentUserId == null ||
+        currentUserId.isEmpty ||
+        observation.userId.isEmpty) {
       return '';
     }
 
     // Attribute to current user's known role if matching, or partner's opposite role.
     final currentRole = UserRole.fromString(currentUserRole);
-    if (obs.userId == currentUserId) {
+    if (observation.userId == currentUserId) {
       return currentRole.displayName;
     } else {
       return currentRole.partnerRole.displayName;
@@ -64,23 +66,61 @@ class DailyDetailSheet extends StatelessWidget {
     final effectiveCurrentUserId =
         currentUserId ?? Services.db.currentUser?.uid;
 
-    return StreamBuilder<String?>(
-      stream: userRoleStream ?? Services.db.streamUserRole(),
-      initialData: currentUserRole,
-      builder: (context, snapshot) {
-        final currentRoleStr = snapshot.data;
-        return _buildContent(context, currentRoleStr, effectiveCurrentUserId);
+    return StreamBuilder<List<Cycle>>(
+      stream: Services.db.streamCycles(),
+      builder: (context, cyclesSnapshot) {
+        final dateKey = entry.date.dateKey;
+        Cycle? matchedCycle;
+        DailyEntry? matchedEntry;
+        final streamedCycles = cyclesSnapshot.data;
+        if (streamedCycles != null && streamedCycles.isNotEmpty) {
+          for (final candidateCycle in streamedCycles) {
+            if (candidateCycle.dailyEntries.containsKey(dateKey)) {
+              matchedCycle = candidateCycle;
+              matchedEntry = candidateCycle.dailyEntries[dateKey];
+              break;
+            }
+          }
+          if (matchedCycle == null) {
+            for (final candidateCycle in streamedCycles) {
+              if (candidateCycle.id == cycle.id) {
+                matchedCycle = candidateCycle;
+                matchedEntry = candidateCycle.dailyEntries[dateKey];
+                break;
+              }
+            }
+          }
+        }
+        final activeCycle = matchedCycle ?? cycle;
+        final activeEntry = matchedEntry ?? entry;
+
+        return StreamBuilder<String?>(
+          stream: userRoleStream ?? Services.db.streamUserRole(),
+          initialData: currentUserRole,
+          builder: (context, snapshot) {
+            final currentRole = snapshot.data;
+            return _buildContent(
+              context,
+              activeCycle,
+              activeEntry,
+              currentRole,
+              effectiveCurrentUserId,
+            );
+          },
+        );
       },
     );
   }
 
   Widget _buildContent(
     BuildContext context,
-    String? currentRoleStr,
+    Cycle activeCycle,
+    DailyEntry activeEntry,
+    String? currentRole,
     String? effectiveCurrentUserId,
   ) {
     final theme = Theme.of(context);
-    final observations = entry.observations;
+    final observations = activeEntry.observations;
 
     return SingleChildScrollView(
       child: Padding(
@@ -98,7 +138,7 @@ class DailyDetailSheet extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Observations for ${AppDateFormats.weekdayMonthDay.format(entry.date)}',
+                  'Observations for ${AppDateFormats.weekdayMonthDay.format(activeEntry.date)}',
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -113,17 +153,17 @@ class DailyDetailSheet extends StatelessWidget {
             Row(
               children: [
                 CreightonStampWidget.badge(
-                  stampType: entry.stampType,
-                  peakDayLabel: entry.peakDayLabel,
+                  stampType: activeEntry.stampType,
+                  peakDayLabel: activeEntry.peakDayLabel,
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Resolved Code: ${entry.resolvedVdrsCode}',
+                  'Resolved Code: ${activeEntry.resolvedVdrsCode}',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (entry.hasIntercourse) ...[
+                if (activeEntry.hasIntercourse) ...[
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -158,14 +198,14 @@ class DailyDetailSheet extends StatelessWidget {
                 ],
               ],
             ),
-            if (entry.comments.isNotEmpty) ...[
+            if (activeEntry.comments.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
-                'Notes Summary: ${entry.comments}',
+                'Notes Summary: ${activeEntry.comments}',
                 style: const TextStyle(fontStyle: FontStyle.italic),
               ),
             ],
-            if (entry.painLevel > 0) ...[
+            if (activeEntry.painLevel > 0) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -176,7 +216,7 @@ class DailyDetailSheet extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    'Pain Level: ${entry.painLevel.toInt()}/10 (${entry.painTypes.join(", ")})',
+                    'Pain Level: ${activeEntry.painLevel.toInt()}/10 (${activeEntry.painTypes.join(", ")})',
                   ),
                 ],
               ),
@@ -204,17 +244,17 @@ class DailyDetailSheet extends StatelessWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: observations.length,
                 itemBuilder: (context, index) {
-                  final obs = observations[index];
+                  final observation = observations[index];
                   final details = <String>[
-                    'Sensation: ${obs.sensation.label}',
-                    'Stretch: ${obs.stretch.label}',
-                    if (obs.frequency != Frequency.none)
-                      'Freq: ${obs.frequency.label}',
-                    if (obs.intercourse) 'Intercourse (I)',
+                    'Sensation: ${observation.sensation.label}',
+                    'Stretch: ${observation.stretch.label}',
+                    if (observation.frequency != Frequency.none)
+                      'Freq: ${observation.frequency.label}',
+                    if (observation.intercourse) 'Intercourse (I)',
                   ];
                   final author = resolveAuthor(
-                    obs,
-                    currentUserRole: currentRoleStr,
+                    observation,
+                    currentUserRole: currentRole,
                     currentUserId: effectiveCurrentUserId,
                   );
                   return Card(
@@ -224,17 +264,17 @@ class DailyDetailSheet extends StatelessWidget {
                     ),
                     margin: const EdgeInsets.symmetric(vertical: 6.0),
                     child: ListTile(
-                      title: Text('Code: ${obs.vdrsCode}'),
+                      title: Text('Code: ${observation.vdrsCode}'),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(details.join(' | ')),
-                          if (obs.comment.isNotEmpty)
-                            Text('Notes: ${obs.comment}'),
+                          if (observation.comment.isNotEmpty)
+                            Text('Notes: ${observation.comment}'),
                           Text(
                             author.isNotEmpty
-                                ? 'Logged at ${AppDateFormats.timeOfDayPadded.format(obs.timestamp)} by $author'
-                                : 'Logged at ${AppDateFormats.timeOfDayPadded.format(obs.timestamp)}',
+                                ? 'Logged at ${AppDateFormats.timeOfDayPadded.format(observation.timestamp)} by $author'
+                                : 'Logged at ${AppDateFormats.timeOfDayPadded.format(observation.timestamp)}',
                             style: theme.textTheme.bodySmall?.copyWith(
                               fontSize: 9,
                             ),
@@ -247,12 +287,15 @@ class DailyDetailSheet extends StatelessWidget {
                           color: Colors.red,
                         ),
                         onPressed: () async {
+                          final shouldCloseSheet = observations.length <= 1;
                           await Services.db.deleteObservation(
-                            cycleId: cycle.id,
-                            date: entry.date,
-                            observationId: obs.id,
+                            cycleId: activeCycle.id,
+                            date: activeEntry.date,
+                            observationId: observation.id,
                           );
-                          if (context.mounted) Navigator.of(context).pop();
+                          if (shouldCloseSheet && context.mounted) {
+                            Navigator.of(context).pop();
+                          }
                         },
                       ),
                     ),
@@ -266,8 +309,8 @@ class DailyDetailSheet extends StatelessWidget {
                 showDialog(
                   context: context,
                   builder: (context) => AddObservationDialog(
-                    cycle: cycle,
-                    defaultDate: entry.date,
+                    cycle: activeCycle,
+                    defaultDate: activeEntry.date,
                   ),
                 );
               },

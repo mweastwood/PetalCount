@@ -425,7 +425,9 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
           hasMucus: _controller.hasMucus ?? false,
           stretch: _controller.stretch,
           selectedColors: _controller.selectedColors,
-          frequency: _controller.frequency,
+          frequency: _controller.isHeavyOrModerateBleeding
+              ? Frequency.none
+              : _controller.frequency,
           showPain: _controller.showPain,
           hasPain: _controller.hasPain ?? false,
           formattedPainTypes: _controller.formattedPainTypes,

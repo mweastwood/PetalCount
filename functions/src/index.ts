@@ -48,19 +48,19 @@ export const checkDailyObservationsAndNotify = onSchedule(
  */
 export const triggerDailyRemindersManually = onRequest(
   { memory: "256MiB" },
-  async (req, res) => {
+  async (request, response) => {
     const isTestOrEmulator =
       process.env.NODE_ENV === "test" ||
       process.env.FUNCTIONS_EMULATOR === "true";
 
     if (!isTestOrEmulator) {
       const authorizationHeader =
-        typeof req.headers?.authorization === "string"
-          ? req.headers.authorization
+        typeof request.headers?.authorization === "string"
+          ? request.headers.authorization
           : "";
       const adminSecretHeader =
-        typeof req.headers?.["x-admin-secret"] === "string"
-          ? req.headers["x-admin-secret"]
+        typeof request.headers?.["x-admin-secret"] === "string"
+          ? request.headers["x-admin-secret"]
           : "";
       const configuredSecret = process.env.REMINDER_TRIGGER_SECRET || "";
 
@@ -78,7 +78,7 @@ export const triggerDailyRemindersManually = onRequest(
       }
 
       if (!isAuthorized) {
-        res.status(401).json({
+        response.status(401).json({
           success: false,
           error: "Unauthorized request",
         });
@@ -86,10 +86,10 @@ export const triggerDailyRemindersManually = onRequest(
       }
     }
 
-    const chartId = req.query.chartId as string | undefined;
-    const targetHourStr = req.query.targetHour as string | undefined;
-    const parsedTargetHour = targetHourStr
-      ? parseInt(targetHourStr, 10)
+    const chartId = request.query.chartId as string | undefined;
+    const targetHourQuery = request.query.targetHour as string | undefined;
+    const parsedTargetHour = targetHourQuery
+      ? parseInt(targetHourQuery, 10)
       : undefined;
     const targetHour =
       parsedTargetHour !== undefined && !Number.isNaN(parsedTargetHour)
@@ -101,12 +101,12 @@ export const triggerDailyRemindersManually = onRequest(
         forceChartId: chartId,
         targetHour: targetHour,
       });
-      res.status(200).json({ success: true, ...result });
+      response.status(200).json({ success: true, ...result });
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       logger.error("Error triggering reminders manually:", error);
-      res.status(500).json({ success: false, error: errorMessage });
+      response.status(500).json({ success: false, error: errorMessage });
     }
   }
 );

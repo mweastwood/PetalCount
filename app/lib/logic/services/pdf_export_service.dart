@@ -92,7 +92,7 @@ class PdfExportService {
           'Creighton_Chart_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
       if (kIsWeb) {
-        downloadFileWeb(bytes, filename);
+        downloadFileWeb(bytes, filename, mimeType: 'application/pdf');
         debugPrint('Web PDF generation and download completed');
         return;
       }

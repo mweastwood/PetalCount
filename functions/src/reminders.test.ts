@@ -894,9 +894,12 @@ describe("processDailyReminders", () => {
     expect(result.tokensNotified).toBe(1);
     expect(mockDb.getAll).toHaveBeenCalled();
 
-    // Verifies invalid tokens were pruned and valid token retained
+    // Verifies invalid tokens were pruned atomically via FieldValue.arrayRemove
     expect(mockUserUpdate).toHaveBeenCalledWith({
-      fcmTokens: ["valid_token_1"],
+      fcmTokens: admin.firestore.FieldValue.arrayRemove(
+        "invalid_token_expired",
+        "invalid_token_bad_format"
+      ),
     });
   });
 
@@ -1783,10 +1786,97 @@ describe("processDailyReminders", () => {
       { merge: true }
     );
   });
+
+  it("processes a forced chart via forceChartId even when reminderEnabled is false", async () => {
+    const now = new Date(Date.UTC(2026, 7, 21, 14, 0, 0));
+
+    const mockChartDoc = {
+      id: "chart_forced_disabled",
+      exists: true,
+      data: () => ({
+        id: "chart_forced_disabled",
+        userIds: ["user_forced"],
+        reminderEnabled: false,
+        timezone: "America/Los_Angeles",
+      }),
+    };
+
+    const mockUser = {
+      id: "user_forced",
+      exists: true,
+      data: () => ({
+        uid: "user_forced",
+        fcmTokens: ["token_forced_1"],
+      }),
+    };
+
+    const mockCycleDoc = {
+      ref: {
+        collection: jest.fn().mockReturnValue({
+          doc: jest.fn().mockReturnValue({
+            get: jest.fn().mockResolvedValue({ exists: false }),
+          }),
+        }),
+      },
+      data: () => ({ dailyEntries: {} }),
+    };
+
+    const mockDb = {
+      collection: jest.fn((collectionName: string) => {
+        if (collectionName === "charts") {
+          return {
+            doc: jest.fn().mockReturnValue({
+              get: jest.fn().mockResolvedValue(mockChartDoc),
+              collection: jest.fn().mockReturnValue({
+                where: jest.fn().mockReturnThis(),
+                orderBy: jest.fn().mockReturnThis(),
+                limit: jest.fn().mockReturnValue({
+                  get: jest.fn().mockResolvedValue({
+                    empty: false,
+                    docs: [mockCycleDoc],
+                  }),
+                }),
+              }),
+            }),
+          };
+        }
+        if (collectionName === "users") {
+          return {
+            doc: jest.fn((userId: string) => ({
+              id: userId,
+              get: jest.fn().mockResolvedValue(mockUser),
+              update: jest.fn().mockResolvedValue(undefined),
+            })),
+          };
+        }
+        return {};
+      }),
+      getAll: jest.fn().mockImplementation((...refs) =>
+        Promise.all(refs.map(() => Promise.resolve(mockUser)))
+      ),
+    } as unknown as admin.firestore.Firestore;
+
+    const mockMessaging = {
+      sendEachForMulticast: jest.fn().mockResolvedValue({
+        successCount: 1,
+        failureCount: 0,
+        responses: [{ success: true }],
+      }),
+    } as unknown as admin.messaging.Messaging;
+
+    const result = await processDailyReminders(mockDb, mockMessaging, {
+      now,
+      forceChartId: "chart_forced_disabled",
+    });
+
+    expect(result.chartsChecked).toBe(1);
+    expect(result.remindersSent).toBe(1);
+    expect(result.tokensNotified).toBe(1);
+  });
 });
 
 describe("processCollaboratorFertilityNotification", () => {
-  it("dispatches push notification to partner when a fertile or Peak observation is added", async () => {
+  it("dispatches push notification to partner when a fertile or Peak observation is added and prunes invalid tokens", async () => {
     const previousCycle = {
       id: "2026-06-01",
       dailyEntries: {},
@@ -1827,9 +1917,11 @@ describe("processCollaboratorFertilityNotification", () => {
       data: () => ({
         uid: "user_husband",
         role: "husband",
-        fcmTokens: ["husband_token_1"],
+        fcmTokens: ["husband_token_1", "husband_stale_token"],
       }),
     };
+
+    const mockUserUpdate = jest.fn().mockResolvedValue(undefined);
 
     const mockDb = {
       collection: jest.fn((collectionName: string) => {
@@ -1844,6 +1936,7 @@ describe("processCollaboratorFertilityNotification", () => {
           return {
             doc: jest.fn().mockReturnValue({
               get: jest.fn().mockResolvedValue(mockHusbandSnapshot),
+              update: mockUserUpdate,
             }),
           };
         }
@@ -1853,8 +1946,14 @@ describe("processCollaboratorFertilityNotification", () => {
 
     const mockSendEach = jest.fn().mockResolvedValue({
       successCount: 1,
-      failureCount: 0,
-      responses: [{ success: true }],
+      failureCount: 1,
+      responses: [
+        { success: true },
+        {
+          success: false,
+          error: { code: "messaging/registration-token-not-registered" },
+        },
+      ],
     });
 
     const mockMessaging = {
@@ -1873,13 +1972,16 @@ describe("processCollaboratorFertilityNotification", () => {
     expect(result.tokensNotified).toBe(1);
     expect(mockSendEach).toHaveBeenCalledWith(
       expect.objectContaining({
-        tokens: ["husband_token_1"],
+        tokens: ["husband_token_1", "husband_stale_token"],
         notification: {
           title: "Peak Day Identified",
           body: "Partner alert: Today is marked as Peak (P) on your shared chart.",
         },
       })
     );
+    expect(mockUserUpdate).toHaveBeenCalledWith({
+      fcmTokens: admin.firestore.FieldValue.arrayRemove("husband_stale_token"),
+    });
   });
 });
 

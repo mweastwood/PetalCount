@@ -2211,5 +2211,32 @@ void main() {
         expect(recalculated[d17.dateKey]?.stampType, StampType.greenBaby);
       },
     );
+
+    test(
+      'reallocateAndRecalculateCycles clears endDate to null on the final cycle so it remains active',
+      () {
+        final cycle1 = Cycle(
+          id: '2026-08-01',
+          startDate: DateTime(2026, 8, 1),
+          endDate: DateTime(2026, 8, 31),
+        );
+        final cycle2WithStaleEndDate = Cycle(
+          id: '2026-09-01',
+          startDate: DateTime(2026, 9, 1),
+          endDate: DateTime(2026, 9, 30),
+        );
+
+        final reallocated = CreightonLogic.reallocateAndRecalculateCycles([
+          cycle1,
+          cycle2WithStaleEndDate,
+        ]);
+
+        expect(reallocated, hasLength(2));
+        expect(reallocated.first.endDate, DateTime(2026, 8, 31));
+        expect(reallocated.first.isActive, isFalse);
+        expect(reallocated.last.endDate, isNull);
+        expect(reallocated.last.isActive, isTrue);
+      },
+    );
   });
 }

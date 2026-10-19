@@ -1212,8 +1212,8 @@ class FirebaseDatabaseService implements DatabaseService {
     );
 
     try {
-      final dateStr = date.dateKey;
-      final cyclesCol = _db
+      final dateString = date.dateKey;
+      final cyclesCollection = _db
           .collection('charts')
           .doc(chartId)
           .collection('cycles');
@@ -1223,44 +1223,47 @@ class FirebaseDatabaseService implements DatabaseService {
 
       String targetCycleId;
 
-      final eligibleSnap = await cyclesCol
-          .where('startDate', isLessThanOrEqualTo: dateStr)
+      final eligibleCyclesSnapshot = await cyclesCollection
+          .where('startDate', isLessThanOrEqualTo: dateString)
           .orderBy('startDate', descending: true)
           .limit(1)
           .get();
 
-      if (eligibleSnap.docs.isEmpty) {
-        final anySnap = await cyclesCol.orderBy('startDate').limit(1).get();
-        final earliestCycle = anySnap.docs.isNotEmpty
-            ? Cycle.fromMap(anySnap.docs.first.data())
+      if (eligibleCyclesSnapshot.docs.isEmpty) {
+        final anyCycleSnapshot = await cyclesCollection
+            .orderBy('startDate')
+            .limit(1)
+            .get();
+        final earliestCycle = anyCycleSnapshot.docs.isNotEmpty
+            ? Cycle.fromMap(anyCycleSnapshot.docs.first.data())
             : null;
         final inheritedBipCodes =
             (earliestCycle != null && earliestCycle.bipCodes.isNotEmpty)
             ? earliestCycle.bipCodes
             : const <String>['6C'];
-        if (anySnap.docs.isNotEmpty) {
+        if (anyCycleSnapshot.docs.isNotEmpty) {
           await startNewCycle(date, inheritedBipCodes);
         } else {
           final newCycle = Cycle(
-            id: dateStr,
+            id: dateString,
             startDate: date,
             bipCodes: inheritedBipCodes,
             dailyEntries: const {},
           );
-          await cyclesCol.doc(dateStr).set(newCycle.toMap());
+          await cyclesCollection.doc(dateString).set(newCycle.toMap());
         }
-        targetCycleId = dateStr;
+        targetCycleId = dateString;
       } else {
-        final latest = Cycle.fromMap(eligibleSnap.docs.first.data());
+        final latest = Cycle.fromMap(eligibleCyclesSnapshot.docs.first.data());
         if (isHeavyOrModerate) {
           final autoStart = CreightonLogic.evaluateAutoCycleStart(latest, date);
           if (autoStart != null) {
-            final autoStartStr = autoStart.dateKey;
-            final existingDoc = await cyclesCol.doc(autoStartStr).get();
+            final autoStartKey = autoStart.dateKey;
+            final existingDoc = await cyclesCollection.doc(autoStartKey).get();
             if (!existingDoc.exists) {
               await startNewCycle(autoStart, latest.bipCodes);
             }
-            targetCycleId = autoStartStr;
+            targetCycleId = autoStartKey;
           } else {
             targetCycleId = latest.id;
           }
@@ -1269,7 +1272,7 @@ class FirebaseDatabaseService implements DatabaseService {
         }
       }
 
-      final dateKey = dateStr;
+      final dateKey = dateString;
 
       final roleContext = await resolveObservationRole(
         uid: user.uid,
@@ -1303,7 +1306,7 @@ class FirebaseDatabaseService implements DatabaseService {
         isVdrsExplicit: isVdrsExplicit,
       );
 
-      final cycleRef = cyclesCol.doc(targetCycleId);
+      final cycleRef = cyclesCollection.doc(targetCycleId);
       late ObservationSaveResult saveResult;
 
       await _db.runTransaction((transaction) async {
@@ -1351,7 +1354,7 @@ class FirebaseDatabaseService implements DatabaseService {
           },
         );
 
-        if (roleContext.roleToCache != null) {
+        if (roleContext.roleToCache != null && context.roleToCache != null) {
           _cachedRole = context.roleToCache;
         }
         _cachedPreferencesByChart[chartId] = context.preferencesToCache;
@@ -1376,8 +1379,8 @@ class FirebaseDatabaseService implements DatabaseService {
             role: dispatchUserRole,
           );
         }
-      } catch (notifErr) {
-        debugPrint('Warning: Notification dispatch error: $notifErr');
+      } catch (notificationError) {
+        debugPrint('Warning: Notification dispatch error: $notificationError');
       }
 
       Services.logger.info(
@@ -1390,7 +1393,7 @@ class FirebaseDatabaseService implements DatabaseService {
           'obsId': createdObservation.id,
         },
       );
-    } catch (e, st) {
+    } catch (error, stackTrace) {
       Services.logger.error(
         'Failed to save observation to Firestore',
         category: 'observation',
@@ -1400,8 +1403,8 @@ class FirebaseDatabaseService implements DatabaseService {
           'userEmail': user.email,
           'targetDate': date.toIso8601String(),
         },
-        error: e,
-        stackTrace: st,
+        error: error,
+        stackTrace: stackTrace,
       );
       rethrow;
     }
@@ -1639,11 +1642,15 @@ class FirebaseDatabaseService implements DatabaseService {
     String? roleToCache;
     try {
       final userData = await getUserData(uid);
-      final userRoleStr = userData?['role'] as String?;
-      roleToCache = userRoleStr;
-      userRole = UserRole.fromString(userRoleStr);
-    } catch (e) {
-      Services.logger.warning('Failed to fetch user role for observation: $e');
+      final userRoleString = userData?['role'] as String?;
+      userRole = UserRole.fromString(userRoleString);
+      if (userData != null) {
+        roleToCache = userRole.code;
+      }
+    } catch (error) {
+      Services.logger.warning(
+        'Failed to fetch user role for observation: $error',
+      );
     }
 
     return ObservationRoleContext(userRole: userRole, roleToCache: roleToCache);

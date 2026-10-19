@@ -16,7 +16,9 @@ service cloud.firestore {
     function isValidInvitationAcceptanceUpdate() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userIds', 'emails']) &&
              request.resource.data.userIds.hasAll(resource.data.userIds) &&
-             request.auth.uid in request.resource.data.userIds;
+             request.auth.uid in request.resource.data.userIds &&
+             request.resource.data.userIds.size() <= resource.data.userIds.size() + 1 &&
+             (!('emails' in resource.data) || request.resource.data.emails.hasAll(resource.data.emails));
     }
 
     match /users/{userId} {

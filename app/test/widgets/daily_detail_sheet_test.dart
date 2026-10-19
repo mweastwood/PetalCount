@@ -838,6 +838,73 @@ void main() {
         expect(find.byType(DailyDetailSheet), findsNothing);
       },
     );
+
+    testWidgets(
+      'deleting one of multiple observations keeps bottom sheet open and reactively updates list',
+      (WidgetTester tester) async {
+        await mockDb.saveObservation(
+          date: testDate,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: const [],
+          comment: 'Morning dry observation',
+        );
+        await mockDb.saveObservation(
+          date: testDate,
+          sensation: Sensation.wet,
+          stretch: Stretch.tacky,
+          colors: const [MucusColor.cloudy],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          bleedingColor: '',
+          painLevel: 0,
+          painTypes: const [],
+          comment: 'Evening mucus observation',
+        );
+
+        final activeCycles = await mockDb.streamCycles().first;
+        final seededCycle = activeCycles.first;
+        final entryWithTwo = seededCycle.dailyEntries[testDate.dateKey]!;
+
+        await tester.pumpWidget(
+          buildTestWidget(
+            entry: entryWithTwo,
+            cycle: seededCycle,
+            openAsBottomSheet: true,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Open Daily Detail Sheet'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(DailyDetailSheet), findsOneWidget);
+        expect(find.text('Logged Entries (2):'), findsOneWidget);
+        expect(find.byIcon(Icons.delete_outline), findsNWidgets(2));
+
+        // Delete the first observation; sheet should stay open and show 1 entry
+        await tester.tap(find.byIcon(Icons.delete_outline).first);
+        await tester.pumpAndSettle();
+
+        expect(mockDb.deleteCallCount, equals(1));
+        expect(mockDb.lastDeletedCycleId, equals(seededCycle.id));
+        expect(find.byType(DailyDetailSheet), findsOneWidget);
+        expect(find.text('Logged Entries (1):'), findsOneWidget);
+        expect(find.text('Notes: Evening mucus observation'), findsOneWidget);
+
+        // Delete the final remaining observation; sheet should now close
+        await tester.tap(find.byIcon(Icons.delete_outline));
+        await tester.pumpAndSettle();
+
+        expect(mockDb.deleteCallCount, equals(2));
+        expect(find.byType(DailyDetailSheet), findsNothing);
+      },
+    );
   });
 
   group('DailyDetailSheet Add Observation Button Tests', () {

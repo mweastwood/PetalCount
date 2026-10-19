@@ -1124,6 +1124,7 @@ void main() {
         final c1 = Cycle(
           id: c1Start.dateKey,
           startDate: c1Start,
+          endDate: DateTime(2026, 8, 31),
           bipCodes: ['6C'],
         );
         final c2 = Cycle(
@@ -1159,7 +1160,8 @@ void main() {
 
         final prevDoc = fakeDb.store['charts/$chartId/cycles/${c1.id}'];
         expect(prevDoc, isNotNull);
-        final dailyEntries = prevDoc!['dailyEntries'] as Map;
+        expect(prevDoc!['endDate'], isNull);
+        final dailyEntries = prevDoc['dailyEntries'] as Map;
         expect(dailyEntries.containsKey(c2Start.dateKey), isTrue);
       },
     );

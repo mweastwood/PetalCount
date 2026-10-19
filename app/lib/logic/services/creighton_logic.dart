@@ -467,7 +467,7 @@ class CreightonLogic {
       );
       final updatedEndDate = index < sortedCycles.length - 1
           ? sortedCycles[index + 1].startDate.subtractCalendarDays(1)
-          : cycle.endDate;
+          : null;
       result.add(
         cycle.copyWith(endDate: updatedEndDate, dailyEntries: updatedEntries),
       );

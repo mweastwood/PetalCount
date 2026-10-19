@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../logic/logic.dart';
@@ -7,12 +9,14 @@ class SupplementScreen extends StatefulWidget {
   final DateTime? initialDate;
   final Cycle? activeCycle;
   final UserRole? initialRole;
+  final Stream<String?>? userRoleStream;
 
   const SupplementScreen({
     super.key,
     this.initialDate,
     this.activeCycle,
     this.initialRole,
+    this.userRoleStream,
   });
 
   @override
@@ -24,6 +28,8 @@ class _SupplementScreenState extends State<SupplementScreen>
   late TabController _tabController;
   late DateTime _selectedDate;
   late UserRole _activeRole;
+  bool _hasManuallyChangedRole = false;
+  StreamSubscription<String?>? _userRoleSubscription;
   late final Stream<List<Cycle>> _cyclesStream;
   late final Stream<List<SupplementItem>> _supplementsStream;
   late final Stream<Map<String, DailySupplementLog>> _supplementLogsStream;
@@ -43,10 +49,29 @@ class _SupplementScreenState extends State<SupplementScreen>
     _cyclesStream = Services.db.streamCycles();
     _supplementsStream = Services.db.streamSupplements();
     _supplementLogsStream = Services.db.streamDailySupplementLogs();
+    if (widget.initialRole == null) {
+      final roleStream =
+          widget.userRoleStream ??
+          (Services.db is InMemoryDatabaseService
+              ? Services.db.streamUserRole().skip(1)
+              : Services.db.streamUserRole());
+      _userRoleSubscription = roleStream.listen((roleString) {
+        if (!mounted || _hasManuallyChangedRole || roleString == null) {
+          return;
+        }
+        final resolvedRole = UserRole.fromString(roleString);
+        if (_activeRole != resolvedRole) {
+          setState(() {
+            _activeRole = resolvedRole;
+          });
+        }
+      }, onError: (_) {});
+    }
   }
 
   @override
   void dispose() {
+    _userRoleSubscription?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -170,8 +195,8 @@ class _SupplementScreenState extends State<SupplementScreen>
 
         return StreamBuilder<List<SupplementItem>>(
           stream: _supplementsStream,
-          builder: (context, suppSnapshot) {
-            final supplements = suppSnapshot.data ?? [];
+          builder: (context, supplementsSnapshot) {
+            final supplements = supplementsSnapshot.data ?? [];
 
             return Scaffold(
               appBar: AppBar(
@@ -258,6 +283,7 @@ class _SupplementScreenState extends State<SupplementScreen>
                         initialRole: _activeRole,
                         onRoleChanged: (role) {
                           setState(() {
+                            _hasManuallyChangedRole = true;
                             _activeRole = role;
                           });
                         },
@@ -272,6 +298,7 @@ class _SupplementScreenState extends State<SupplementScreen>
                     initialRole: _activeRole,
                     onRoleChanged: (role) {
                       setState(() {
+                        _hasManuallyChangedRole = true;
                         _activeRole = role;
                       });
                     },
