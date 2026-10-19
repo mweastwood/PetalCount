@@ -72,7 +72,7 @@ class _SupplementScreenState extends State<SupplementScreen>
         return sorted[i];
       }
     }
-    return sorted.isNotEmpty ? sorted.last : null;
+    return null;
   }
 
   int _calculateCycleDay(Cycle? cycle, DateTime date) {
@@ -157,11 +157,16 @@ class _SupplementScreenState extends State<SupplementScreen>
       stream: _cyclesStream,
       builder: (context, cycleSnapshot) {
         final cycles = cycleSnapshot.data ?? [];
+        final fallbackCycle =
+            (widget.activeCycle != null &&
+                !widget.activeCycle!.startDate.isAfter(_selectedDate))
+            ? widget.activeCycle
+            : null;
         final activeCycle =
-            _findCycleForDate(cycles, _selectedDate) ?? widget.activeCycle;
+            _findCycleForDate(cycles, _selectedDate) ?? fallbackCycle;
         final cycleDay = _calculateCycleDay(activeCycle, _selectedDate);
         final daysPastPeak = _calculateDaysPastPeak(activeCycle, _selectedDate);
-        final hasPeakOccurred = daysPastPeak != null;
+        final hasPeakOccurred = daysPastPeak != null && daysPastPeak >= 0;
 
         return StreamBuilder<List<SupplementItem>>(
           stream: _supplementsStream,

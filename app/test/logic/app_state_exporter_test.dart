@@ -204,6 +204,10 @@ void main() {
         final decoded =
             json.decode(utf8.decode(savedBytes!)) as Map<String, dynamic>;
         expect(decoded['auth']['uid'], 'husband_uid');
+        expect(decoded['auth']['email'], 'h***d@example.com');
+        final databaseState = decoded['databaseState'] as Map<String, dynamic>;
+        expect(databaseState.containsKey('supplements'), isTrue);
+        expect(databaseState.containsKey('supplementLogs'), isTrue);
       },
     );
   });

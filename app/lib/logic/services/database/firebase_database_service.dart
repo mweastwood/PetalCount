@@ -7,13 +7,13 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../app_config.dart';
 import '../../models/cycle.dart';
-import '../../models/daily_entry.dart';
 import '../../models/notification_preferences.dart';
 import '../../models/observation.dart';
 import '../../models/supplement.dart';
 import '../../models/user_role.dart';
 import '../../utils/date_utils.dart';
 import '../creighton_logic.dart';
+import '../cycle_coordinator.dart';
 import '../services.dart';
 import 'database_service_interface.dart';
 
@@ -501,7 +501,10 @@ class FirebaseDatabaseService implements DatabaseService {
       }
 
       userIds.remove(user.uid);
-      emails.remove(user.email ?? '');
+      final normalizedUserEmail = (user.email ?? '').trim().toLowerCase();
+      emails.removeWhere(
+        (emailEntry) => emailEntry.trim().toLowerCase() == normalizedUserEmail,
+      );
 
       if (userIds.isEmpty) {
         shouldDeleteAll = true;
@@ -836,6 +839,38 @@ class FirebaseDatabaseService implements DatabaseService {
     );
   }
 
+  Future<void> _applyCycleMutationPlan(
+    String chartId,
+    CycleMutationPlan mutationPlan,
+  ) async {
+    final cyclesCollection = _db
+        .collection('charts')
+        .doc(chartId)
+        .collection('cycles');
+
+    final operations = <void Function(WriteBatch batch)>[];
+
+    for (final cycleIdentifier in mutationPlan.cycleIdentifiersToDelete) {
+      final cycleReference = cyclesCollection.doc(cycleIdentifier);
+      final legacyDailySnapshot = await cycleReference
+          .collection('dailyEntries')
+          .get();
+      for (final legacyDailyDocument in legacyDailySnapshot.docs) {
+        operations.add((batch) => batch.delete(legacyDailyDocument.reference));
+      }
+      operations.add((batch) => batch.delete(cycleReference));
+    }
+
+    for (final cycle in mutationPlan.cyclesToUpsert) {
+      final cycleReference = cyclesCollection.doc(cycle.id);
+      operations.add((batch) {
+        batch.set(cycleReference, cycle.toMap());
+      });
+    }
+
+    await _commitBatchedWrites(operations);
+  }
+
   Future<void> _reallocateAndRecalculate(String chartId) async {
     final cyclesSnapshot = await _db
         .collection('charts')
@@ -849,51 +884,10 @@ class FirebaseDatabaseService implements DatabaseService {
     if (cycles.isEmpty) return;
 
     final updatedCycles = CreightonLogic.reallocateAndRecalculateCycles(cycles);
-
-    final subSnapshots = await Future.wait(
-      updatedCycles.map(
-        (cycle) => _db
-            .collection('charts')
-            .doc(chartId)
-            .collection('cycles')
-            .doc(cycle.id)
-            .collection('dailyEntries')
-            .get(),
-      ),
+    await _applyCycleMutationPlan(
+      chartId,
+      CycleMutationPlan(cyclesToUpsert: updatedCycles),
     );
-
-    final operations = <void Function(WriteBatch batch)>[];
-    for (var i = 0; i < updatedCycles.length; i++) {
-      final cycle = updatedCycles[i];
-      final subSnapshot = subSnapshots[i];
-      final ref = _db
-          .collection('charts')
-          .doc(chartId)
-          .collection('cycles')
-          .doc(cycle.id);
-
-      for (final doc in subSnapshot.docs) {
-        if (!cycle.dailyEntries.containsKey(doc.id)) {
-          operations.add((batch) => batch.delete(doc.reference));
-        }
-      }
-
-      operations.add((batch) {
-        batch.update(ref, {
-          'dailyEntries': cycle.dailyEntries.map(
-            (k, v) => MapEntry(k, v.toMap()),
-          ),
-        });
-      });
-      for (final entry in cycle.dailyEntries.values) {
-        final subRef = ref.collection('dailyEntries').doc(entry.date.dateKey);
-        operations.add((batch) {
-          batch.set(subRef, entry.toMap());
-        });
-      }
-    }
-
-    await _commitBatchedWrites(operations);
   }
 
   @override
@@ -901,22 +895,22 @@ class FirebaseDatabaseService implements DatabaseService {
     final chartId = currentChartId;
     if (chartId == null) return;
 
-    final dateStr = startDate.dateKey;
-    final cycleRef = _db
+    final cyclesSnapshot = await _db
         .collection('charts')
         .doc(chartId)
         .collection('cycles')
-        .doc(dateStr);
+        .get();
+    final existingCycles = cyclesSnapshot.docs
+        .map((doc) => Cycle.fromMap(doc.data()))
+        .toList();
 
-    final newCycle = Cycle(
-      id: dateStr,
+    final mutationPlan = CycleCoordinator.planStartNewCycle(
+      existingCycles: existingCycles,
       startDate: startDate,
-      bipCodes: bipCodes,
-      dailyEntries: {},
+      basicInfertilePatternCodes: bipCodes,
     );
 
-    await cycleRef.set(newCycle.toMap());
-    await _reallocateAndRecalculate(chartId);
+    await _applyCycleMutationPlan(chartId, mutationPlan);
   }
 
   @override
@@ -924,20 +918,21 @@ class FirebaseDatabaseService implements DatabaseService {
     final chartId = currentChartId;
     if (chartId == null) return;
 
-    final cycleRef = _db
+    final cyclesSnapshot = await _db
         .collection('charts')
         .doc(chartId)
         .collection('cycles')
-        .doc(cycleId);
+        .get();
+    final existingCycles = cyclesSnapshot.docs
+        .map((doc) => Cycle.fromMap(doc.data()))
+        .toList();
 
-    final List<DocumentReference> toDelete = [];
-    final dailySnapshot = await cycleRef.collection('dailyEntries').get();
-    for (final dailyDoc in dailySnapshot.docs) {
-      toDelete.add(dailyDoc.reference);
-    }
-    toDelete.add(cycleRef);
+    final mutationPlan = CycleCoordinator.planDeleteCycle(
+      existingCycles: existingCycles,
+      cycleIdentifier: cycleId,
+    );
 
-    await _deleteDocumentsInBatches(toDelete);
+    await _applyCycleMutationPlan(chartId, mutationPlan);
   }
 
   @override
@@ -954,47 +949,21 @@ class FirebaseDatabaseService implements DatabaseService {
         .collection('cycles')
         .get();
 
-    final cycles = cyclesSnapshot.docs
+    final existingCycles = cyclesSnapshot.docs
         .map((doc) => Cycle.fromMap(doc.data()))
         .toList();
 
-    final oldCycleIndex = cycles.indexWhere((c) => c.id == cycleId);
-    if (oldCycleIndex == -1) return;
-
-    final oldCycle = cycles[oldCycleIndex];
-    final newDateStr = newStartDate.dateKey;
-
-    if (cycleId != newDateStr) {
-      final oldCycleRef = _db
-          .collection('charts')
-          .doc(chartId)
-          .collection('cycles')
-          .doc(cycleId);
-      final List<DocumentReference> toDelete = [];
-      final dailySnapshot = await oldCycleRef.collection('dailyEntries').get();
-      for (final dailyDoc in dailySnapshot.docs) {
-        toDelete.add(dailyDoc.reference);
-      }
-      toDelete.add(oldCycleRef);
-      await _deleteDocumentsInBatches(toDelete);
+    final mutationPlan = CycleCoordinator.planUpdateCycleStartDate(
+      existingCycles: existingCycles,
+      cycleIdentifier: cycleId,
+      newStartDate: newStartDate,
+    );
+    if (mutationPlan.cyclesToUpsert.isEmpty &&
+        mutationPlan.cycleIdentifiersToDelete.isEmpty) {
+      return;
     }
 
-    final updatedCycle = Cycle(
-      id: newDateStr,
-      startDate: newStartDate,
-      endDate: oldCycle.endDate,
-      bipCodes: oldCycle.bipCodes,
-      dailyEntries: oldCycle.dailyEntries,
-    );
-
-    await _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('cycles')
-        .doc(newDateStr)
-        .set(updatedCycle.toMap());
-
-    await _reallocateAndRecalculate(chartId);
+    await _applyCycleMutationPlan(chartId, mutationPlan);
   }
 
   @override
@@ -1008,44 +977,20 @@ class FirebaseDatabaseService implements DatabaseService {
         .collection('cycles')
         .get();
 
-    final cycles = cyclesSnapshot.docs
+    final existingCycles = cyclesSnapshot.docs
         .map((doc) => Cycle.fromMap(doc.data()))
         .toList();
-    cycles.sort((a, b) => a.startDate.compareTo(b.startDate));
 
-    final targetIndex = cycles.indexWhere((c) => c.id == cycleId);
-    if (targetIndex <= 0) return;
-
-    final targetCycle = cycles[targetIndex];
-    final prevCycle = cycles[targetIndex - 1];
-
-    final mergedEntries = Map<String, DailyEntry>.from(prevCycle.dailyEntries)
-      ..addAll(targetCycle.dailyEntries);
-
-    final updatedPrevCycle = prevCycle.copyWith(dailyEntries: mergedEntries);
-    await _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('cycles')
-        .doc(prevCycle.id)
-        .set(updatedPrevCycle.toMap());
-
-    final cycleRef = _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('cycles')
-        .doc(cycleId);
-
-    final List<DocumentReference> toDelete = [];
-    final dailySnapshot = await cycleRef.collection('dailyEntries').get();
-    for (final dailyDoc in dailySnapshot.docs) {
-      toDelete.add(dailyDoc.reference);
+    final mutationPlan = CycleCoordinator.planMergeCycleWithPrevious(
+      existingCycles: existingCycles,
+      cycleIdentifier: cycleId,
+    );
+    if (mutationPlan.cyclesToUpsert.isEmpty &&
+        mutationPlan.cycleIdentifiersToDelete.isEmpty) {
+      return;
     }
-    toDelete.add(cycleRef);
 
-    await _deleteDocumentsInBatches(toDelete);
-
-    await _reallocateAndRecalculate(chartId);
+    await _applyCycleMutationPlan(chartId, mutationPlan);
   }
 
   @override
@@ -1059,29 +1004,19 @@ class FirebaseDatabaseService implements DatabaseService {
         .collection('cycles')
         .doc(cycleId);
 
-    final doc = await cycleRef.get();
-    if (!doc.exists) return;
+    await _db.runTransaction((transaction) async {
+      final doc = await transaction.get(cycleRef);
+      if (!doc.exists || doc.data() == null) return;
 
-    final cycle = Cycle.fromMap(doc.data()!);
-    final updatedEntries = CreightonLogic.recalculateCycle(
-      entries: cycle.dailyEntries.values.toList(),
-      bipCodes: bipCodes,
-    );
+      final cycle = Cycle.fromMap(doc.data()!);
+      final updatedCycle =
+          CycleCoordinator.recalculateCycleWithBasicInfertilePattern(
+            targetCycle: cycle,
+            basicInfertilePatternCodes: bipCodes,
+          );
 
-    final batch = _db.batch();
-    batch.update(cycleRef, {
-      'bipCodes': bipCodes,
-      'dailyEntries': updatedEntries.map((k, v) => MapEntry(k, v.toMap())),
+      transaction.set(cycleRef, updatedCycle.toMap());
     });
-
-    for (final entry in updatedEntries.values) {
-      final subRef = cycleRef
-          .collection('dailyEntries')
-          .doc(entry.date.dateKey);
-      batch.set(subRef, entry.toMap());
-    }
-
-    await batch.commit();
   }
 
   @override
@@ -1136,31 +1071,46 @@ class FirebaseDatabaseService implements DatabaseService {
           .doc(chartId)
           .collection('cycles');
 
-      // Query specifically for the target cycle interval [startDate <= date] limit(1)
+      final isHeavyOrModerate =
+          bleeding == Bleeding.heavy || bleeding == Bleeding.moderate;
+
+      String targetCycleId;
+
       final eligibleSnap = await cyclesCol
           .where('startDate', isLessThanOrEqualTo: dateStr)
           .orderBy('startDate', descending: true)
           .limit(1)
           .get();
 
-      final isHeavyOrModerate =
-          bleeding == Bleeding.heavy || bleeding == Bleeding.moderate;
-
-      Cycle? targetCycle;
-
       if (eligibleSnap.docs.isEmpty) {
         final anySnap = await cyclesCol.orderBy('startDate').limit(1).get();
         if (anySnap.docs.isEmpty) {
-          final newCycle = Cycle(
-            id: dateStr,
-            startDate: date,
-            bipCodes: const ['6C'],
-            dailyEntries: {},
-          );
-          await cyclesCol.doc(dateStr).set(newCycle.toMap());
-          targetCycle = newCycle;
+          if (cycleId != null && cycleId.isNotEmpty) {
+            final explicitDoc = await cyclesCol.doc(cycleId).get();
+            if (explicitDoc.exists && explicitDoc.data() != null) {
+              targetCycleId = cycleId;
+            } else {
+              final newCycle = Cycle(
+                id: dateStr,
+                startDate: date,
+                bipCodes: const ['6C'],
+                dailyEntries: const {},
+              );
+              await cyclesCol.doc(dateStr).set(newCycle.toMap());
+              targetCycleId = newCycle.id;
+            }
+          } else {
+            final newCycle = Cycle(
+              id: dateStr,
+              startDate: date,
+              bipCodes: const ['6C'],
+              dailyEntries: const {},
+            );
+            await cyclesCol.doc(dateStr).set(newCycle.toMap());
+            targetCycleId = newCycle.id;
+          }
         } else {
-          targetCycle = Cycle.fromMap(anySnap.docs.first.data());
+          targetCycleId = Cycle.fromMap(anySnap.docs.first.data()).id;
         }
       } else {
         final latest = Cycle.fromMap(eligibleSnap.docs.first.data());
@@ -1170,31 +1120,17 @@ class FirebaseDatabaseService implements DatabaseService {
             final autoStartStr = autoStart.dateKey;
             final existingDoc = await cyclesCol.doc(autoStartStr).get();
             if (!existingDoc.exists) {
-              final newCycle = Cycle(
-                id: autoStartStr,
-                startDate: autoStart,
-                bipCodes: latest.bipCodes,
-                dailyEntries: {},
-              );
-              await cyclesCol.doc(autoStartStr).set(newCycle.toMap());
-              await _reallocateAndRecalculate(chartId);
-
-              final reloadedDoc = await cyclesCol.doc(autoStartStr).get();
-              targetCycle = reloadedDoc.exists && reloadedDoc.data() != null
-                  ? Cycle.fromMap(reloadedDoc.data()!)
-                  : newCycle;
-            } else {
-              targetCycle = Cycle.fromMap(existingDoc.data()!);
+              await startNewCycle(autoStart, latest.bipCodes);
             }
+            targetCycleId = autoStartStr;
           } else {
-            targetCycle = latest;
+            targetCycleId = latest.id;
           }
         } else {
-          targetCycle = latest;
+          targetCycleId = latest.id;
         }
       }
 
-      final targetCycleId = targetCycle.id;
       final dateKey = dateStr;
 
       final roleContext = await resolveObservationRole(
@@ -1210,8 +1146,8 @@ class FirebaseDatabaseService implements DatabaseService {
         _cachedRole = roleContext.roleToCache;
       }
 
-      final newObs = Observation(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+      final createdObservation = Observation(
+        id: CycleCoordinator.generateObservationIdentifier(),
         timestamp: date,
         sensation: sensation,
         stretch: stretch,
@@ -1229,45 +1165,35 @@ class FirebaseDatabaseService implements DatabaseService {
         isVdrsExplicit: isVdrsExplicit,
       );
 
-      final currentEntries = Map<String, DailyEntry>.from(
-        targetCycle.dailyEntries,
-      );
-      final existingEntry = currentEntries[dateKey];
-      List<Observation> observations = existingEntry != null
-          ? (List<Observation>.from(existingEntry.observations)..add(newObs))
-          : [newObs];
-      observations.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-
-      final resolved = CreightonLogic.resolveDailyEntry(
-        date: date,
-        observations: observations,
-      );
-      currentEntries[dateKey] = resolved;
-
-      final updated = CreightonLogic.recalculateCycle(
-        entries: currentEntries.values.toList(),
-        bipCodes: targetCycle.bipCodes,
-      );
-
-      final batch = _db.batch();
       final cycleRef = cyclesCol.doc(targetCycleId);
-      batch.update(cycleRef, {
-        'dailyEntries': updated.map((k, v) => MapEntry(k, v.toMap())),
+      late ObservationSaveResult saveResult;
+
+      await _db.runTransaction((transaction) async {
+        final cycleSnapshot = await transaction.get(cycleRef);
+        final Cycle currentCycle;
+        if (cycleSnapshot.exists && cycleSnapshot.data() != null) {
+          currentCycle = Cycle.fromMap(cycleSnapshot.data()!);
+        } else {
+          currentCycle = Cycle(
+            id: targetCycleId,
+            startDate: date,
+            bipCodes: const ['6C'],
+            dailyEntries: const {},
+          );
+        }
+
+        saveResult = CycleCoordinator.applyObservationToCycle(
+          targetCycle: currentCycle,
+          observation: createdObservation,
+        );
+
+        transaction.set(cycleRef, saveResult.updatedCycle.toMap());
       });
 
-      for (final entry in updated.values) {
-        final subRef = cycleRef
-            .collection('dailyEntries')
-            .doc(entry.date.dateKey);
-        batch.set(subRef, entry.toMap());
-      }
-
-      await batch.commit();
-
-      final resolvedDaily = updated[dateKey] ?? resolved;
+      final resolvedDaily = saveResult.resolvedDailyEntry;
       final isFertile = CreightonLogic.isFertileMucusPattern(
         entry: resolvedDaily,
-        bipCodes: targetCycle.bipCodes,
+        bipCodes: saveResult.updatedCycle.bipCodes,
       );
       final peakLabel = resolvedDaily.peakDayLabel;
 
@@ -1275,7 +1201,7 @@ class FirebaseDatabaseService implements DatabaseService {
         final context = await resolveNotificationContext(
           uid: user.uid,
           chartId: chartId,
-          cachedRole: _cachedRole,
+          cachedRole: _cachedRole ?? userRole.code,
           cachedPreferences: _cachedPreferencesByChart[chartId],
           getUserData: (uid) async {
             final doc = await _db.collection('users').doc(uid).get();
@@ -1287,24 +1213,30 @@ class FirebaseDatabaseService implements DatabaseService {
           },
         );
 
-        _cachedRole = context.roleToCache;
+        if (roleContext.roleToCache != null) {
+          _cachedRole = context.roleToCache;
+        }
         _cachedPreferencesByChart[chartId] = context.preferencesToCache;
 
-        final userRole = context.userRole;
+        final dispatchUserRole = context.userRole;
         final preferences = context.preferences;
 
         if (preferences.fertilePatternAlerts && isFertile) {
-          await Services.notifications.notifyFertilePattern(role: userRole);
+          await Services.notifications.notifyFertilePattern(
+            role: dispatchUserRole,
+          );
         }
         if (preferences.fertilePatternAlerts && peakLabel != null) {
           await Services.notifications.notifyPeakDay(
-            role: userRole,
+            role: dispatchUserRole,
             peakLabel: peakLabel,
           );
         }
         if (preferences.partnerSupportReminders &&
             (isFertile || peakLabel != null || resolvedDaily.isPeakDay)) {
-          await Services.notifications.notifyKindnessSupport(role: userRole);
+          await Services.notifications.notifyKindnessSupport(
+            role: dispatchUserRole,
+          );
         }
       } catch (notifErr) {
         debugPrint('Warning: Notification dispatch error: $notifErr');
@@ -1317,7 +1249,7 @@ class FirebaseDatabaseService implements DatabaseService {
           'chartId': chartId,
           'targetCycleId': targetCycleId,
           'date': dateKey,
-          'obsId': newObs.id,
+          'obsId': createdObservation.id,
         },
       );
     } catch (e, st) {
@@ -1352,50 +1284,20 @@ class FirebaseDatabaseService implements DatabaseService {
         .collection('cycles')
         .doc(cycleId);
 
-    final doc = await cycleRef.get();
-    if (!doc.exists) return;
+    await _db.runTransaction((transaction) async {
+      final doc = await transaction.get(cycleRef);
+      if (!doc.exists || doc.data() == null) return;
 
-    final cycle = Cycle.fromMap(doc.data()!);
-    final dateKey = date.dateKey;
-
-    final currentEntries = Map<String, DailyEntry>.from(cycle.dailyEntries);
-    final existingEntry = currentEntries[dateKey];
-    if (existingEntry == null) return;
-
-    final observations = existingEntry.observations
-        .where((o) => o.id != observationId)
-        .toList();
-
-    final batch = _db.batch();
-    final subRef = cycleRef.collection('dailyEntries').doc(dateKey);
-
-    if (observations.isEmpty) {
-      currentEntries.remove(dateKey);
-      batch.delete(subRef);
-    } else {
-      final resolvedDaily = CreightonLogic.resolveDailyEntry(
+      final cycle = Cycle.fromMap(doc.data()!);
+      final updatedCycle = CycleCoordinator.removeObservationFromCycle(
+        targetCycle: cycle,
         date: date,
-        observations: observations,
+        observationIdentifier: observationId,
       );
-      currentEntries[dateKey] = resolvedDaily;
-    }
+      if (updatedCycle == null) return;
 
-    // Recalculate stamps
-    final updatedEntries = CreightonLogic.recalculateCycle(
-      entries: currentEntries.values.toList(),
-      bipCodes: cycle.bipCodes,
-    );
-
-    batch.update(cycleRef, {
-      'dailyEntries': updatedEntries.map((k, v) => MapEntry(k, v.toMap())),
+      transaction.set(cycleRef, updatedCycle.toMap());
     });
-
-    for (final entry in updatedEntries.values) {
-      final sRef = cycleRef.collection('dailyEntries').doc(entry.date.dateKey);
-      batch.set(sRef, entry.toMap());
-    }
-
-    await batch.commit();
   }
 
   @override

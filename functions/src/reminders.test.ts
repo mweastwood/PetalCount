@@ -2,6 +2,7 @@ import {
   getLocalTimeInfo,
   checkChartHasObservationForDate,
   processDailyReminders,
+  processCollaboratorFertilityNotification,
 } from "./reminders";
 import * as admin from "firebase-admin";
 
@@ -1000,7 +1001,13 @@ describe("processDailyReminders", () => {
           }),
         }),
       },
-      data: () => ({ dailyEntries: {} }),
+      data: () => ({
+        dailyEntries: {
+          "2026-08-20": {
+            observations: [{ id: "obs_today" }],
+          },
+        },
+      }),
     };
 
     const mockDb = {
@@ -1777,3 +1784,102 @@ describe("processDailyReminders", () => {
     );
   });
 });
+
+describe("processCollaboratorFertilityNotification", () => {
+  it("dispatches push notification to partner when a fertile or Peak observation is added", async () => {
+    const previousCycle = {
+      id: "2026-06-01",
+      dailyEntries: {},
+    };
+    const currentCycle = {
+      id: "2026-06-01",
+      dailyEntries: {
+        "2026-06-15": {
+          date: "2026-06-15",
+          stampType: "peak",
+          peakDayLabel: "P",
+          isPeakDay: true,
+          observations: [
+            {
+              id: "obs_1",
+              userId: "user_wife",
+              userRole: "wife",
+            },
+          ],
+        },
+      },
+    };
+
+    const mockChartSnapshot = {
+      exists: true,
+      data: () => ({
+        id: "chart_shared",
+        userIds: ["user_wife", "user_husband"],
+        notificationPreferences: {
+          fertilePatternAlerts: true,
+          partnerSupportReminders: true,
+        },
+      }),
+    };
+
+    const mockHusbandSnapshot = {
+      exists: true,
+      data: () => ({
+        uid: "user_husband",
+        role: "husband",
+        fcmTokens: ["husband_token_1"],
+      }),
+    };
+
+    const mockDb = {
+      collection: jest.fn((collectionName: string) => {
+        if (collectionName === "charts") {
+          return {
+            doc: jest.fn().mockReturnValue({
+              get: jest.fn().mockResolvedValue(mockChartSnapshot),
+            }),
+          };
+        }
+        if (collectionName === "users") {
+          return {
+            doc: jest.fn().mockReturnValue({
+              get: jest.fn().mockResolvedValue(mockHusbandSnapshot),
+            }),
+          };
+        }
+        return {};
+      }),
+    } as unknown as admin.firestore.Firestore;
+
+    const mockSendEach = jest.fn().mockResolvedValue({
+      successCount: 1,
+      failureCount: 0,
+      responses: [{ success: true }],
+    });
+
+    const mockMessaging = {
+      sendEachForMulticast: mockSendEach,
+    } as unknown as admin.messaging.Messaging;
+
+    const result = await processCollaboratorFertilityNotification(
+      mockDb,
+      mockMessaging,
+      "chart_shared",
+      previousCycle,
+      currentCycle
+    );
+
+    expect(result.notificationsDispatched).toBe(1);
+    expect(result.tokensNotified).toBe(1);
+    expect(mockSendEach).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tokens: ["husband_token_1"],
+        notification: {
+          title: "Peak Day Identified",
+          body: "Partner alert: Today is marked as Peak (P) on your shared chart.",
+        },
+      })
+    );
+  });
+});
+

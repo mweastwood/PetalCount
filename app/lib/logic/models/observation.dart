@@ -1,5 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:collection/collection.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'observation.freezed.dart';
+part 'observation.g.dart';
 
 enum Sensation {
   dry('0', 'Dry'),
@@ -94,50 +98,182 @@ enum Frequency {
   const Frequency(this.code, this.label);
 }
 
-class Observation {
-  final String id;
-  final DateTime timestamp;
-  final Sensation sensation;
-  final Stretch stretch;
-  final List<MucusColor> colors;
-  final List<Consistency> consistencies;
-  final Bleeding bleeding;
-  final String bleedingColor; // 'R' for red, 'B' for brown, or empty
-  final Frequency frequency;
-  final bool intercourse;
-  final double painLevel; // 0.0 to 10.0
-  final List<String> painTypes; // e.g., ['Cramps', 'Ovulation Pain']
-  final String comment;
-  final String userId;
-  final String? userRole;
-  final bool isVdrsExplicit;
+DateTime _parseTimestampFromJson(Object? timestampValue) {
+  if (timestampValue is Timestamp) {
+    return timestampValue.toDate();
+  } else if (timestampValue is DateTime) {
+    return timestampValue;
+  } else if (timestampValue is String) {
+    return DateTime.tryParse(timestampValue) ?? DateTime.now();
+  } else if (timestampValue is num) {
+    return DateTime.fromMillisecondsSinceEpoch(timestampValue.toInt());
+  }
+  return DateTime.now();
+}
 
-  Observation({
-    required this.id,
-    required this.timestamp,
-    required this.sensation,
-    required this.stretch,
-    required this.colors,
-    required this.consistencies,
-    required this.bleeding,
-    this.bleedingColor = '',
-    this.frequency = Frequency.none,
-    this.intercourse = false,
-    this.painLevel = 0.0,
-    this.painTypes = const [],
-    this.comment = '',
-    required this.userId,
-    this.userRole,
+Timestamp _serializeTimestampToJson(DateTime dateTime) =>
+    Timestamp.fromDate(dateTime);
+
+Sensation _parseSensationFromJson(Object? value) => Sensation.values.firstWhere(
+  (element) => element.name == value,
+  orElse: () => Sensation.dry,
+);
+
+Stretch _parseStretchFromJson(Object? value) => Stretch.values.firstWhere(
+  (element) => element.name == value,
+  orElse: () => Stretch.none,
+);
+
+List<MucusColor> _parseMucusColorsFromJson(Object? value) {
+  if (value is! List) return const [];
+  return value
+      .map(
+        (item) => MucusColor.values.firstWhereOrNull(
+          (element) => element.name == item,
+        ),
+      )
+      .whereType<MucusColor>()
+      .toList();
+}
+
+List<Consistency> _parseConsistenciesFromJson(Object? value) {
+  if (value is! List) return const [];
+  return value
+      .map(
+        (item) => Consistency.values.firstWhereOrNull(
+          (element) => element.name == item,
+        ),
+      )
+      .whereType<Consistency>()
+      .toList();
+}
+
+Bleeding _parseBleedingFromJson(Object? value) => Bleeding.values.firstWhere(
+  (element) => element.name == value,
+  orElse: () => Bleeding.none,
+);
+
+Frequency _parseFrequencyFromJson(Object? value) => Frequency.values.firstWhere(
+  (element) => element.name == value,
+  orElse: () => Frequency.none,
+);
+
+bool _parseBooleanWithDefaultFalse(Object? rawValue) {
+  if (rawValue is bool) return rawValue;
+  if (rawValue is String) return rawValue.trim().toLowerCase() == 'true';
+  if (rawValue is num) return rawValue != 0;
+  return false;
+}
+
+double _parseDoubleWithDefaultZero(Object? rawValue) {
+  if (rawValue is num) return rawValue.toDouble();
+  if (rawValue is String) return double.tryParse(rawValue) ?? 0.0;
+  return 0.0;
+}
+
+List<String> _parseStringListFromJson(Object? rawValue) {
+  if (rawValue is! List) return const [];
+  return rawValue.map((item) => item.toString()).toList();
+}
+
+String _parseStringWithDefaultEmpty(Object? rawValue) =>
+    rawValue?.toString() ?? '';
+
+@freezed
+abstract class Observation with _$Observation {
+  const Observation._();
+
+  const factory Observation.raw({
+    @Default('') @JsonKey(fromJson: _parseStringWithDefaultEmpty) String id,
+    @JsonKey(
+      fromJson: _parseTimestampFromJson,
+      toJson: _serializeTimestampToJson,
+    )
+    required DateTime timestamp,
+    @Default(Sensation.dry)
+    @JsonKey(fromJson: _parseSensationFromJson)
+    Sensation sensation,
+    @Default(Stretch.none)
+    @JsonKey(fromJson: _parseStretchFromJson)
+    Stretch stretch,
+    @Default(<MucusColor>[])
+    @JsonKey(fromJson: _parseMucusColorsFromJson)
+    List<MucusColor> colors,
+    @Default(<Consistency>[])
+    @JsonKey(fromJson: _parseConsistenciesFromJson)
+    List<Consistency> consistencies,
+    @Default(Bleeding.none)
+    @JsonKey(fromJson: _parseBleedingFromJson)
+    Bleeding bleeding,
+    @Default('')
+    @JsonKey(fromJson: _parseStringWithDefaultEmpty)
+    String bleedingColor,
+    @Default(Frequency.none)
+    @JsonKey(fromJson: _parseFrequencyFromJson)
+    Frequency frequency,
+    @Default(false)
+    @JsonKey(fromJson: _parseBooleanWithDefaultFalse)
+    bool intercourse,
+    @Default(0.0)
+    @JsonKey(fromJson: _parseDoubleWithDefaultZero)
+    double painLevel,
+    @Default(<String>[])
+    @JsonKey(fromJson: _parseStringListFromJson)
+    List<String> painTypes,
+    @Default('')
+    @JsonKey(fromJson: _parseStringWithDefaultEmpty)
+    String comment,
+    @Default('') @JsonKey(fromJson: _parseStringWithDefaultEmpty) String userId,
+    @JsonKey(includeIfNull: false) String? userRole,
+    required bool isVdrsExplicit,
+  }) = _Observation;
+
+  factory Observation({
+    required String id,
+    required DateTime timestamp,
+    required Sensation sensation,
+    required Stretch stretch,
+    required List<MucusColor> colors,
+    required List<Consistency> consistencies,
+    required Bleeding bleeding,
+    String bleedingColor = '',
+    Frequency frequency = Frequency.none,
+    bool intercourse = false,
+    double painLevel = 0.0,
+    List<String> painTypes = const [],
+    String comment = '',
+    required String userId,
+    String? userRole,
     bool? isVdrsExplicit,
-  }) : isVdrsExplicit =
-           isVdrsExplicit ??
-           (bleeding != Bleeding.none ||
-               stretch != Stretch.none ||
-               colors.isNotEmpty ||
-               consistencies.isNotEmpty ||
-               sensation != Sensation.dry ||
-               frequency != Frequency.none ||
-               intercourse);
+  }) {
+    final resolvedExplicit =
+        isVdrsExplicit ??
+        (bleeding != Bleeding.none ||
+            stretch != Stretch.none ||
+            colors.isNotEmpty ||
+            consistencies.isNotEmpty ||
+            sensation != Sensation.dry ||
+            frequency != Frequency.none ||
+            intercourse);
+    return Observation.raw(
+      id: id,
+      timestamp: timestamp,
+      sensation: sensation,
+      stretch: stretch,
+      colors: colors,
+      consistencies: consistencies,
+      bleeding: bleeding,
+      bleedingColor: bleedingColor,
+      frequency: frequency,
+      intercourse: intercourse,
+      painLevel: painLevel,
+      painTypes: painTypes,
+      comment: comment,
+      userId: userId,
+      userRole: userRole,
+      isVdrsExplicit: resolvedExplicit,
+    );
+  }
 
   bool get hasMucus =>
       stretch != Stretch.none || consistencies.isNotEmpty || colors.isNotEmpty;
@@ -151,11 +287,11 @@ class Observation {
     }
     String code;
     if (hasBleeding) {
-      final bCode = bleeding.code;
+      final bleedingBaseCode = bleeding.code;
       final colorSuffix = (bleedingColor.isNotEmpty && bleedingColor != 'R')
           ? '-$bleedingColor'
           : '';
-      final bleedingPart = '$bCode$colorSuffix';
+      final bleedingPart = '$bleedingBaseCode$colorSuffix';
 
       final isVeryLightOrSpotting =
           bleeding == Bleeding.veryLight || bleeding == Bleeding.spotting;
@@ -185,157 +321,104 @@ class Observation {
 
   String mucusPart() {
     if (!hasMucus) {
-      // Just sensation
       return sensation.code;
     }
 
-    // Standard Creighton VDRS rules: Pasty (P) and Gummy (G) are strictly sticky (6) & cloudy (C), producing 6CP, 6CG, or 6CGP
-    final containsP = consistencies.contains(Consistency.pasty);
-    final containsG = consistencies.contains(Consistency.gummy);
-    if (containsP && containsG) {
-      return '6CGP';
-    }
-    if (containsP) {
-      return '6CP';
-    }
-    if (containsG) {
-      return '6CG';
+    final containsLubricative = consistencies.contains(Consistency.lubricative);
+    final containsPasty = consistencies.contains(Consistency.pasty);
+    final containsGummy = consistencies.contains(Consistency.gummy);
+    final hasPeakMucusAttributes =
+        containsLubricative ||
+        stretch == Stretch.stretchy ||
+        colors.contains(MucusColor.clear);
+
+    // Standard Creighton VDRS rules: Pasty (P) and Gummy (G) without Peak-type
+    // overrides map to sticky (6) & cloudy (C), producing 6CP, 6CG, or 6CGP.
+    if (!hasPeakMucusAttributes &&
+        stretch != Stretch.tacky &&
+        (containsPasty || containsGummy)) {
+      if (containsPasty && containsGummy) {
+        return '6CGP';
+      }
+      if (containsPasty) {
+        return '6CP';
+      }
+      if (containsGummy) {
+        return '6CG';
+      }
     }
 
     final stretchCode = stretch.code;
 
     // Color string (e.g. "C/K" or "C" or "Y")
-    final colorStr = colors.isEmpty
+    final colorString = colors.isEmpty
         ? (stretch != Stretch.none ? 'C' : '')
-        : colors.map((c) => c.code).join('/');
+        : colors.map((color) => color.code).join('/');
 
     // If it contains Lubricative, form 10DL, 10SL, 10WL (Lubricative sensation upgrades to 10 Peak-type)
-    final containsL = consistencies.contains(Consistency.lubricative);
-    if (containsL) {
-      String sensAbbr = '';
-      if (sensation == Sensation.damp) sensAbbr = 'D';
-      if (sensation == Sensation.shiny) sensAbbr = 'S';
-      if (sensation == Sensation.wet) sensAbbr = 'W';
+    if (containsLubricative) {
+      String sensationAbbreviation = '';
+      if (sensation == Sensation.damp) sensationAbbreviation = 'D';
+      if (sensation == Sensation.shiny) sensationAbbreviation = 'S';
+      if (sensation == Sensation.wet) sensationAbbreviation = 'W';
 
-      // Typically written as e.g. "10DL" or "10WL"
-      final lubricativeCode = '10${sensAbbr}L';
+      final lubricativeCode = '10${sensationAbbreviation}L';
 
-      // If there are other consistencies or colors
       final otherConsistencies = consistencies
-          .where((c) => c != Consistency.lubricative)
-          .map((c) => c.code)
+          .where((consistency) => consistency != Consistency.lubricative)
+          .map((consistency) => consistency.code)
           .join('');
 
-      return '$lubricativeCode$colorStr$otherConsistencies';
+      return '$lubricativeCode$colorString$otherConsistencies';
     }
 
-    final consistencyStr = consistencies.map((c) => c.code).join('');
-    return '$stretchCode$colorStr$consistencyStr';
+    final consistencyString = consistencies
+        .map((consistency) => consistency.code)
+        .join('');
+    return '$stretchCode$colorString$consistencyString';
   }
 
   // Check if this specific observation is Peak-type mucus
   bool get isPeakType {
     if (!hasMucus) return false;
-    // Peak-type is clear (K), stretchy (10), or lubricative (L)
     final hasClear = colors.contains(MucusColor.clear);
     final isStretchy = stretch == Stretch.stretchy;
     final hasLubricative = consistencies.contains(Consistency.lubricative);
     return hasClear || isStretchy || hasLubricative;
   }
 
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'timestamp': Timestamp.fromDate(timestamp),
-      'sensation': sensation.name,
-      'stretch': stretch.name,
-      'colors': colors.map((c) => c.name).toList(),
-      'consistencies': consistencies.map((c) => c.name).toList(),
-      'bleeding': bleeding.name,
-      'bleedingColor': bleedingColor,
-      'frequency': frequency.name,
-      'intercourse': intercourse,
-      'painLevel': painLevel,
-      'painTypes': painTypes,
-      'comment': comment,
-      'userId': userId,
-      if (userRole != null) 'userRole': userRole,
-      'isVdrsExplicit': isVdrsExplicit,
-    };
-  }
-
-  static DateTime _parseTimestamp(dynamic timestamp) {
-    if (timestamp is Timestamp) {
-      return timestamp.toDate();
-    } else if (timestamp is DateTime) {
-      return timestamp;
-    } else if (timestamp is String) {
-      return DateTime.tryParse(timestamp) ?? DateTime.now();
-    } else if (timestamp is num) {
-      return DateTime.fromMillisecondsSinceEpoch(timestamp.toInt());
-    }
-    return DateTime.now();
-  }
+  factory Observation.fromJson(Map<String, dynamic> json) =>
+      _$ObservationFromJson(json);
 
   factory Observation.fromMap(Map<String, dynamic> map) {
-    final sensation = Sensation.values.firstWhere(
-      (e) => e.name == map['sensation'],
-      orElse: () => Sensation.dry,
-    );
-    final stretch = Stretch.values.firstWhere(
-      (e) => e.name == map['stretch'],
-      orElse: () => Stretch.none,
-    );
-    final colors = ((map['colors'] as List?) ?? [])
-        .map(
-          (item) => MucusColor.values.firstWhereOrNull((e) => e.name == item),
-        )
-        .whereType<MucusColor>()
-        .toList();
-    final consistencies = ((map['consistencies'] as List?) ?? [])
-        .map(
-          (item) => Consistency.values.firstWhereOrNull((e) => e.name == item),
-        )
-        .whereType<Consistency>()
-        .toList();
-    final bleeding = Bleeding.values.firstWhere(
-      (e) => e.name == map['bleeding'],
-      orElse: () => Bleeding.none,
-    );
-    final frequency = Frequency.values.firstWhere(
-      (e) => e.name == map['frequency'],
-      orElse: () => Frequency.none,
-    );
-    final intercourse = (map['intercourse'] as bool?) ?? false;
-
-    final explicitFromMap = map['isVdrsExplicit'] as bool?;
-    final isExplicit =
-        explicitFromMap ??
-        (bleeding != Bleeding.none ||
-            stretch != Stretch.none ||
-            colors.isNotEmpty ||
-            consistencies.isNotEmpty ||
-            sensation != Sensation.dry ||
-            frequency != Frequency.none ||
-            intercourse);
-
-    return Observation(
-      id: map['id'] ?? '',
-      timestamp: _parseTimestamp(map['timestamp']),
-      sensation: sensation,
-      stretch: stretch,
-      colors: colors,
-      consistencies: consistencies,
-      bleeding: bleeding,
-      bleedingColor: map['bleedingColor'] ?? '',
-      frequency: frequency,
-      intercourse: intercourse,
-      painLevel: (map['painLevel'] as num?)?.toDouble() ?? 0.0,
-      painTypes: List<String>.from(map['painTypes'] ?? []),
-      comment: map['comment'] ?? '',
-      userId: map['userId'] ?? '',
-      userRole: map['userRole'] as String?,
-      isVdrsExplicit: isExplicit,
-    );
+    final normalizedMap = Map<String, dynamic>.from(map);
+    if (normalizedMap['isVdrsExplicit'] is! bool) {
+      final parsedSensation = _parseSensationFromJson(
+        normalizedMap['sensation'],
+      );
+      final parsedStretch = _parseStretchFromJson(normalizedMap['stretch']);
+      final parsedColors = _parseMucusColorsFromJson(normalizedMap['colors']);
+      final parsedConsistencies = _parseConsistenciesFromJson(
+        normalizedMap['consistencies'],
+      );
+      final parsedBleeding = _parseBleedingFromJson(normalizedMap['bleeding']);
+      final parsedFrequency = _parseFrequencyFromJson(
+        normalizedMap['frequency'],
+      );
+      final parsedIntercourse = _parseBooleanWithDefaultFalse(
+        normalizedMap['intercourse'],
+      );
+      normalizedMap['isVdrsExplicit'] =
+          parsedBleeding != Bleeding.none ||
+          parsedStretch != Stretch.none ||
+          parsedColors.isNotEmpty ||
+          parsedConsistencies.isNotEmpty ||
+          parsedSensation != Sensation.dry ||
+          parsedFrequency != Frequency.none ||
+          parsedIntercourse;
+    }
+    return Observation.fromJson(normalizedMap);
   }
+
+  Map<String, dynamic> toMap() => toJson();
 }

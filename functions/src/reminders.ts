@@ -1,23 +1,46 @@
 import * as admin from "firebase-admin";
 
+export interface NotificationPreferencesData {
+  fertilePatternAlerts?: boolean;
+  partnerSupportReminders?: boolean;
+  dailyLoggingReminder?: boolean;
+}
+
 export interface ChartData {
   id?: string;
   userIds?: string[];
   emails?: string[];
   reminderEnabled?: boolean;
   timezone?: string;
+  notificationPreferences?: NotificationPreferencesData;
 }
 
 export interface UserData {
   uid: string;
   email?: string;
+  role?: string;
   fcmTokens?: string[];
   timezone?: string;
 }
 
+export interface ObservationData {
+  id?: string;
+  userId?: string;
+  userRole?: string;
+}
+
 export interface DailyEntryData {
   date?: string;
-  observations?: unknown[];
+  stampType?: string;
+  peakDayLabel?: string | null;
+  isPeakDay?: boolean;
+  observations?: ObservationData[];
+}
+
+export interface CycleData {
+  id?: string;
+  startDate?: string;
+  dailyEntries?: Record<string, DailyEntryData>;
 }
 
 /**
@@ -53,6 +76,9 @@ export function getLocalTimeInfo(
 
 /**
  * Checks if a chart has any observations logged for the specified dateKey.
+ * Reads directly from the Cycle document's dailyEntries map, with a fallback
+ * to the legacy dailyEntries subcollection only when the cycle document does
+ * not contain a dailyEntries map.
  */
 export async function checkChartHasObservationForDate(
   db: admin.firestore.Firestore,
@@ -74,26 +100,29 @@ export async function checkChartHasObservationForDate(
   }
 
   const targetCycleDoc = eligibleCyclesSnap.docs[0];
+  const cycleData = targetCycleDoc.data() as CycleData | undefined;
 
-  // Check subcollection dailyEntries first
-  const dailyEntryDoc = await targetCycleDoc.ref
-    .collection("dailyEntries")
-    .doc(dateKey)
-    .get();
-
-  if (dailyEntryDoc.exists) {
-    const data = dailyEntryDoc.data() as DailyEntryData;
-    if (Array.isArray(data.observations) && data.observations.length > 0) {
+  // Primary source of truth: top-level dailyEntries map on cycle document
+  if (cycleData && cycleData.dailyEntries) {
+    const entry = cycleData.dailyEntries[dateKey];
+    if (entry && Array.isArray(entry.observations) && entry.observations.length > 0) {
       return true;
     }
+    return false;
   }
 
-  // Fallback to top-level dailyEntries map on cycle document if present
-  const cycleData = targetCycleDoc.data();
-  if (cycleData && cycleData.dailyEntries && cycleData.dailyEntries[dateKey]) {
-    const entry = cycleData.dailyEntries[dateKey] as DailyEntryData;
-    if (Array.isArray(entry.observations) && entry.observations.length > 0) {
-      return true;
+  // Legacy fallback: check dailyEntries subcollection only when dailyEntries map is absent
+  if (targetCycleDoc.ref && typeof targetCycleDoc.ref.collection === "function") {
+    const dailyEntryDoc = await targetCycleDoc.ref
+      .collection("dailyEntries")
+      .doc(dateKey)
+      .get();
+
+    if (dailyEntryDoc.exists) {
+      const data = dailyEntryDoc.data() as DailyEntryData;
+      if (Array.isArray(data.observations) && data.observations.length > 0) {
+        return true;
+      }
     }
   }
 
@@ -127,9 +156,9 @@ async function processSingleChartReminder(
     return { reminderSent: false, tokensNotified: 0 };
   }
 
-  // Collect all FCM tokens for all collaborators on this chart
+  // Collect all unique FCM tokens for all collaborators on this chart
   const tokensByUserId: Map<string, string[]> = new Map();
-  const allTokens: string[] = [];
+  const uniqueTokensSet = new Set<string>();
 
   for (const uid of userIds) {
     const userData = userCache.get(uid);
@@ -139,11 +168,14 @@ async function processSingleChartReminder(
         : [];
       if (tokens.length > 0) {
         tokensByUserId.set(uid, tokens);
-        allTokens.push(...tokens);
+        for (const token of tokens) {
+          uniqueTokensSet.add(token);
+        }
       }
     }
   }
 
+  const allTokens = Array.from(uniqueTokensSet);
   if (allTokens.length === 0) {
     return { reminderSent: false, tokensNotified: 0 };
   }
@@ -182,8 +214,8 @@ async function processSingleChartReminder(
     },
   });
 
-  const reminderSent = true;
   const tokensNotified = response.successCount;
+  const reminderSent = tokensNotified > 0;
 
   // Prune stale / unregistered tokens
   if (response.failureCount > 0) {
@@ -416,3 +448,204 @@ export async function processDailyReminders(
     tokensNotified,
   };
 }
+
+/**
+ * Dispatches FCM push notifications to partner/collaborator devices when a new
+ * observation is logged on a fertile or Peak-count day.
+ */
+export async function processCollaboratorFertilityNotification(
+  database: admin.firestore.Firestore,
+  messaging: admin.messaging.Messaging,
+  chartIdentifier: string,
+  previousCycleData: CycleData | undefined,
+  currentCycleData: CycleData | undefined
+): Promise<{ notificationsDispatched: number; tokensNotified: number }> {
+  if (!currentCycleData || !currentCycleData.dailyEntries) {
+    return { notificationsDispatched: 0, tokensNotified: 0 };
+  }
+
+  const previousEntries = previousCycleData?.dailyEntries ?? {};
+  const currentEntries = currentCycleData.dailyEntries;
+
+  // Find a date entry where a new observation was added
+  let modifiedDateKey: string | undefined;
+  let modifiedDailyEntry: DailyEntryData | undefined;
+  let authorUserIdentifier: string | undefined;
+
+  for (const [dateKey, currentEntry] of Object.entries(currentEntries)) {
+    const currentObservations = Array.isArray(currentEntry.observations)
+      ? currentEntry.observations
+      : [];
+    if (currentObservations.length === 0) {
+      continue;
+    }
+
+    const previousObservations = Array.isArray(
+      previousEntries[dateKey]?.observations
+    )
+      ? previousEntries[dateKey]!.observations!
+      : [];
+
+    if (currentObservations.length > previousObservations.length) {
+      modifiedDateKey = dateKey;
+      modifiedDailyEntry = currentEntry;
+      const previousIds = new Set(
+        previousObservations
+          .map((observation) => observation.id)
+          .filter((id): id is string => typeof id === "string")
+      );
+      const newlyAddedObservation =
+        currentObservations.find(
+          (observation) => observation.id && !previousIds.has(observation.id)
+        ) ?? currentObservations[currentObservations.length - 1];
+      authorUserIdentifier = newlyAddedObservation?.userId;
+      break;
+    }
+  }
+
+  if (!modifiedDateKey || !modifiedDailyEntry) {
+    return { notificationsDispatched: 0, tokensNotified: 0 };
+  }
+
+  const stampType = modifiedDailyEntry.stampType ?? "";
+  const peakDayLabel = modifiedDailyEntry.peakDayLabel ?? null;
+  const isFertileStamp =
+    stampType === "whiteBaby" ||
+    stampType === "yellowBaby" ||
+    stampType === "greenBaby" ||
+    stampType === "peak" ||
+    stampType === "redFertile";
+  const hasPeakLabel =
+    typeof peakDayLabel === "string" && peakDayLabel.trim().length > 0;
+
+  if (!isFertileStamp && !hasPeakLabel && !modifiedDailyEntry.isPeakDay) {
+    return { notificationsDispatched: 0, tokensNotified: 0 };
+  }
+
+  const chartSnapshot = await database
+    .collection("charts")
+    .doc(chartIdentifier)
+    .get();
+  if (!chartSnapshot.exists) {
+    return { notificationsDispatched: 0, tokensNotified: 0 };
+  }
+
+  const chartData = (chartSnapshot.data() || {}) as ChartData;
+  const preferences = chartData.notificationPreferences ?? {};
+  const fertilePatternAlertsEnabled =
+    preferences.fertilePatternAlerts !== false;
+  const partnerSupportRemindersEnabled =
+    preferences.partnerSupportReminders !== false;
+
+  if (!fertilePatternAlertsEnabled && !partnerSupportRemindersEnabled) {
+    return { notificationsDispatched: 0, tokensNotified: 0 };
+  }
+
+  const collaboratorUserIdentifiers = (chartData.userIds || []).filter(
+    (userIdentifier) =>
+      userIdentifier && userIdentifier !== authorUserIdentifier
+  );
+  if (collaboratorUserIdentifiers.length === 0) {
+    return { notificationsDispatched: 0, tokensNotified: 0 };
+  }
+
+  let notificationsDispatched = 0;
+  let tokensNotified = 0;
+
+  for (const collaboratorIdentifier of collaboratorUserIdentifiers) {
+    const userSnapshot = await database
+      .collection("users")
+      .doc(collaboratorIdentifier)
+      .get();
+    if (!userSnapshot.exists) {
+      continue;
+    }
+
+    const userData = (userSnapshot.data() || {}) as UserData;
+    const recipientTokens = Array.isArray(userData.fcmTokens)
+      ? Array.from(
+          new Set(
+            userData.fcmTokens.filter(
+              (token) => typeof token === "string" && token.length > 0
+            )
+          )
+        )
+      : [];
+    if (recipientTokens.length === 0) {
+      continue;
+    }
+
+    const recipientRole =
+      userData.role === "husband" ? "husband" : "wife";
+
+    let notificationTitle = "Fertile Pattern Detected";
+    let notificationBody =
+      recipientRole === "husband"
+        ? "Partner alert: Your chart indicates a fertile mucus pattern today."
+        : "Your latest observation indicates a fertile mucus pattern today.";
+
+    if (hasPeakLabel && fertilePatternAlertsEnabled) {
+      const normalizedPeakLabel = peakDayLabel!.trim();
+      notificationTitle =
+        normalizedPeakLabel === "P"
+          ? "Peak Day Identified"
+          : `Peak +${normalizedPeakLabel} Count`;
+      notificationBody =
+        recipientRole === "husband"
+          ? `Partner alert: Today is marked as Peak (${normalizedPeakLabel}) on your shared chart.`
+          : `Today is marked as Peak (${normalizedPeakLabel}) on your chart.`;
+    } else if (
+      !fertilePatternAlertsEnabled &&
+      partnerSupportRemindersEnabled
+    ) {
+      notificationTitle =
+        recipientRole === "husband"
+          ? "Kindness & Support Reminder"
+          : "Self-Care Reminder";
+      notificationBody =
+        recipientRole === "husband"
+          ? "Your chart is in a fertile phase—a thoughtful gesture or word of encouragement goes a long way today!"
+          : "You are in a fertile phase—remember to take a moment for rest and self-care today.";
+    }
+
+    const multicastResponse = await messaging.sendEachForMulticast({
+      tokens: recipientTokens,
+      notification: {
+        title: notificationTitle,
+        body: notificationBody,
+      },
+      data: {
+        chartId: chartIdentifier,
+        date: modifiedDateKey,
+        type: "collaborator_fertility_alert",
+      },
+      android: {
+        priority: "high",
+        notification: {
+          channelId: "fertility_alerts",
+          priority: "high",
+          defaultSound: true,
+        },
+      },
+      apns: {
+        payload: {
+          aps: {
+            alert: {
+              title: notificationTitle,
+              body: notificationBody,
+            },
+            sound: "default",
+          },
+        },
+      },
+    });
+
+    if (multicastResponse.successCount > 0) {
+      notificationsDispatched++;
+      tokensNotified += multicastResponse.successCount;
+    }
+  }
+
+  return { notificationsDispatched, tokensNotified };
+}
+

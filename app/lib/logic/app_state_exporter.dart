@@ -206,9 +206,31 @@ class AppStateExporter {
           databaseState['cycles'] = cyclesSnap.docs
               .map((doc) => doc.data())
               .toList();
+
+          // Supplements subcollection
+          final supplementsSnapshot = await firestore
+              .collection('charts')
+              .doc(chartId)
+              .collection('supplements')
+              .get();
+          databaseState['supplements'] = supplementsSnapshot.docs
+              .map((document) => document.data())
+              .toList();
+
+          // Supplement logs subcollection
+          final supplementLogsSnapshot = await firestore
+              .collection('charts')
+              .doc(chartId)
+              .collection('supplementLogs')
+              .get();
+          databaseState['supplementLogs'] = supplementLogsSnapshot.docs
+              .map((document) => document.data())
+              .toList();
         } else {
           databaseState['activeChartDoc'] = null;
           databaseState['cycles'] = [];
+          databaseState['supplements'] = [];
+          databaseState['supplementLogs'] = [];
         }
 
         // Available charts where user is in userIds
@@ -272,6 +294,28 @@ class AppStateExporter {
       } catch (_) {
         databaseState['cycles'] = [];
       }
+      try {
+        final supplements = await _db.streamSupplements().first.timeout(
+          const Duration(seconds: 1),
+          onTimeout: () => [],
+        );
+        databaseState['supplements'] = supplements
+            .map((supplement) => supplement.toMap())
+            .toList();
+      } catch (_) {
+        databaseState['supplements'] = [];
+      }
+      try {
+        final supplementLogs = await _db
+            .streamDailySupplementLogs()
+            .first
+            .timeout(const Duration(seconds: 1), onTimeout: () => {});
+        databaseState['supplementLogs'] = supplementLogs.map(
+          (dateKey, log) => MapEntry(dateKey, log.toMap()),
+        );
+      } catch (_) {
+        databaseState['supplementLogs'] = {};
+      }
     }
 
     final rawLogs = _logger?.logs ?? [];
@@ -302,6 +346,7 @@ class AppStateExporter {
   Future<void> shareDebugState(
     BuildContext context, {
     FileSaver? fileSaver,
+    bool sanitizePii = true,
   }) async {
     _logger?.info('Debug state export initiated', category: 'export');
 
@@ -328,7 +373,10 @@ class AppStateExporter {
 
     String jsonContent;
     try {
-      jsonContent = await exportStateJson(pretty: true, sanitizePii: false);
+      jsonContent = await exportStateJson(
+        pretty: true,
+        sanitizePii: sanitizePii,
+      );
     } catch (e, st) {
       _logger?.error(
         'Failed to generate export JSON',

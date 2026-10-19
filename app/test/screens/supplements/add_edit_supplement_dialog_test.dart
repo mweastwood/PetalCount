@@ -771,5 +771,56 @@ void main() {
       expect(saveCount, equals(1));
       expect(find.text('Add Supplement'), findsNothing);
     });
+
+    testWidgets(
+      'rejects saving when all daily doses are 0 and clears error on increment',
+      (tester) async {
+        SupplementItem? savedItem;
+        await pumpDialog(
+          tester,
+          onSave: (item) async {
+            savedItem = item;
+          },
+        );
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Supplement Name *'),
+          'Magnesium',
+        );
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Dosage / Quantity *'),
+          '400 mg',
+        );
+
+        // Decrement morning dose from default 1 to 0
+        final morningDecrement = findDoseDecrementButton('🌅 Morning Dose');
+        await tester.ensureVisible(morningDecrement);
+        await tester.tap(morningDecrement);
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        expect(savedItem, isNull);
+        expect(
+          find.text('At least one daily dose is required'),
+          findsOneWidget,
+        );
+
+        // Increment evening dose to 1 to clear the error
+        final eveningIncrement = findDoseIncrementButton('🌙 Evening Dose');
+        await tester.ensureVisible(eveningIncrement);
+        await tester.tap(eveningIncrement);
+        await tester.pumpAndSettle();
+
+        expect(find.text('At least one daily dose is required'), findsNothing);
+
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        expect(savedItem, isNotNull);
+        expect(savedItem!.eveningDose, equals(1));
+      },
+    );
   });
 }

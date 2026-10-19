@@ -1,4 +1,30 @@
 {
+  "firestore": {
+    "rules": "app/firestore.rules",
+    "indexes": "app/firestore.indexes.json"
+  },
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "PetalCount",
+        "supportEmail": "michael.w.eastwood@gmail.com"
+      }
+    }
+  },
+  "hosting": {
+    "public": "app/build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
   "functions": [
     {
       "source": "functions",

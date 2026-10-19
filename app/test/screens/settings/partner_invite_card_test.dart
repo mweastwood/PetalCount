@@ -165,5 +165,29 @@ void main() {
         expect(tester.takeException(), isNull);
       },
     );
+
+    testWidgets('displays validation error when email format is invalid', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(child: PartnerInviteCard()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'not-an-email');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Send Collaboration Invite'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Error: Please enter a valid email address.'),
+        findsOneWidget,
+      );
+    });
   });
 }

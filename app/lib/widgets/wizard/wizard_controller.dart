@@ -164,6 +164,10 @@ class WizardController extends ChangeNotifier {
   }
 
   void setBleedingFlow(Bleeding flow) {
+    if (flow == Bleeding.none) {
+      setNoBleeding();
+      return;
+    }
     _hasBleeding = true;
     _bleedingFlow = flow;
     notifyListeners();
@@ -222,8 +226,13 @@ class WizardController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setStretch(Stretch s) {
-    _stretch = s;
+  void setStretch(Stretch stretchValue) {
+    _stretch = stretchValue;
+    if (stretchValue != Stretch.sticky) {
+      _isGummy = false;
+      _isPasty = false;
+      _hasSelectedConsistency = false;
+    }
     notifyListeners();
   }
 
@@ -491,10 +500,17 @@ class WizardController extends ChangeNotifier {
           _selectedColors.isNotEmpty ? _selectedColors : [MucusColor.cloudy],
         );
 
-        if (_isGummy) consistencies.add(Consistency.gummy);
-        if (_isPasty) consistencies.add(Consistency.pasty);
+        if (stretch == Stretch.sticky) {
+          if (_isGummy) consistencies.add(Consistency.gummy);
+          if (_isPasty) consistencies.add(Consistency.pasty);
+        }
       }
     }
+
+    final Frequency effectiveFrequency =
+        (!isHeavyOrModerateBleeding && (_hasMucus ?? false))
+        ? _frequency
+        : Frequency.none;
 
     final bool hasPain = _hasPain ?? false;
     final double painLevel = hasPain ? _painLevel : 0.0;
@@ -513,7 +529,7 @@ class WizardController extends ChangeNotifier {
         _hasBleeding == true ||
         _sensation != null ||
         _hasMucus == true ||
-        _frequency != Frequency.none ||
+        effectiveFrequency != Frequency.none ||
         _hasIntercourse == true ||
         category == ObservationCategory.mucus ||
         category == ObservationCategory.bleeding ||
@@ -529,7 +545,7 @@ class WizardController extends ChangeNotifier {
         consistencies: consistencies,
         bleeding: bleeding,
         bleedingColor: bleedingColorStr,
-        frequency: _frequency,
+        frequency: effectiveFrequency,
         intercourse: _hasIntercourse ?? false,
         painLevel: painLevel,
         painTypes: painTypes,

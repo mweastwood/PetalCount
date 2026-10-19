@@ -54,6 +54,7 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
 
   String? _nameError;
   String? _quantityError;
+  String? _doseError;
   bool _isSaving = false;
 
   @override
@@ -117,11 +118,47 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
       _quantityError = 'Dosage / quantity is required';
       hasError = true;
     }
+    if (_morningDose + _afternoonDose + _eveningDose <= 0) {
+      _doseError = 'At least one daily dose is required';
+      hasError = true;
+    } else {
+      _doseError = null;
+    }
 
     if (hasError) {
       setState(() {});
       return;
     }
+
+    final parsedStartCycleDay = int.tryParse(_startDayCtrl.text.trim());
+    final parsedEndCycleDay = int.tryParse(_endDayCtrl.text.trim());
+    final parsedStartPeakOffset = int.tryParse(_startPeakCtrl.text.trim());
+    final parsedEndPeakOffset = int.tryParse(_endPeakCtrl.text.trim());
+    final parsedDurationDays = int.tryParse(_durationCtrl.text.trim());
+
+    final int? effectiveStartCycleDay =
+        (_ruleType == SupplementScheduleRuleType.cycleDays ||
+            _ruleType == SupplementScheduleRuleType.peakOffset ||
+            _ruleType == SupplementScheduleRuleType.cycleDaysOrPeak)
+        ? parsedStartCycleDay
+        : null;
+    final int? effectiveEndCycleDay =
+        (_ruleType == SupplementScheduleRuleType.cycleDays ||
+            _ruleType == SupplementScheduleRuleType.cycleDaysOrPeak)
+        ? parsedEndCycleDay
+        : null;
+    final int? effectiveStartPeakOffset =
+        _ruleType == SupplementScheduleRuleType.peakOffset
+        ? parsedStartPeakOffset
+        : null;
+    final int? effectiveEndPeakOffset =
+        _ruleType == SupplementScheduleRuleType.cycleDaysOrPeak
+        ? parsedEndPeakOffset
+        : null;
+    final int? effectiveDurationDays =
+        _ruleType == SupplementScheduleRuleType.peakOffset
+        ? parsedDurationDays
+        : null;
 
     final id =
         widget.supplement?.id ??
@@ -135,11 +172,11 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
       afternoonDose: _afternoonDose,
       eveningDose: _eveningDose,
       ruleType: _ruleType,
-      startCycleDay: int.tryParse(_startDayCtrl.text.trim()),
-      endCycleDay: int.tryParse(_endDayCtrl.text.trim()),
-      startPeakOffset: int.tryParse(_startPeakCtrl.text.trim()),
-      endPeakOffset: int.tryParse(_endPeakCtrl.text.trim()),
-      durationDays: int.tryParse(_durationCtrl.text.trim()),
+      startCycleDay: effectiveStartCycleDay,
+      endCycleDay: effectiveEndCycleDay,
+      startPeakOffset: effectiveStartPeakOffset,
+      endPeakOffset: effectiveEndPeakOffset,
+      durationDays: effectiveDurationDays,
       instructions: _instructionsCtrl.text.trim(),
       isActive: widget.supplement?.isActive ?? true,
       targetRole: _targetRole,
@@ -264,18 +301,37 @@ class _AddEditSupplementDialogState extends State<AddEditSupplementDialog> {
               _buildDoseRow(
                 label: '🌅 Morning Dose',
                 count: _morningDose,
-                onChanged: (val) => setState(() => _morningDose = val),
+                onChanged: (val) => setState(() {
+                  _morningDose = val;
+                  if (val > 0) _doseError = null;
+                }),
               ),
               _buildDoseRow(
                 label: '☀️ Afternoon Dose',
                 count: _afternoonDose,
-                onChanged: (val) => setState(() => _afternoonDose = val),
+                onChanged: (val) => setState(() {
+                  _afternoonDose = val;
+                  if (val > 0) _doseError = null;
+                }),
               ),
               _buildDoseRow(
                 label: '🌙 Evening Dose',
                 count: _eveningDose,
-                onChanged: (val) => setState(() => _eveningDose = val),
+                onChanged: (val) => setState(() {
+                  _eveningDose = val;
+                  if (val > 0) _doseError = null;
+                }),
               ),
+              if (_doseError != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  _doseError!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
               const Divider(height: 24),
               Text(
                 'Cycle Schedule Rule',

@@ -215,6 +215,20 @@ class _CyclePlanTabState extends State<CyclePlanTab> {
                           }),
                         ],
                         rows: itemsWithDose.map((item) {
+                          int? peakCycleDay;
+                          if (widget.cycle != null) {
+                            for (final entry in widget.cycle!.sortedEntries) {
+                              if (entry.isPeakDay) {
+                                peakCycleDay =
+                                    calendarDaysBetween(
+                                      widget.cycle!.startDate,
+                                      entry.date,
+                                    ) +
+                                    1;
+                                break;
+                              }
+                            }
+                          }
                           return DataRow(
                             cells: [
                               DataCell(
@@ -229,8 +243,15 @@ class _CyclePlanTabState extends State<CyclePlanTab> {
                               DataCell(Text(item.scheduleDescription)),
                               ...List.generate(totalCycleDays, (i) {
                                 final day = i + 1;
+                                final int? daysPastPeak = peakCycleDay != null
+                                    ? (day - peakCycleDay)
+                                    : null;
+                                final bool hasPeakOccurred =
+                                    daysPastPeak != null && daysPastPeak >= 0;
                                 final isActive = item.isScheduledFor(
                                   cycleDay: day,
+                                  daysPastPeak: daysPastPeak,
+                                  hasPeakOccurred: hasPeakOccurred,
                                 );
                                 return DataCell(
                                   Center(

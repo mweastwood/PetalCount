@@ -74,8 +74,8 @@ class _AddObservationDialogState extends State<AddObservationDialog> {
     final picked = await showDatePicker(
       context: context,
       initialDate: _controller.selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
     );
     if (picked != null) {
       _controller.setSelectedDate(picked);

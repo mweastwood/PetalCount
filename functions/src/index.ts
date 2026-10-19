@@ -1,8 +1,13 @@
 import * as admin from "firebase-admin";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onRequest } from "firebase-functions/v2/https";
+import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
-import { processDailyReminders } from "./reminders";
+import {
+  CycleData,
+  processCollaboratorFertilityNotification,
+  processDailyReminders,
+} from "./reminders";
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
@@ -23,7 +28,9 @@ export const checkDailyObservationsAndNotify = onSchedule(
     maxInstances: 1,
   },
   async () => {
-    logger.info("Executing checkDailyObservationsAndNotify scheduled cron job...");
+    logger.info(
+      "Executing checkDailyObservationsAndNotify scheduled cron job..."
+    );
     try {
       const result = await processDailyReminders(db, messaging);
       logger.info(
@@ -37,14 +44,57 @@ export const checkDailyObservationsAndNotify = onSchedule(
 
 /**
  * HTTP endpoint for manual invocation / diagnostic testing.
- * Protected with basic checks or chart ID query parameter.
+ * Requires a valid Firebase ID token or admin secret outside test/emulator environments.
  */
 export const triggerDailyRemindersManually = onRequest(
   { memory: "256MiB" },
   async (req, res) => {
+    const isTestOrEmulator =
+      process.env.NODE_ENV === "test" ||
+      process.env.FUNCTIONS_EMULATOR === "true";
+
+    if (!isTestOrEmulator) {
+      const authorizationHeader =
+        typeof req.headers?.authorization === "string"
+          ? req.headers.authorization
+          : "";
+      const adminSecretHeader =
+        typeof req.headers?.["x-admin-secret"] === "string"
+          ? req.headers["x-admin-secret"]
+          : "";
+      const configuredSecret = process.env.REMINDER_TRIGGER_SECRET || "";
+
+      let isAuthorized =
+        configuredSecret.length > 0 && adminSecretHeader === configuredSecret;
+
+      if (!isAuthorized && authorizationHeader.startsWith("Bearer ")) {
+        const idToken = authorizationHeader.substring("Bearer ".length).trim();
+        try {
+          await admin.auth().verifyIdToken(idToken);
+          isAuthorized = true;
+        } catch {
+          isAuthorized = false;
+        }
+      }
+
+      if (!isAuthorized) {
+        res.status(401).json({
+          success: false,
+          error: "Unauthorized request",
+        });
+        return;
+      }
+    }
+
     const chartId = req.query.chartId as string | undefined;
     const targetHourStr = req.query.targetHour as string | undefined;
-    const targetHour = targetHourStr ? parseInt(targetHourStr, 10) : undefined;
+    const parsedTargetHour = targetHourStr
+      ? parseInt(targetHourStr, 10)
+      : undefined;
+    const targetHour =
+      parsedTargetHour !== undefined && !Number.isNaN(parsedTargetHour)
+        ? parsedTargetHour
+        : undefined;
 
     try {
       const result = await processDailyReminders(db, messaging, {
@@ -53,9 +103,43 @@ export const triggerDailyRemindersManually = onRequest(
       });
       res.status(200).json({ success: true, ...result });
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       logger.error("Error triggering reminders manually:", error);
       res.status(500).json({ success: false, error: errorMessage });
+    }
+  }
+);
+
+/**
+ * Firestore document write trigger that notifies partner/collaborator devices
+ * via FCM push notification when a fertile or Peak observation is logged.
+ */
+export const onCycleWriteNotifyCollaborators = onDocumentWritten(
+  "charts/{chartId}/cycles/{cycleId}",
+  async (event) => {
+    const chartId = event.params?.chartId;
+    if (!chartId || !event.data) {
+      return;
+    }
+
+    const previousCycleData = event.data.before.exists
+      ? (event.data.before.data() as CycleData)
+      : undefined;
+    const currentCycleData = event.data.after.exists
+      ? (event.data.after.data() as CycleData)
+      : undefined;
+
+    try {
+      await processCollaboratorFertilityNotification(
+        db,
+        messaging,
+        chartId,
+        previousCycleData,
+        currentCycleData
+      );
+    } catch (error) {
+      logger.error("Error in onCycleWriteNotifyCollaborators:", error);
     }
   }
 );

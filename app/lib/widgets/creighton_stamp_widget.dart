@@ -254,10 +254,7 @@ class CreightonStampWidget extends StatelessWidget {
               ),
             ),
           if (hasBaby)
-            BabyIcon.forStamp(
-              stampType,
-              size: (height ?? 52.0) * 0.75,
-            )
+            BabyIcon.forStamp(stampType, size: (height ?? 52.0) * 0.75)
           else if (dayNumber != null)
             Text(
               '$dayNumber',

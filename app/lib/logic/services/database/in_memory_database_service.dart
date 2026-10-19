@@ -11,6 +11,7 @@ import '../../models/supplement.dart';
 import '../../models/user_role.dart';
 import '../../utils/date_utils.dart';
 import '../creighton_logic.dart';
+import '../cycle_coordinator.dart';
 import '../services.dart';
 import 'database_service_interface.dart';
 
@@ -306,14 +307,33 @@ class InMemoryDatabaseService implements DatabaseService {
       _users[uid] = {
         'uid': uid,
         'email': email,
+        'role': 'wife',
         'chartId': 'mock_shared_chart',
       };
     }
 
+    final sharedChart = _charts['mock_shared_chart'];
+    if (sharedChart != null) {
+      final userIds = List<String>.from(sharedChart['userIds'] ?? []);
+      if (!userIds.contains(uid)) {
+        userIds.add(uid);
+        sharedChart['userIds'] = userIds;
+      }
+      final emails = List<String>.from(sharedChart['emails'] ?? []);
+      if (!emails.contains(email)) {
+        emails.add(email);
+        sharedChart['emails'] = emails;
+      }
+    }
+
     _currentUser = MockUser(uid: uid, email: email);
-    _chartId = _users[uid]!['chartId'];
+    _chartId = _users[uid]!['chartId'] as String?;
     _authController.add(_currentUser);
+    _roleController.add(_users[uid]!['role'] as String? ?? 'wife');
     _emitCharts();
+    _emitCycles();
+    _emitSupplements();
+    _emitSupplementLogs();
   }
 
   @override
@@ -321,6 +341,7 @@ class InMemoryDatabaseService implements DatabaseService {
     _currentUser = null;
     _chartId = null;
     _authController.add(null);
+    _roleController.add(null);
     _emitCharts();
     _emitCycles();
     _emitSupplements();
@@ -361,13 +382,23 @@ class InMemoryDatabaseService implements DatabaseService {
     if (user == null || chartId == null) return;
 
     final cleanEmail = partnerEmail.trim().toLowerCase();
-    _invitations.add({
+    final existingIndex = _invitations.indexWhere(
+      (invitation) =>
+          invitation['invitationId'] == cleanEmail &&
+          invitation['chartId'] == chartId,
+    );
+    final invitationRecord = <String, dynamic>{
       'invitationId': cleanEmail,
       'senderUid': user.uid,
       'senderEmail': user.email,
       'chartId': chartId,
       'status': 'pending',
-    });
+    };
+    if (existingIndex != -1) {
+      _invitations[existingIndex] = invitationRecord;
+    } else {
+      _invitations.add(invitationRecord);
+    }
   }
 
   @override
@@ -539,7 +570,12 @@ class InMemoryDatabaseService implements DatabaseService {
       }
 
       userIds.remove(_currentUser!.uid);
-      emails.remove(_currentUser!.email ?? '');
+      final normalizedUserEmail = (_currentUser!.email ?? '')
+          .trim()
+          .toLowerCase();
+      emails.removeWhere(
+        (emailEntry) => emailEntry.trim().toLowerCase() == normalizedUserEmail,
+      );
 
       if (userIds.isEmpty) {
         _charts.remove(chartId);
@@ -691,17 +727,14 @@ class InMemoryDatabaseService implements DatabaseService {
     yield* _cyclesController.stream;
   }
 
-  void _reallocateAndRecalculate(String chartId) {
-    final chartCyclesData = _cycles[chartId];
-    if (chartCyclesData == null || chartCyclesData.isEmpty) return;
-
-    final cycles = chartCyclesData.values.map((d) => Cycle.fromMap(d)).toList();
-    final updatedCycles = CreightonLogic.reallocateAndRecalculateCycles(cycles);
-
-    for (final cycle in updatedCycles) {
+  void _applyCycleMutationPlan(String chartId, CycleMutationPlan mutationPlan) {
+    _cycles[chartId] ??= {};
+    for (final cycleIdentifier in mutationPlan.cycleIdentifiersToDelete) {
+      _cycles[chartId]!.remove(cycleIdentifier);
+    }
+    for (final cycle in mutationPlan.cyclesToUpsert) {
       _cycles[chartId]![cycle.id] = cycle.toMap();
     }
-
     _emitCycles();
   }
 
@@ -710,17 +743,16 @@ class InMemoryDatabaseService implements DatabaseService {
     final chartId = _chartId;
     if (chartId == null) return;
 
-    final dateStr = startDate.dateKey;
-    final cycle = Cycle(
-      id: dateStr,
-      startDate: startDate,
-      bipCodes: bipCodes,
-      dailyEntries: {},
-    );
+    final existingCycles = (_cycles[chartId] ?? {}).values
+        .map((data) => Cycle.fromMap(data))
+        .toList();
 
-    _cycles[chartId] ??= {};
-    _cycles[chartId]![dateStr] = cycle.toMap();
-    _reallocateAndRecalculate(chartId);
+    final mutationPlan = CycleCoordinator.planStartNewCycle(
+      existingCycles: existingCycles,
+      startDate: startDate,
+      basicInfertilePatternCodes: bipCodes,
+    );
+    _applyCycleMutationPlan(chartId, mutationPlan);
   }
 
   @override
@@ -731,23 +763,21 @@ class InMemoryDatabaseService implements DatabaseService {
     final chartId = _chartId;
     if (chartId == null) return;
 
-    final cycleData = _cycles[chartId]?[cycleId];
-    if (cycleData == null) return;
+    final existingCycles = (_cycles[chartId] ?? {}).values
+        .map((data) => Cycle.fromMap(data))
+        .toList();
 
-    final oldCycle = Cycle.fromMap(cycleData);
-    _cycles[chartId]!.remove(cycleId);
-
-    final newDateStr = newStartDate.dateKey;
-    final updatedCycle = Cycle(
-      id: newDateStr,
-      startDate: newStartDate,
-      endDate: oldCycle.endDate,
-      bipCodes: oldCycle.bipCodes,
-      dailyEntries: oldCycle.dailyEntries,
+    final mutationPlan = CycleCoordinator.planUpdateCycleStartDate(
+      existingCycles: existingCycles,
+      cycleIdentifier: cycleId,
+      newStartDate: newStartDate,
     );
+    if (mutationPlan.cyclesToUpsert.isEmpty &&
+        mutationPlan.cycleIdentifiersToDelete.isEmpty) {
+      return;
+    }
 
-    _cycles[chartId]![newDateStr] = updatedCycle.toMap();
-    _reallocateAndRecalculate(chartId);
+    _applyCycleMutationPlan(chartId, mutationPlan);
   }
 
   @override
@@ -755,25 +785,20 @@ class InMemoryDatabaseService implements DatabaseService {
     final chartId = _chartId;
     if (chartId == null) return;
 
-    final chartCyclesData = _cycles[chartId];
-    if (chartCyclesData == null) return;
+    final existingCycles = (_cycles[chartId] ?? {}).values
+        .map((data) => Cycle.fromMap(data))
+        .toList();
 
-    final cycles = chartCyclesData.values.map((d) => Cycle.fromMap(d)).toList();
-    cycles.sort((a, b) => a.startDate.compareTo(b.startDate));
-    final targetIndex = cycles.indexWhere((c) => c.id == cycleId);
-    if (targetIndex <= 0) return;
+    final mutationPlan = CycleCoordinator.planMergeCycleWithPrevious(
+      existingCycles: existingCycles,
+      cycleIdentifier: cycleId,
+    );
+    if (mutationPlan.cyclesToUpsert.isEmpty &&
+        mutationPlan.cycleIdentifiersToDelete.isEmpty) {
+      return;
+    }
 
-    final targetCycle = cycles[targetIndex];
-    final prevCycle = cycles[targetIndex - 1];
-
-    final mergedEntries = Map<String, DailyEntry>.from(prevCycle.dailyEntries)
-      ..addAll(targetCycle.dailyEntries);
-
-    final updatedPrevCycle = prevCycle.copyWith(dailyEntries: mergedEntries);
-    _cycles[chartId]![prevCycle.id] = updatedPrevCycle.toMap();
-
-    _cycles[chartId]!.remove(cycleId);
-    _reallocateAndRecalculate(chartId);
+    _applyCycleMutationPlan(chartId, mutationPlan);
   }
 
   @override
@@ -781,8 +806,15 @@ class InMemoryDatabaseService implements DatabaseService {
     final chartId = _chartId;
     if (chartId == null) return;
 
-    _cycles[chartId]?.remove(cycleId);
-    _emitCycles();
+    final existingCycles = (_cycles[chartId] ?? {}).values
+        .map((data) => Cycle.fromMap(data))
+        .toList();
+
+    final mutationPlan = CycleCoordinator.planDeleteCycle(
+      existingCycles: existingCycles,
+      cycleIdentifier: cycleId,
+    );
+    _applyCycleMutationPlan(chartId, mutationPlan);
   }
 
   @override
@@ -794,15 +826,13 @@ class InMemoryDatabaseService implements DatabaseService {
     if (cycleData == null) return;
 
     final cycle = Cycle.fromMap(cycleData);
-    final updated = CreightonLogic.recalculateCycle(
-      entries: cycle.dailyEntries.values.toList(),
-      bipCodes: bipCodes,
-    );
+    final updatedCycle =
+        CycleCoordinator.recalculateCycleWithBasicInfertilePattern(
+          targetCycle: cycle,
+          basicInfertilePatternCodes: bipCodes,
+        );
 
-    _cycles[chartId]![cycleId] = cycle
-        .copyWith(bipCodes: bipCodes, dailyEntries: updated)
-        .toMap();
-
+    _cycles[chartId]![cycleId] = updatedCycle.toMap();
     _emitCycles();
   }
 
@@ -841,7 +871,7 @@ class InMemoryDatabaseService implements DatabaseService {
         id: dateStr,
         startDate: date,
         bipCodes: const ['6C'],
-        dailyEntries: {},
+        dailyEntries: const {},
       );
       _cycles[chartId]![dateStr] = newCycle.toMap();
       cycles.add(newCycle);
@@ -855,20 +885,12 @@ class InMemoryDatabaseService implements DatabaseService {
         if (autoStart != null) {
           final dateStr = autoStart.dateKey;
           if (!_cycles[chartId]!.containsKey(dateStr)) {
-            final newCycle = Cycle(
-              id: dateStr,
-              startDate: autoStart,
-              bipCodes: latest.bipCodes,
-              dailyEntries: {},
-            );
-            _cycles[chartId]![dateStr] = newCycle.toMap();
-            _reallocateAndRecalculate(chartId);
+            await startNewCycle(autoStart, latest.bipCodes);
           }
         }
       }
     }
 
-    // Refresh sorted cycles list after potential cycle creation
     final updatedCycles = _cycles[chartId]!.values
         .map((d) => Cycle.fromMap(d))
         .toList();
@@ -880,17 +902,14 @@ class InMemoryDatabaseService implements DatabaseService {
     final targetCycle = eligible.isNotEmpty
         ? eligible.last
         : updatedCycles.first;
-    final targetCycleId = targetCycle.id;
-
-    final dateKey = date.dateKey;
 
     final userRoleStr = _users[user.uid]?['role'] as String?;
     final userRole = UserRole.fromString(
       userRoleStr ?? (user.uid == 'husband_uid' ? 'husband' : 'wife'),
     );
 
-    final newObs = Observation(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+    final createdObservation = Observation(
+      id: CycleCoordinator.generateObservationIdentifier(),
       timestamp: date,
       sensation: sensation,
       stretch: stretch,
@@ -908,35 +927,18 @@ class InMemoryDatabaseService implements DatabaseService {
       isVdrsExplicit: isVdrsExplicit,
     );
 
-    final currentEntries = Map<String, DailyEntry>.from(
-      targetCycle.dailyEntries,
-    );
-    final existingEntry = currentEntries[dateKey];
-    List<Observation> observations = existingEntry != null
-        ? (List<Observation>.from(existingEntry.observations)..add(newObs))
-        : [newObs];
-    observations.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-
-    final resolved = CreightonLogic.resolveDailyEntry(
-      date: date,
-      observations: observations,
-    );
-    currentEntries[dateKey] = resolved;
-
-    final updated = CreightonLogic.recalculateCycle(
-      entries: currentEntries.values.toList(),
-      bipCodes: targetCycle.bipCodes,
+    final saveResult = CycleCoordinator.applyObservationToCycle(
+      targetCycle: targetCycle,
+      observation: createdObservation,
     );
 
-    _cycles[chartId]![targetCycleId] = targetCycle
-        .copyWith(dailyEntries: updated)
-        .toMap();
+    _cycles[chartId]![targetCycle.id] = saveResult.updatedCycle.toMap();
     _emitCycles();
 
-    final resolvedDaily = updated[dateKey] ?? resolved;
+    final resolvedDaily = saveResult.resolvedDailyEntry;
     final isFertile = CreightonLogic.isFertileMucusPattern(
       entry: resolvedDaily,
-      bipCodes: targetCycle.bipCodes,
+      bipCodes: saveResult.updatedCycle.bipCodes,
     );
     final peakLabel = resolvedDaily.peakDayLabel;
 
@@ -975,32 +977,14 @@ class InMemoryDatabaseService implements DatabaseService {
     if (cycleData == null) return;
 
     final cycle = Cycle.fromMap(cycleData);
-    final dateKey = date.dateKey;
-
-    final currentEntries = Map<String, DailyEntry>.from(cycle.dailyEntries);
-    final existingEntry = currentEntries[dateKey];
-    if (existingEntry == null) return;
-
-    final observations = existingEntry.observations
-        .where((o) => o.id != observationId)
-        .toList();
-
-    if (observations.isEmpty) {
-      currentEntries.remove(dateKey);
-    } else {
-      final resolved = CreightonLogic.resolveDailyEntry(
-        date: date,
-        observations: observations,
-      );
-      currentEntries[dateKey] = resolved;
-    }
-
-    final updated = CreightonLogic.recalculateCycle(
-      entries: currentEntries.values.toList(),
-      bipCodes: cycle.bipCodes,
+    final updatedCycle = CycleCoordinator.removeObservationFromCycle(
+      targetCycle: cycle,
+      date: date,
+      observationIdentifier: observationId,
     );
+    if (updatedCycle == null) return;
 
-    _cycles[chartId]![cycleId] = cycle.copyWith(dailyEntries: updated).toMap();
+    _cycles[chartId]![cycleId] = updatedCycle.toMap();
     _emitCycles();
   }
 
