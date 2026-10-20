@@ -2,8 +2,8 @@
   "name": "functions",
   "scripts": {
     "postinstall": "node tool/setup-bin.js",
-    "build": "dart compile js -O2 -o lib/bundle.js bin/index.dart && node bin/node-preamble.js lib/bundle.js > lib/index.js",
-    "watch": "dart compile js -O1 -o lib/bundle.js bin/index.dart && node bin/node-preamble.js lib/bundle.js > lib/index.js",
+    "build": "dart pub get && dart compile js -O2 -o lib/bundle.js bin/index.dart && node bin/node-preamble.js lib/bundle.js > lib/index.js && rm -f lib/bundle.js lib/bundle.js.map lib/bundle.js.deps",
+    "watch": "dart compile js -O1 -o lib/bundle.js bin/index.dart && node bin/node-preamble.js lib/bundle.js > lib/index.js && rm -f lib/bundle.js lib/bundle.js.map lib/bundle.js.deps",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",

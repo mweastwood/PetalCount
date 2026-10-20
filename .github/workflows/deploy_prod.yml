@@ -29,6 +29,10 @@ jobs:
         with:
           node-version: 20
 
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
       - name: Deploy Firestore Rules, Indexes & Cloud Functions
         working-directory: .
         env:
