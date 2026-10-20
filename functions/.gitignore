@@ -1,4 +1,9 @@
+.dart_tool/
 node_modules/
-lib/
+*.local
 *.log
 .DS_Store
+firebase-debug.log
+firebase-debug.*.log
+lib/bundle.js*
+lib/index.js

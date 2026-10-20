@@ -1,29 +1,24 @@
 {
   "name": "functions",
   "scripts": {
-    "build": "tsc",
-    "build:watch": "tsc --watch",
+    "postinstall": "node tool/setup-bin.js",
+    "build": "dart pub get && dart compile js -O2 -o lib/bundle.js bin/index.dart && node bin/node-preamble.js lib/bundle.js > lib/index.js && rm -f lib/bundle.js lib/bundle.js.map lib/bundle.js.deps",
+    "watch": "dart compile js -O1 -o lib/bundle.js bin/index.dart && node bin/node-preamble.js lib/bundle.js > lib/index.js && rm -f lib/bundle.js lib/bundle.js.map lib/bundle.js.deps",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "test": "jest"
+    "test": "dart test && npm run test:interop",
+    "test:interop": "npm run build && node test/bundle_interop_test.js"
   },
   "engines": {
     "node": "20"
   },
   "main": "lib/index.js",
   "dependencies": {
-    "firebase-admin": "^13.0.0",
-    "firebase-functions": "^6.0.0"
-  },
-  "devDependencies": {
-    "@types/jest": "^29.5.14",
-    "@types/node": "^20.17.0",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.2.5",
-    "typescript": "^5.6.3"
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1"
   },
   "private": true
 }

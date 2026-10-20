@@ -152,5 +152,86 @@ void main() {
       final fromNull = NotificationPreferences.fromMap(null);
       expect(fromNull, equals(defaultPrefs));
     });
+
+    test(
+      'formats push notifications for daily reminder and collaborator fertility alerts',
+      () {
+        final dailyPush = CycleNotificationFormatter.dailyReminderPushMessage();
+        expect(dailyPush.title, 'Daily Observation Reminder');
+        expect(
+          dailyPush.body,
+          "Don't forget to log your Creighton observations for today!",
+        );
+
+        const defaultPrefs = NotificationPreferences();
+        final peakMsgHusband =
+            CycleNotificationFormatter.collaboratorFertilityPushMessage(
+              recipientRole: UserRole.husband,
+              preferences: defaultPrefs,
+              peakDayLabel: 'P',
+            );
+        expect(peakMsgHusband.title, 'Peak Day Identified');
+        expect(
+          peakMsgHusband.body,
+          'Partner alert: Today is marked as Peak (P) on your shared chart.',
+        );
+
+        final postPeakMsgWife =
+            CycleNotificationFormatter.collaboratorFertilityPushMessage(
+              recipientRole: UserRole.wife,
+              preferences: defaultPrefs,
+              peakDayLabel: '2',
+            );
+        expect(postPeakMsgWife.title, 'Peak +2 Count');
+        expect(
+          postPeakMsgWife.body,
+          'Today is marked as Peak (2) on your chart.',
+        );
+
+        final fertileMsgHusband =
+            CycleNotificationFormatter.collaboratorFertilityPushMessage(
+              recipientRole: UserRole.husband,
+              preferences: defaultPrefs,
+            );
+        expect(fertileMsgHusband.title, 'Fertile Pattern Detected');
+        expect(
+          fertileMsgHusband.body,
+          'Partner alert: Your chart indicates a fertile mucus pattern today.',
+        );
+
+        final supportOnlyPrefs = defaultPrefs.copyWith(
+          fertilePatternAlerts: false,
+          partnerSupportReminders: true,
+        );
+        final supportMsgHusband =
+            CycleNotificationFormatter.collaboratorFertilityPushMessage(
+              recipientRole: UserRole.husband,
+              preferences: supportOnlyPrefs,
+            );
+        expect(supportMsgHusband.title, 'Kindness & Support Reminder');
+        expect(
+          supportMsgHusband.body,
+          'Your chart is in a fertile phase—a thoughtful gesture or word of encouragement goes a long way today!',
+        );
+      },
+    );
+
+    test('StampType fertility helpers classify fertile stamps accurately', () {
+      expect(StampType.whiteBaby.isFertile, isTrue);
+      expect(StampType.yellowBaby.isFertile, isTrue);
+      expect(StampType.greenBaby.isFertile, isTrue);
+      expect(StampType.green.isFertile, isFalse);
+      expect(StampType.red.isFertile, isFalse);
+      expect(StampType.yellow.isFertile, isFalse);
+
+      expect(StampType.isFertileStampValue('WhiteBaby'), isTrue);
+      expect(StampType.isFertileStampValue('whiteBaby'), isTrue);
+      expect(StampType.isFertileStampValue('yellowBaby'), isTrue);
+      expect(StampType.isFertileStampValue('greenBaby'), isTrue);
+      expect(StampType.isFertileStampValue('peak'), isTrue);
+      expect(StampType.isFertileStampValue('redFertile'), isTrue);
+      expect(StampType.isFertileStampValue('Green'), isFalse);
+      expect(StampType.isFertileStampValue(null), isFalse);
+    });
   });
 }
