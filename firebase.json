@@ -31,10 +31,12 @@
       "codebase": "default",
       "ignore": [
         "node_modules",
+        ".dart_tool",
         ".git",
         "firebase-debug.log",
         "firebase-debug.*.log",
-        "*.local"
+        "*.local",
+        "lib/bundle.js*"
       ],
       "predeploy": [
         "npm --prefix \"$RESOURCE_DIR\" run build"

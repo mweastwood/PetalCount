@@ -17,6 +17,21 @@ enum StampType {
   final String name;
   final String label;
   const StampType(this.name, this.label);
+
+  bool get isFertile =>
+      this == StampType.whiteBaby ||
+      this == StampType.yellowBaby ||
+      this == StampType.greenBaby;
+
+  static bool isFertileStampValue(String? rawStampType) {
+    if (rawStampType == null) return false;
+    final normalized = rawStampType.trim().toLowerCase();
+    return normalized == 'whitebaby' ||
+        normalized == 'yellowbaby' ||
+        normalized == 'greenbaby' ||
+        normalized == 'peak' ||
+        normalized == 'redfertile';
+  }
 }
 
 DateTime _parseNormalizedDateFromJson(Object? rawDate) =>

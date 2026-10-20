@@ -96,16 +96,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install dependencies
+      - name: Install Node dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
+      - name: Install Dart dependencies
+        run: dart pub get
 
-      - name: Build TypeScript
-        run: npm run build
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Analyze package source
+        run: dart analyze --fatal-infos
+
+      - name: Run unit and bundle interop tests
+        run: npm test

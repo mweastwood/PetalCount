@@ -34,6 +34,15 @@ if [ $CORE_ANALYZE_RESULT -ne 0 ]; then
   exit $CORE_ANALYZE_RESULT
 fi
 
+echo "Running dart analyze in functions..."
+(cd functions && dart analyze --fatal-infos)
+FUNCTIONS_ANALYZE_RESULT=$?
+
+if [ $FUNCTIONS_ANALYZE_RESULT -ne 0 ]; then
+  echo "Error: Functions package analysis failed (exit code $FUNCTIONS_ANALYZE_RESULT). Commit aborted."
+  exit $FUNCTIONS_ANALYZE_RESULT
+fi
+
 echo "Running flutter analyze in app..."
 (cd app && flutter analyze --fatal-infos)
 ANALYZE_RESULT=$?

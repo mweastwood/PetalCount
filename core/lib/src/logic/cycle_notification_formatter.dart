@@ -1,3 +1,4 @@
+import '../models/notification_preferences.dart';
 import '../models/user_role.dart';
 
 class NotificationMessage {
@@ -138,5 +139,49 @@ class CycleNotificationFormatter {
           body: wifeBreastSelfExamBody,
         );
     }
+  }
+
+  static NotificationMessage dailyReminderPushMessage() {
+    return const NotificationMessage(
+      title: 'Daily Observation Reminder',
+      body: "Don't forget to log your Creighton observations for today!",
+    );
+  }
+
+  static NotificationMessage collaboratorFertilityPushMessage({
+    required UserRole recipientRole,
+    required NotificationPreferences preferences,
+    String? peakDayLabel,
+  }) {
+    final fertilePatternAlertsEnabled = preferences.fertilePatternAlerts;
+    final partnerSupportRemindersEnabled = preferences.partnerSupportReminders;
+    final hasPeakLabel = peakDayLabel != null && peakDayLabel.trim().isNotEmpty;
+
+    String notificationTitle = 'Fertile Pattern Detected';
+    String notificationBody = recipientRole == UserRole.husband
+        ? 'Partner alert: Your chart indicates a fertile mucus pattern today.'
+        : 'Your latest observation indicates a fertile mucus pattern today.';
+
+    if (hasPeakLabel && fertilePatternAlertsEnabled) {
+      final normalizedPeakLabel = peakDayLabel.trim();
+      notificationTitle = normalizedPeakLabel == 'P'
+          ? 'Peak Day Identified'
+          : 'Peak +$normalizedPeakLabel Count';
+      notificationBody = recipientRole == UserRole.husband
+          ? 'Partner alert: Today is marked as Peak ($normalizedPeakLabel) on your shared chart.'
+          : 'Today is marked as Peak ($normalizedPeakLabel) on your chart.';
+    } else if (!fertilePatternAlertsEnabled && partnerSupportRemindersEnabled) {
+      notificationTitle = recipientRole == UserRole.husband
+          ? 'Kindness & Support Reminder'
+          : 'Self-Care Reminder';
+      notificationBody = recipientRole == UserRole.husband
+          ? 'Your chart is in a fertile phase—a thoughtful gesture or word of encouragement goes a long way today!'
+          : 'You are in a fertile phase—remember to take a moment for rest and self-care today.';
+    }
+
+    return NotificationMessage(
+      title: notificationTitle,
+      body: notificationBody,
+    );
   }
 }
