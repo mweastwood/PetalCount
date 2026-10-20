@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   deploy_dev_backend:
-    name: Deploy Backend (Firestore Rules, Indexes & Cloud Functions)
+    name: Deploy Backend (Firestore Rules & Indexes)
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
@@ -32,15 +32,14 @@ jobs:
         with:
           node-version: 20
 
-      - name: Deploy Firestore Rules, Indexes & Cloud Functions
+      - name: Deploy Firestore Rules & Indexes
         working-directory: .
         env:
           FIREBASE_SERVICE_ACCOUNT_DEV: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PETAL_COUNT_DEV }}
         run: |
-          npm --prefix functions ci
           echo "$FIREBASE_SERVICE_ACCOUNT_DEV" > service-account.json
           export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/service-account.json
-          npx --yes firebase-tools@15.22.3 deploy --only firestore:rules,firestore:indexes,functions --project petal-count-dev
+          npx --yes firebase-tools@15.22.3 deploy --only firestore:rules,firestore:indexes --project petal-count-dev
           rm -f service-account.json
 
   deploy_dev_firebase_web:
