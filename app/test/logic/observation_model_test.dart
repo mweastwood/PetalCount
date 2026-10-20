@@ -140,8 +140,7 @@ void main() {
         );
 
         final map = original.toMap();
-        expect(map['timestamp'], isA<Timestamp>());
-        expect((map['timestamp'] as Timestamp).toDate(), originalDate);
+        expect(map['timestamp'], originalDate.toIso8601String());
         expect(map['frequency'], 'twice');
         expect(map['intercourse'], true);
 
