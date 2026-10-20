@@ -1,3 +1,5 @@
+export 'package:core/core.dart';
+
 export 'app_config.dart';
 export 'app_logger.dart';
 export 'app_route_manager.dart';
