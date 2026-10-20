@@ -202,8 +202,8 @@ abstract class Observation with _$Observation {
   /// Customizable hook for serializing [timestamp] in [toJson] / [toMap].
   /// Defaults to ISO 8601 string in pure Dart, and can be overridden by
   /// platform adapters (e.g. `Timestamp.fromDate` in Flutter) when needed.
-  static Object Function(DateTime dateTime) timestampSerializer =
-      (dateTime) => dateTime.toIso8601String();
+  static Object Function(DateTime dateTime) timestampSerializer = (dateTime) =>
+      dateTime.toIso8601String();
 
   const factory Observation.raw({
     @Default('') @JsonKey(fromJson: _parseStringWithDefaultEmpty) String id,

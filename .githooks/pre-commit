@@ -25,7 +25,16 @@ if ! command -v flutter >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Running flutter analyze..."
+echo "Running dart analyze in core..."
+(cd core && dart analyze --fatal-infos)
+CORE_ANALYZE_RESULT=$?
+
+if [ $CORE_ANALYZE_RESULT -ne 0 ]; then
+  echo "Error: Core package analysis failed (exit code $CORE_ANALYZE_RESULT). Commit aborted."
+  exit $CORE_ANALYZE_RESULT
+fi
+
+echo "Running flutter analyze in app..."
 (cd app && flutter analyze --fatal-infos)
 ANALYZE_RESULT=$?
 

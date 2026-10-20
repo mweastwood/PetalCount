@@ -35,7 +35,10 @@ void main() {
           observation: obs1,
         );
         expect(saveResult1.resolvedDailyEntry.resolvedVdrsCode, '10K x1');
-        expect(saveResult1.updatedCycle.dailyEntries.containsKey('2026-06-10'), isTrue);
+        expect(
+          saveResult1.updatedCycle.dailyEntries.containsKey('2026-06-10'),
+          isTrue,
+        );
 
         // Remove observation -> entry removed when no observations remain on that date
         final afterRemoval = CycleCoordinator.removeObservationFromCycle(

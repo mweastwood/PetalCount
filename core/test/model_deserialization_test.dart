@@ -1,6 +1,5 @@
+import 'package:core/core.dart';
 import 'package:test/test.dart';
-import 'package:core/core.dart';
-import 'package:core/core.dart';
 
 void main() {
   group('Cycle Deserialization Tests', () {
