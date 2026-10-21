@@ -37,33 +37,73 @@ void main() {
   }
 
   group('SupplementScreen Widget Tests', () {
-    testWidgets('Renders all 3 tabs and shows daily intake checklist', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(1080, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+      'Renders unified screen with Today supplements, Next 6 Days forecast, and Pencil FAB',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
 
-      expect(find.text('Supplements & Protocols'), findsOneWidget);
-      expect(find.text('Daily Intake'), findsOneWidget);
-      expect(find.text('Cycle Plan'), findsOneWidget);
-      expect(find.text('Formulary'), findsOneWidget);
+        expect(find.text('Supplements & Protocols'), findsOneWidget);
+        expect(find.text("Today's Supplements"), findsOneWidget);
+        expect(find.text('Next 6 Days'), findsOneWidget);
+        expect(
+          find.byKey(const Key('btn_edit_supplement_plan_fab')),
+          findsOneWidget,
+        );
 
-      expect(find.text('Daily Adherence'), findsOneWidget);
-      expect(find.text('Morning'), findsOneWidget);
-      expect(find.text('Afternoon'), findsOneWidget);
-      expect(find.text('Evening'), findsOneWidget);
+        // Verify preset supplements are visible at the top
+        expect(find.text('Prenatal'), findsOneWidget);
+        expect(find.text('CoQ10'), findsOneWidget);
+        expect(find.text('Berberine'), findsWidgets);
 
-      // Verify some preset supplements are visible
-      expect(find.text('Prenatal'), findsOneWidget);
-      expect(find.text('CoQ10'), findsOneWidget);
-      expect(find.text('Berberine'), findsWidgets);
-    });
+        // Verify all 6 upcoming day cards are rendered as we scroll through the 7-day forecast
+        for (int i = 1; i <= 6; i++) {
+          final cardFinder = find.byKey(Key('upcoming_day_card_$i'));
+          await tester.scrollUntilVisible(cardFinder, 200);
+          expect(cardFinder, findsOneWidget);
+        }
 
-    testWidgets('Tapping checkbox logs supplement dose adherence', (
+        // Verify Conditional on Peak section appears on upcoming days when Peak is not yet recorded
+        expect(find.text('Conditional on Peak'), findsWidgets);
+      },
+    );
+
+    testWidgets(
+      'Auto-uses Peak from active cycle when detected and removes Conditional on Peak sections',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        final peakDate = DateTime(2026, 8, 24);
+        final cycleWithPeak = Cycle(
+          id: 'cycle_peak',
+          startDate: DateTime(2026, 8, 12),
+          dailyEntries: {
+            peakDate.dateKey: DailyEntry.raw(date: peakDate, peakDayLabel: 'P'),
+          },
+        );
+
+        await tester.pumpWidget(
+          createTestWidget(
+            initialDate: DateTime(2026, 8, 25),
+            cycle: cycleWithPeak,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Cycle Day 14 • Post-Peak (P+1)'), findsOneWidget);
+        expect(find.text('Conditional on Peak'), findsNothing);
+        await tester.scrollUntilVisible(find.text('Cycle Day 16 • P+3'), 200);
+        expect(find.text('Cycle Day 16 • P+3'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Tapping checkbox logs supplement dose adherence for Today', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1080, 2400);
@@ -108,26 +148,8 @@ void main() {
       expect(find.text('Aug 25, 2026'), findsOneWidget);
     });
 
-    testWidgets('Cycle Plan matrix tab displays schedule data table', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(1080, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Cycle Plan'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Cycle Protocol Matrix'), findsOneWidget);
-      expect(find.text('Morning Schedule'), findsOneWidget);
-      expect(find.byType(DataTable), findsWidgets);
-    });
-
     testWidgets(
-      'Formulary tab displays all supplements with edit/delete buttons',
+      'Tapping Pencil FAB opens Edit Supplement Plan sheet with edit/delete/add actions',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
         tester.view.devicePixelRatio = 1.0;
@@ -136,20 +158,18 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Formulary'));
+        await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
         await tester.pumpAndSettle();
 
-        expect(find.text('Prenatal'), findsOneWidget);
-        expect(find.text('CoQ10'), findsOneWidget);
-        expect(find.text('Vitamin D'), findsOneWidget);
-
+        expect(find.text('Edit Supplement Plan'), findsOneWidget);
+        expect(find.byType(FormularyTab), findsOneWidget);
         expect(find.byTooltip('Edit Supplement'), findsWidgets);
         expect(find.byTooltip('Delete Supplement'), findsWidgets);
       },
     );
 
     testWidgets(
-      'Opening Add Supplement dialog allows creating new supplement',
+      'Opening Add Supplement dialog from Edit Plan sheet allows creating new supplement',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
         tester.view.devicePixelRatio = 1.0;
@@ -158,7 +178,7 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Formulary'));
+        await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
         await tester.pumpAndSettle();
 
         await tester.tap(find.byKey(const Key('btn_add_supplement_fab')));
@@ -195,17 +215,15 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Formulary'));
+        await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
         await tester.pumpAndSettle();
 
         await tester.tap(find.byKey(const Key('btn_add_supplement_fab')));
         await tester.pumpAndSettle();
 
-        // Tap Save immediately with empty fields
         await tester.tap(find.text('Save'));
         await tester.pumpAndSettle();
 
-        // Expect error text on both fields and dialog remains open
         expect(find.text('Supplement name is required'), findsOneWidget);
         expect(find.text('Dosage / quantity is required'), findsOneWidget);
         expect(find.text('Add Supplement'), findsWidgets);
@@ -213,7 +231,7 @@ void main() {
     );
 
     testWidgets(
-      'Can toggle between wife and husband daily intake checklists and log doses',
+      'Can toggle between wife and husband checklists and log doses',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
         tester.view.devicePixelRatio = 1.0;
@@ -222,18 +240,15 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        // Initially Wife checklist is selected
         expect(find.text('Prenatal'), findsOneWidget);
         expect(find.text("Men's Multivitamin"), findsNothing);
 
-        // Switch to Husband checklist
         await tester.tap(find.text('👨 Husband'));
         await tester.pumpAndSettle();
 
         expect(find.text("Men's Multivitamin"), findsOneWidget);
         expect(find.text('Prenatal'), findsNothing);
 
-        // Check off husband's supplement dose
         final husbandCheckbox = find.byType(Checkbox).first;
         expect(tester.widget<Checkbox>(husbandCheckbox).value, isFalse);
 
@@ -245,7 +260,6 @@ void main() {
           isTrue,
         );
 
-        // Switch back to Wife checklist and verify state is separate
         await tester.tap(find.text('👩 Wife'));
         await tester.pumpAndSettle();
 
@@ -258,7 +272,7 @@ void main() {
     );
 
     testWidgets(
-      'Can filter formulary by wife and husband and edit each other supplements',
+      'Can filter formulary in Edit Plan sheet by wife and husband and edit supplements',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
         tester.view.devicePixelRatio = 1.0;
@@ -267,23 +281,38 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Formulary'));
+        await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
         await tester.pumpAndSettle();
 
-        // Filter to Wife and verify wife supplement is shown
         await tester.tap(find.text('👩 Wife (14)'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Prenatal'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(FormularyTab),
+            matching: find.text('Prenatal'),
+          ),
+          findsOneWidget,
+        );
 
-        // Filter to Husband and verify husband supplement is shown
         await tester.tap(find.text('👨 Husband (6)'));
         await tester.pumpAndSettle();
 
-        expect(find.text("Men's Multivitamin"), findsOneWidget);
-        expect(find.text('Prenatal'), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byType(FormularyTab),
+            matching: find.text("Men's Multivitamin"),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(FormularyTab),
+            matching: find.text('Prenatal'),
+          ),
+          findsNothing,
+        );
 
-        // Tap edit on husband supplement
         await tester.tap(find.byTooltip('Edit Supplement').first);
         await tester.pumpAndSettle();
 
@@ -293,7 +322,6 @@ void main() {
           findsOneWidget,
         );
 
-        // Update quantity
         final qtyField = find.widgetWithText(TextField, 'Dosage / Quantity *');
         await tester.enterText(qtyField, '2 gummies');
         await tester.tap(find.text('Save'));
@@ -314,7 +342,6 @@ void main() {
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.resetPhysicalSize);
 
-        // Mutate initial state by removing a preset
         await Services.db.deleteSupplement('preset_prenatal');
         final suppsBefore = await Services.db.streamSupplements().first;
         expect(suppsBefore.any((s) => s.id == 'preset_prenatal'), isFalse);
@@ -322,19 +349,15 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        // Open overflow menu
         await tester.tap(find.byIcon(Icons.more_vert));
         await tester.pumpAndSettle();
 
-        // Select Reset Default Presets
         await tester.tap(find.text('Reset Default Presets'));
         await tester.pumpAndSettle();
 
-        // Tap Reset button in the confirmation dialog
         await tester.tap(find.widgetWithText(FilledButton, 'Reset'));
         await tester.pumpAndSettle();
 
-        // Verify SnackBar is displayed and preset is restored in database
         expect(
           find.text('Supplements reset to standard presets.'),
           findsOneWidget,
@@ -354,25 +377,26 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        // Navigate to Formulary tab
-        await tester.tap(find.text('Formulary'));
+        await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
         await tester.pumpAndSettle();
 
-        expect(find.text('Prenatal'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(FormularyTab),
+            matching: find.text('Prenatal'),
+          ),
+          findsOneWidget,
+        );
 
-        // Tap delete on the first supplement
         await tester.tap(find.byTooltip('Delete Supplement').first);
         await tester.pumpAndSettle();
 
-        // Verify confirmation dialog appears
         expect(find.byType(AlertDialog), findsOneWidget);
         expect(find.text('Delete Prenatal?'), findsOneWidget);
 
-        // Tap Delete in dialog
         await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
         await tester.pumpAndSettle();
 
-        // Verify supplement is deleted from database and list
         final suppsAfter = await Services.db.streamSupplements().first;
         expect(suppsAfter.any((s) => s.name == 'Prenatal'), isFalse);
         expect(find.text('Prenatal'), findsNothing);
@@ -389,40 +413,46 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        // Navigate to Formulary tab
-        await tester.tap(find.text('Formulary'));
+        await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
         await tester.pumpAndSettle();
 
-        expect(find.text('Prenatal'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(FormularyTab),
+            matching: find.text('Prenatal'),
+          ),
+          findsOneWidget,
+        );
 
-        // Tap delete on the first supplement
         await tester.tap(find.byTooltip('Delete Supplement').first);
         await tester.pumpAndSettle();
 
-        // Verify confirmation dialog appears
         expect(find.byType(AlertDialog), findsOneWidget);
         expect(find.text('Delete Prenatal?'), findsOneWidget);
 
-        // Tap Cancel
         await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
         await tester.pumpAndSettle();
 
-        // Verify dialog is dismissed and supplement remains
         expect(find.byType(AlertDialog), findsNothing);
         final suppsAfter = await Services.db.streamSupplements().first;
         expect(suppsAfter.any((s) => s.name == 'Prenatal'), isTrue);
-        expect(find.text('Prenatal'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(FormularyTab),
+            matching: find.text('Prenatal'),
+          ),
+          findsOneWidget,
+        );
       },
     );
 
     testWidgets(
-      'Empty cycle state renders properly across all tabs and handles date navigation',
+      'Empty cycle state renders properly and handles date navigation',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.resetPhysicalSize);
 
-        // Remove all cycles from Services.db so streamCycles() is empty
         final cycles = await Services.db.streamCycles().first;
         for (final c in cycles) {
           await Services.db.deleteCycle(c.id);
@@ -433,12 +463,9 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // Verify screen renders without throwing exceptions
         expect(find.text('Supplements & Protocols'), findsOneWidget);
         expect(find.text('Cycle Day 1'), findsOneWidget);
-        expect(find.textContaining('Peak'), findsNothing);
 
-        // Date navigation behaves properly without an active cycle
         expect(find.text('Aug 25, 2026'), findsOneWidget);
         await tester.tap(find.byTooltip('Next Day'));
         await tester.pumpAndSettle();
@@ -449,18 +476,6 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Aug 25, 2026'), findsOneWidget);
         expect(find.text('Cycle Day 1'), findsOneWidget);
-
-        // Switch to Cycle Plan tab and verify table mounts gracefully
-        await tester.tap(find.text('Cycle Plan'));
-        await tester.pumpAndSettle();
-        expect(find.text('Cycle Protocol Matrix'), findsOneWidget);
-        expect(find.byType(DataTable), findsWidgets);
-
-        // Switch to Formulary tab and verify items display cleanly
-        await tester.tap(find.text('Formulary'));
-        await tester.pumpAndSettle();
-        expect(find.text('Prenatal'), findsOneWidget);
-        expect(find.byTooltip('Edit Supplement'), findsWidgets);
       },
     );
 
@@ -494,20 +509,10 @@ void main() {
             )
             .stream;
 
-        // 1. Date navigation triggers setState()
         await tester.tap(find.byTooltip('Next Day'));
         await tester.pumpAndSettle();
 
-        // 2. Role toggle triggers setState()
         await tester.tap(find.text('👨 Husband'));
-        await tester.pumpAndSettle();
-
-        // 3. Tab navigation triggers TabController listener setState()
-        await tester.tap(find.text('Cycle Plan'));
-        await tester.pumpAndSettle();
-
-        // 4. Return to Daily Intake tab to inspect stream instances after all rebuilds
-        await tester.tap(find.text('Daily Intake'));
         await tester.pumpAndSettle();
 
         final cycleStreamAfter = tester
@@ -530,53 +535,9 @@ void main() {
             )
             .stream;
 
-        // Verify all 3 stream instances remained identical (cached) across interactions
         expect(identical(cycleStreamAfter, cycleStreamBefore), isTrue);
         expect(identical(suppStreamAfter, suppStreamBefore), isTrue);
         expect(identical(logStreamAfter, logStreamBefore), isTrue);
-      },
-    );
-
-    testWidgets(
-      'DailySupplementLog StreamBuilder is localized to DailyIntakeTab inside TabBarView',
-      (tester) async {
-        tester.view.physicalSize = const Size(1080, 2400);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-
-        await tester.pumpWidget(createTestWidget());
-        await tester.pumpAndSettle();
-
-        final logStreamBuilderFinder = find.byWidgetPredicate(
-          (w) => w is StreamBuilder<Map<String, DailySupplementLog>>,
-        );
-
-        // DailySupplementLog StreamBuilder is localized inside TabBarView
-        expect(
-          find.descendant(
-            of: find.byType(TabBarView),
-            matching: logStreamBuilderFinder,
-          ),
-          findsOneWidget,
-        );
-
-        // DailySupplementLog StreamBuilder is an ancestor of DailyIntakeTab
-        expect(
-          find.ancestor(
-            of: find.byType(DailyIntakeTab),
-            matching: logStreamBuilderFinder,
-          ),
-          findsOneWidget,
-        );
-
-        // Scaffold is NOT wrapped by DailySupplementLog StreamBuilder
-        expect(
-          find.ancestor(
-            of: find.byType(Scaffold),
-            matching: logStreamBuilderFinder,
-          ),
-          findsNothing,
-        );
       },
     );
   });
@@ -634,24 +595,6 @@ void main() {
       },
     );
 
-    testGoldens('SupplementScreen Cycle Plan matrix tab golden', (
-      tester,
-    ) async {
-      await tester.pumpWidgetBuilder(
-        createTestWidget(
-          initialDate: DateTime(2026, 8, 25),
-          cycle: Cycle(id: 'cycle_test', startDate: DateTime(2026, 8, 20)),
-        ),
-        surfaceSize: const Size(900, 700),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Cycle Plan'));
-      await tester.pumpAndSettle();
-
-      await screenMatchesGolden(tester, 'supplement_screen_cycle_plan_matrix');
-    });
-
     testGoldens('SupplementScreen Formulary tab golden', (tester) async {
       await tester.pumpWidgetBuilder(
         createTestWidget(
@@ -662,7 +605,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Formulary'));
+      await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
       await tester.pumpAndSettle();
 
       await screenMatchesGolden(tester, 'supplement_screen_formulary');
@@ -680,7 +623,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Formulary'));
+      await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('btn_add_supplement_fab')));
@@ -699,11 +642,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Open overflow popup menu
       await tester.tap(find.byIcon(Icons.more_vert));
       await tester.pumpAndSettle();
 
-      // Tap Reset Default Presets to open confirmation dialog
       await tester.tap(find.text('Reset Default Presets'));
       await tester.pumpAndSettle();
 

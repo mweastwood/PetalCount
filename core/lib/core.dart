@@ -13,6 +13,7 @@ export 'src/models/user_role.dart';
 export 'src/logic/creighton_logic.dart';
 export 'src/logic/cycle_coordinator.dart';
 export 'src/logic/cycle_notification_formatter.dart';
+export 'src/logic/supplement_forecast.dart';
 
 // Utilities
 export 'src/utils/app_logger.dart';

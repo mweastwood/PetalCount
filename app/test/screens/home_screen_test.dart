@@ -88,9 +88,11 @@ void main() {
 
     // Verify SupplementScreen content is rendered
     expect(find.byType(SupplementScreen), findsOneWidget);
-    expect(find.text('Daily Intake'), findsOneWidget);
-    expect(find.text('Cycle Plan'), findsOneWidget);
-    expect(find.text('Formulary'), findsOneWidget);
+    expect(find.text("Today's Supplements"), findsOneWidget);
+    expect(
+      find.byKey(const Key('btn_edit_supplement_plan_fab')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Dashboard drawer opens and switches to Supplements tab', (
@@ -114,7 +116,7 @@ void main() {
     // Verify drawer closed and supplements tab is shown
     expect(find.byType(Drawer), findsNothing);
     expect(find.byType(SupplementScreen), findsOneWidget);
-    expect(find.text('Daily Intake'), findsOneWidget);
+    expect(find.text("Today's Supplements"), findsOneWidget);
   });
 
   testGoldens('Dashboard hamburger menu drawer open state golden', (
@@ -913,7 +915,10 @@ void main() {
         expect(rail2.selectedIndex, 2);
         expect(find.byType(SupplementScreen), findsOneWidget);
         expect(find.byType(ObservationsScreen), findsNothing);
-        expect(find.byType(FloatingActionButton), findsNothing);
+        expect(
+          find.byKey(const Key('btn_edit_supplement_plan_fab')),
+          findsOneWidget,
+        );
 
         // 3. Switch back to Observations tab
         await tester.tap(find.text('Observations'));
