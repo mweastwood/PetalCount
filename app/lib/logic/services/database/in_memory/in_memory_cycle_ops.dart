@@ -238,14 +238,11 @@ mixin _InMemoryCycleOps on _InMemoryDatabaseServiceBase {
     _cycles[chartId]![targetCycle.id] = saveResult.updatedCycle.toMap();
     _emitCycles();
 
-    final chartPreferencesRaw = _charts[chartId]?['notificationPreferences'];
-    final preferences = NotificationPreferences.fromMap(
-      chartPreferencesRaw != null
-          ? Map<String, dynamic>.from(chartPreferencesRaw)
-          : null,
+    final preferences = DatabaseHelpers.parseChartNotificationPreferences(
+      _charts[chartId],
     );
 
-    await FirebaseDatabaseHelpers.dispatchLocalObservationNotifications(
+    await DatabaseHelpers.dispatchLocalObservationNotifications(
       resolvedDaily: saveResult.resolvedDailyEntry,
       bipCodes: saveResult.updatedCycle.bipCodes,
       userRole: userRole,

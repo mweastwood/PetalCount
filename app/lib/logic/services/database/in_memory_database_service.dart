@@ -12,8 +12,8 @@ import '../../models/user_role.dart';
 import '../../utils/date_utils.dart';
 import '../creighton_logic.dart';
 import '../cycle_coordinator.dart';
+import 'database_helpers.dart';
 import 'database_service_interface.dart';
-import 'firebase_database_helpers.dart';
 
 part 'in_memory/in_memory_auth_user_ops.dart';
 part 'in_memory/in_memory_chart_ops.dart';

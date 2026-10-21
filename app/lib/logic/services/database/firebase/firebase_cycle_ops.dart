@@ -315,7 +315,7 @@ mixin _FirebaseCycleOps on _FirebaseDatabaseServiceBase {
 
       final dateKey = dateString;
 
-      final roleContext = await FirebaseDatabaseHelpers.resolveObservationRole(
+      final roleContext = await DatabaseHelpers.resolveObservationRole(
         uid: user.uid,
         cachedRole: _cachedRole,
         getUserData: (uid) async {
@@ -375,28 +375,27 @@ mixin _FirebaseCycleOps on _FirebaseDatabaseServiceBase {
       final resolvedDaily = saveResult.resolvedDailyEntry;
 
       try {
-        final context =
-            await FirebaseDatabaseHelpers.resolveNotificationContext(
-              uid: user.uid,
-              chartId: chartId,
-              cachedRole: _cachedRole ?? userRole.code,
-              cachedPreferences: _cachedPreferencesByChart[chartId],
-              getUserData: (uid) async {
-                final doc = await _db.collection('users').doc(uid).get();
-                return doc.data();
-              },
-              getChartData: (cId) async {
-                final doc = await _db.collection('charts').doc(cId).get();
-                return doc.data();
-              },
-            );
+        final context = await DatabaseHelpers.resolveNotificationContext(
+          uid: user.uid,
+          chartId: chartId,
+          cachedRole: _cachedRole ?? userRole.code,
+          cachedPreferences: _cachedPreferencesByChart[chartId],
+          getUserData: (uid) async {
+            final doc = await _db.collection('users').doc(uid).get();
+            return doc.data();
+          },
+          getChartData: (cId) async {
+            final doc = await _db.collection('charts').doc(cId).get();
+            return doc.data();
+          },
+        );
 
         if (roleContext.roleToCache != null && context.roleToCache != null) {
           _cachedRole = context.roleToCache;
         }
         _cachedPreferencesByChart[chartId] = context.preferencesToCache;
 
-        await FirebaseDatabaseHelpers.dispatchLocalObservationNotifications(
+        await DatabaseHelpers.dispatchLocalObservationNotifications(
           resolvedDaily: resolvedDaily,
           bipCodes: saveResult.updatedCycle.bipCodes,
           userRole: context.userRole,

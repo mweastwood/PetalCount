@@ -286,7 +286,7 @@ mixin _InMemoryChartOps on _InMemoryDatabaseServiceBase {
         (c) => c['id'] == chartId,
         orElse: () => <String, dynamic>{},
       );
-      return FirebaseDatabaseHelpers.parseChartNotificationPreferences(
+      return DatabaseHelpers.parseChartNotificationPreferences(
         chart.isEmpty ? null : chart,
       );
     });
@@ -296,7 +296,7 @@ mixin _InMemoryChartOps on _InMemoryDatabaseServiceBase {
   NotificationPreferences? getLatestNotificationPreferences(String chartId) {
     final chart = _charts[chartId];
     if (chart == null) return null;
-    return FirebaseDatabaseHelpers.parseChartNotificationPreferences(chart);
+    return DatabaseHelpers.parseChartNotificationPreferences(chart);
   }
 
   @override

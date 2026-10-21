@@ -376,10 +376,9 @@ mixin _FirebaseChartOps on _FirebaseDatabaseServiceBase {
         .doc(chartId)
         .snapshots()
         .map((doc) {
-          final prefs =
-              FirebaseDatabaseHelpers.parseChartNotificationPreferences(
-                doc.data(),
-              );
+          final prefs = DatabaseHelpers.parseChartNotificationPreferences(
+            doc.data(),
+          );
           _cachedPreferencesByChart[chartId] = prefs;
           return prefs;
         })

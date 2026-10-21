@@ -14,10 +14,11 @@ import '../../utils/date_utils.dart';
 import '../creighton_logic.dart';
 import '../cycle_coordinator.dart';
 import '../services.dart';
+import 'database_helpers.dart';
 import 'database_service_interface.dart';
 import 'firebase_database_helpers.dart';
 
-export 'firebase_database_helpers.dart'
+export 'database_helpers.dart'
     show NotificationDispatchContext, ObservationRoleContext;
 
 part 'firebase/firebase_auth_user_ops.dart';
@@ -291,7 +292,7 @@ class FirebaseDatabaseService extends _FirebaseDatabaseServiceBase
     required Future<Map<String, dynamic>?> Function(String uid) getUserData,
     required Future<Map<String, dynamic>?> Function(String chartId)
     getChartData,
-  }) => FirebaseDatabaseHelpers.resolveNotificationContext(
+  }) => DatabaseHelpers.resolveNotificationContext(
     uid: uid,
     chartId: chartId,
     cachedRole: cachedRole,
@@ -305,7 +306,7 @@ class FirebaseDatabaseService extends _FirebaseDatabaseServiceBase
     required String uid,
     required String? cachedRole,
     required Future<Map<String, dynamic>?> Function(String uid) getUserData,
-  }) => FirebaseDatabaseHelpers.resolveObservationRole(
+  }) => DatabaseHelpers.resolveObservationRole(
     uid: uid,
     cachedRole: cachedRole,
     getUserData: getUserData,
