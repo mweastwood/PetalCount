@@ -47,7 +47,7 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        expect(find.text('Supplements & Protocols'), findsOneWidget);
+        expect(find.text('Supplements & Protocols'), findsNothing);
         expect(find.text("Today's Supplements"), findsOneWidget);
         expect(find.text('Next 6 Days'), findsOneWidget);
         expect(
@@ -349,10 +349,10 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Reset Default Presets'));
+        await tester.tap(find.byTooltip('Reset Default Presets'));
         await tester.pumpAndSettle();
 
         await tester.tap(find.widgetWithText(FilledButton, 'Reset'));
@@ -463,7 +463,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Supplements & Protocols'), findsOneWidget);
+        expect(find.text('Supplements & Protocols'), findsNothing);
         expect(find.text('Cycle Day 1'), findsWidgets);
         expect(find.text('Cycle Day 4'), findsNothing);
         expect(find.textContaining('Clomid'), findsNothing);
@@ -597,6 +597,75 @@ void main() {
       },
     );
 
+    testGoldens(
+      'SupplementScreen Next 6 Days forecast (pre-Peak with Conditional on Peak) golden',
+      (tester) async {
+        await tester.pumpWidgetBuilder(
+          createTestWidget(
+            initialDate: DateTime(2026, 8, 25),
+            cycle: Cycle(id: 'cycle_test', startDate: DateTime(2026, 8, 20)),
+          ),
+          surfaceSize: const Size(412, 915),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('upcoming_day_card_1')),
+          250,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await Scrollable.ensureVisible(
+          tester.element(find.text('Next 6 Days')),
+          alignment: 0.02,
+        );
+        await tester.pumpAndSettle();
+
+        await screenMatchesGolden(
+          tester,
+          'supplement_screen_forecast_pre_peak',
+        );
+      },
+    );
+
+    testGoldens(
+      'SupplementScreen Next 6 Days forecast (post-Peak locked in) golden',
+      (tester) async {
+        final peakDate = DateTime(2026, 8, 24);
+        final cycleWithPeak = Cycle(
+          id: 'cycle_peak',
+          startDate: DateTime(2026, 8, 12),
+          dailyEntries: {
+            peakDate.dateKey: DailyEntry.raw(date: peakDate, peakDayLabel: 'P'),
+          },
+        );
+
+        await tester.pumpWidgetBuilder(
+          createTestWidget(
+            initialDate: DateTime(2026, 8, 25),
+            cycle: cycleWithPeak,
+          ),
+          surfaceSize: const Size(412, 915),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('upcoming_day_card_1')),
+          250,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await Scrollable.ensureVisible(
+          tester.element(find.text('Next 6 Days')),
+          alignment: 0.02,
+        );
+        await tester.pumpAndSettle();
+
+        await screenMatchesGolden(
+          tester,
+          'supplement_screen_forecast_post_peak',
+        );
+      },
+    );
+
     testGoldens('SupplementScreen Formulary tab golden', (tester) async {
       await tester.pumpWidgetBuilder(
         createTestWidget(
@@ -644,10 +713,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Reset Default Presets'));
+      await tester.tap(find.byTooltip('Reset Default Presets'));
       await tester.pumpAndSettle();
 
       await screenMatchesGolden(

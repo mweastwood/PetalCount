@@ -167,47 +167,52 @@ class _SupplementScreenState extends State<SupplementScreen> {
       builder: (sheetContext) {
         return FractionallySizedBox(
           heightFactor: 0.92,
-          child: Scaffold(
-            appBar: AppBar(
-              title: const Text('Edit Supplement Plan'),
-              leading: IconButton(
-                icon: const Icon(Icons.close),
-                tooltip: 'Close',
-                onPressed: () => Navigator.pop(sheetContext),
-              ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.restore),
-                  tooltip: 'Reset Default Presets',
-                  onPressed: () => _showResetPresetsConfirmation(sheetContext),
+          child: ScaffoldMessenger(
+            child: Builder(
+              builder: (innerContext) => Scaffold(
+                appBar: AppBar(
+                  title: const Text('Edit Supplement Plan'),
+                  leading: IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.pop(sheetContext),
+                  ),
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.restore),
+                      tooltip: 'Reset Default Presets',
+                      onPressed: () =>
+                          _showResetPresetsConfirmation(innerContext),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            body: StreamBuilder<List<SupplementItem>>(
-              stream: sheetStream,
-              initialData: initialSupplements,
-              builder: (context, snapshot) {
-                final supplements = snapshot.data ?? initialSupplements;
-                return FormularyTab(
-                  supplements: supplements,
-                  initialRoleFilter: null,
-                  onEdit: (item) =>
-                      AddEditSupplementDialog.show(sheetContext, item),
-                  onDelete: (item) =>
-                      _showDeleteSupplementDialog(sheetContext, item),
-                );
-              },
-            ),
-            floatingActionButton: FloatingActionButton.extended(
-              key: const Key('btn_add_supplement_fab'),
-              onPressed: () => AddEditSupplementDialog.show(
-                sheetContext,
-                null,
-                null,
-                _activeRole,
+                body: StreamBuilder<List<SupplementItem>>(
+                  stream: sheetStream,
+                  initialData: initialSupplements,
+                  builder: (context, snapshot) {
+                    final supplements = snapshot.data ?? initialSupplements;
+                    return FormularyTab(
+                      supplements: supplements,
+                      initialRoleFilter: null,
+                      onEdit: (item) =>
+                          AddEditSupplementDialog.show(innerContext, item),
+                      onDelete: (item) =>
+                          _showDeleteSupplementDialog(innerContext, item),
+                    );
+                  },
+                ),
+                floatingActionButton: FloatingActionButton.extended(
+                  key: const Key('btn_add_supplement_fab'),
+                  onPressed: () => AddEditSupplementDialog.show(
+                    innerContext,
+                    null,
+                    null,
+                    _activeRole,
+                  ),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Supplement'),
+                ),
               ),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Supplement'),
             ),
           ),
         );
@@ -232,60 +237,6 @@ class _SupplementScreenState extends State<SupplementScreen> {
             final supplements = supplementsSnapshot.data ?? [];
 
             return Scaffold(
-              appBar: AppBar(
-                title: const Text('Supplements & Protocols'),
-                actions: [
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert),
-                    onSelected: (value) {
-                      if (value == 'edit_plan') {
-                        _showEditSupplementPlanSheet(context, supplements);
-                      } else if (value == 'reset') {
-                        _showResetPresetsConfirmation(context);
-                      } else if (value == 'add') {
-                        AddEditSupplementDialog.show(
-                          context,
-                          null,
-                          null,
-                          _activeRole,
-                        );
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'edit_plan',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit_outlined, size: 20),
-                            SizedBox(width: 8),
-                            Text('Edit Supplement Plan'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'add',
-                        child: Row(
-                          children: [
-                            Icon(Icons.add, size: 20),
-                            SizedBox(width: 8),
-                            Text('Add Supplement'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'reset',
-                        child: Row(
-                          children: [
-                            Icon(Icons.restore, size: 20),
-                            SizedBox(width: 8),
-                            Text('Reset Default Presets'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
               body: StreamBuilder<Map<String, DailySupplementLog>>(
                 stream: _supplementLogsStream,
                 builder: (context, logSnapshot) {
