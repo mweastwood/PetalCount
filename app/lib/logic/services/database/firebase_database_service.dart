@@ -10,14 +10,23 @@ import '../../models/cycle.dart';
 import '../../models/notification_preferences.dart';
 import '../../models/observation.dart';
 import '../../models/supplement.dart';
-import '../../models/user_role.dart';
 import '../../utils/date_utils.dart';
 import '../creighton_logic.dart';
 import '../cycle_coordinator.dart';
 import '../services.dart';
+import 'database_helpers.dart';
 import 'database_service_interface.dart';
+import 'firebase_database_helpers.dart';
 
-class FirebaseDatabaseService implements DatabaseService {
+export 'database_helpers.dart'
+    show NotificationDispatchContext, ObservationRoleContext;
+
+part 'firebase/firebase_auth_user_ops.dart';
+part 'firebase/firebase_chart_ops.dart';
+part 'firebase/firebase_cycle_ops.dart';
+part 'firebase/firebase_supplement_ops.dart';
+
+abstract class _FirebaseDatabaseServiceBase implements DatabaseService {
   final FirebaseAuth? _authInstance;
   final FirebaseFirestore? _dbInstance;
   final GoogleSignIn? _googleSignInInstance;
@@ -34,92 +43,13 @@ class FirebaseDatabaseService implements DatabaseService {
   final StreamController<User?> _authController =
       StreamController<User?>.broadcast();
 
-  FirebaseDatabaseService({
+  _FirebaseDatabaseServiceBase({
     FirebaseAuth? auth,
     FirebaseFirestore? db,
     GoogleSignIn? googleSignIn,
   }) : _authInstance = auth,
        _dbInstance = db,
-       _googleSignInInstance = googleSignIn {
-    try {
-      _auth.authStateChanges().listen((user) async {
-        if (user != null) {
-          _cachedChartId = await _fetchChartId(user.uid);
-        } else {
-          _cachedChartId = null;
-          _cachedRole = null;
-          _cachedPreferencesByChart.clear();
-        }
-        _authController.add(user);
-      });
-    } catch (_) {}
-  }
-
-  @visibleForTesting
-  set cachedChartId(String? id) => _cachedChartId = id;
-
-  @visibleForTesting
-  String? get cachedRole => _cachedRole;
-
-  @visibleForTesting
-  set cachedRole(String? role) => _cachedRole = role;
-
-  @visibleForTesting
-  Future<void> reallocateAndRecalculate(String chartId) =>
-      _reallocateAndRecalculate(chartId);
-
-  @visibleForTesting
-  Future<String?> fetchChartId(String uid) => _fetchChartId(uid);
-
-  @visibleForTesting
-  Future<void> handleChartAccessLost(String chartId) =>
-      _handleChartAccessLost(chartId);
-
-  @visibleForTesting
-  static bool isAccessLostError(dynamic e) => _isAccessLostError(e);
-
-  @override
-  User? get currentUser => _auth.currentUser;
-
-  @override
-  String? get currentChartId => _cachedChartId;
-
-  @override
-  Stream<User?> get authStateChanges => _buildAuthStream();
-
-  Stream<User?> _buildAuthStream() async* {
-    final user = currentUser;
-    if (user != null) {
-      _cachedChartId ??= await _fetchChartId(user.uid);
-    } else {
-      _cachedChartId = null;
-    }
-    yield user;
-    yield* _authController.stream;
-  }
-
-  static bool _isAccessLostError(dynamic e) {
-    bool matches(String s) {
-      final n = s.toLowerCase().replaceAll('_', '-');
-      return n == 'permission-denied' || n == 'not-found';
-    }
-
-    if (e is FirebaseException) {
-      return matches(e.code);
-    }
-    try {
-      final dynamic code = (e as dynamic).code;
-      if (code is String && matches(code)) {
-        return true;
-      }
-    } catch (_) {}
-    final message = e.toString().toLowerCase().replaceAll('_', '-');
-    if (message.contains('permission-denied') ||
-        message.contains('not-found')) {
-      return true;
-    }
-    return false;
-  }
+       _googleSignInInstance = googleSignIn;
 
   Future<void> _handleChartAccessLost(String chartId) async {
     final user = currentUser;
@@ -176,7 +106,7 @@ class FirebaseDatabaseService implements DatabaseService {
         return chartId;
       } catch (e) {
         debugPrint('Error verifying chart $chartId for user $uid: $e');
-        if (_isAccessLostError(e)) {
+        if (FirebaseDatabaseHelpers.isAccessLostError(e)) {
           await _cleanupStaleChartReference(uid, chartId);
           return null;
         }
@@ -189,315 +119,11 @@ class FirebaseDatabaseService implements DatabaseService {
     return null;
   }
 
-  @override
-  Future<void> signInWithGoogle() async {
-    try {
-      final User? user;
-      if (kIsWeb) {
-        final UserCredential userCredential = await _auth.signInWithPopup(
-          GoogleAuthProvider(),
-        );
-        user = userCredential.user;
-      } else {
-        if (!_googleSignInInitialized) {
-          await _googleSignIn.initialize(
-            serverClientId: AppConfig.googleServerClientId,
-          );
-          _googleSignInInitialized = true;
-        }
-
-        final GoogleSignInAccount googleUser = await _googleSignIn
-            .authenticate();
-        final GoogleSignInAuthentication googleAuth = googleUser.authentication;
-
-        final OAuthCredential credential = GoogleAuthProvider.credential(
-          idToken: googleAuth.idToken,
-        );
-
-        final UserCredential userCredential = await _auth.signInWithCredential(
-          credential,
-        );
-        user = userCredential.user;
-      }
-
-      if (user != null) {
-        final userDoc = await _db.collection('users').doc(user.uid).get();
-        if (!userDoc.exists) {
-          await _db.collection('users').doc(user.uid).set({
-            'uid': user.uid,
-            'email': user.email ?? '',
-            'chartId': null,
-          });
-        }
-        _cachedChartId = await _fetchChartId(user.uid);
-      }
-    } catch (e) {
-      if (!kIsWeb &&
-          e is GoogleSignInException &&
-          e.code == GoogleSignInExceptionCode.canceled) {
-        debugPrint('Google Sign-In canceled: $e');
-        throw GoogleSignInException(
-          code: e.code,
-          description:
-              'Sign-in was canceled or failed due to configuration. If you selected '
-              'an account and this happened, it is likely due to a developer configuration '
-              'mismatch (e.g., missing SHA-1 signature fingerprint in the Firebase Console).',
-          details: e.details,
-        );
-      }
-      debugPrint('Error signing in with Google: $e');
-      rethrow;
-    }
-  }
-
-  @override
-  Future<void> signOut() async {
-    await _auth.signOut();
-    if (!kIsWeb) {
-      await _googleSignIn.signOut();
-    }
-    _cachedChartId = null;
-    _cachedRole = null;
-    _cachedPreferencesByChart.clear();
-  }
-
-  @override
-  Future<void> createChart() async {
-    final user = currentUser;
-    if (user == null) return;
-
-    final chartRef = _db.collection('charts').doc();
-    final chartId = chartRef.id;
-
-    String? userTimezone;
-    try {
-      final userDoc = await _db.collection('users').doc(user.uid).get();
-      if (userDoc.exists) {
-        userTimezone = userDoc.data()?['timezone'] as String?;
-      }
-    } catch (e) {
-      debugPrint('Error fetching user timezone on createChart: $e');
-    }
-
-    await chartRef.set({
-      'id': chartId,
-      'userIds': [user.uid],
-      'emails': [user.email],
-      'reminderEnabled': true,
-      if (userTimezone != null && userTimezone.isNotEmpty)
-        'timezone': userTimezone,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-    final batch = _db.batch();
-    final suppCol = chartRef.collection('supplements');
-    for (final preset in SupplementPresets.defaultList) {
-      batch.set(suppCol.doc(preset.id), preset.toMap());
-    }
-    await batch.commit();
-
-    await _db.collection('users').doc(user.uid).set({
-      'chartId': chartId,
-      'uid': user.uid,
-      'email': user.email ?? '',
-    }, SetOptions(merge: true));
-
-    _cachedChartId = chartId;
-    _authController.add(user);
-  }
-
-  @override
-  Future<void> invitePartner(String partnerEmail) async {
-    final user = currentUser;
-    final chartId = currentChartId;
-    if (user == null || chartId == null) {
-      throw Exception("No active session or chart found.");
-    }
-
-    final cleanEmail = partnerEmail.trim().toLowerCase();
-
-    // Create an invitation in the invitations collection
-    await _db.collection('invitations').doc(cleanEmail).set({
-      'invitationId': cleanEmail,
-      'senderUid': user.uid,
-      'senderEmail': user.email,
-      'chartId': chartId,
-      'status': 'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-  }
-
-  @override
-  Future<List<Map<String, dynamic>>> getPendingInvitations() async {
-    final user = currentUser;
-    if (user == null || user.email == null) return [];
-
-    final cleanEmail = user.email!.trim().toLowerCase();
-    final snap = await _db
-        .collection('invitations')
-        .where('invitationId', isEqualTo: cleanEmail)
-        .where('status', isEqualTo: 'pending')
-        .get();
-
-    return snap.docs.map((doc) => doc.data()).toList();
-  }
-
-  @override
-  Future<void> acceptInvitation(String invitationId) async {
-    final user = currentUser;
-    if (user == null) return;
-
-    DocumentSnapshot<Map<String, dynamic>>? doc;
-    var docRef = _db.collection('invitations').doc(invitationId);
-
-    try {
-      final snap = await docRef.get();
-      if (snap.exists) {
-        doc = snap;
-      }
-    } catch (_) {}
-
-    if (doc == null || !doc.exists) {
-      final cleanEmail = user.email?.trim().toLowerCase() ?? '';
-      final snap = await _db
-          .collection('invitations')
-          .where('invitationId', isEqualTo: cleanEmail)
-          .where('status', isEqualTo: 'pending')
-          .get();
-      if (snap.docs.isNotEmpty) {
-        doc = snap.docs.first;
-        docRef = doc.reference;
-      }
-    }
-
-    if (doc == null || !doc.exists) {
-      throw Exception("Invitation not found");
-    }
-
-    final data = doc.data()!;
-    final chartId = data['chartId'] as String;
-
-    // Join the chart
-    final chartRef = _db.collection('charts').doc(chartId);
-    final updates = <String, dynamic>{
-      'userIds': FieldValue.arrayUnion([user.uid]),
-    };
-    if (user.email != null && user.email!.isNotEmpty) {
-      updates['emails'] = FieldValue.arrayUnion([user.email]);
-    }
-    await chartRef.update(updates);
-
-    // Update user profile
-    await _db.collection('users').doc(user.uid).set({
-      'chartId': chartId,
-      'uid': user.uid,
-      'email': user.email ?? '',
-    }, SetOptions(merge: true));
-
-    // Update invitation status
-    await docRef.update({'status': 'accepted'});
-
-    _cachedChartId = chartId;
-    _authController.add(user);
-  }
-
-  @override
-  Future<void> declineInvitation(String invitationId) async {
-    final user = currentUser;
-    if (user == null) return;
-
-    DocumentSnapshot<Map<String, dynamic>>? doc;
-    var docRef = _db.collection('invitations').doc(invitationId);
-
-    try {
-      final snap = await docRef.get();
-      if (snap.exists) {
-        doc = snap;
-      }
-    } catch (_) {}
-
-    if (doc == null || !doc.exists) {
-      final cleanEmail = user.email?.trim().toLowerCase() ?? '';
-      final snap = await _db
-          .collection('invitations')
-          .where('invitationId', isEqualTo: cleanEmail)
-          .where('status', isEqualTo: 'pending')
-          .get();
-      if (snap.docs.isNotEmpty) {
-        doc = snap.docs.first;
-        docRef = doc.reference;
-      }
-    }
-
-    if (doc == null || !doc.exists) {
-      return;
-    }
-
-    await docRef.update({'status': 'declined'});
-  }
-
-  @override
-  Future<void> unlinkChart() async {
-    final user = currentUser;
-    if (user == null) return;
-    await _db.collection('users').doc(user.uid).set({
-      'chartId': null,
-    }, SetOptions(merge: true));
-    _cachedChartId = null;
-    _authController.add(user);
-  }
-
-  @override
-  Stream<List<Map<String, dynamic>>> streamAvailableCharts() {
-    return _buildUserGatedStream<List<Map<String, dynamic>>>(
-      emptyValue: const [],
-      debugLabel: 'availableCharts',
-      subscribe: (uid) => _db
-          .collection('charts')
-          .where('userIds', arrayContains: uid)
-          .snapshots()
-          .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList()),
-    );
-  }
-
-  @override
-  Future<void> setActiveChart(String chartId) async {
-    final user = currentUser;
-    if (user == null) return;
-    await _db.collection('users').doc(user.uid).set({
-      'chartId': chartId,
-    }, SetOptions(merge: true));
-    _cachedChartId = chartId;
-    _authController.add(user);
-  }
-
-  @visibleForTesting
-  static Future<void> commitBatchedOperations<T>({
-    required List<void Function(T batch)> operations,
-    required T Function() batchFactory,
-    required Future<void> Function(T batch) commitBatch,
-    int batchLimit = 450,
-  }) async {
-    if (operations.isEmpty) return;
-
-    for (var i = 0; i < operations.length; i += batchLimit) {
-      final end = (i + batchLimit < operations.length)
-          ? i + batchLimit
-          : operations.length;
-      final chunk = operations.sublist(i, end);
-      final batch = batchFactory();
-      for (final op in chunk) {
-        op(batch);
-      }
-      await commitBatch(batch);
-    }
-  }
-
   Future<void> _commitBatchedWrites(
     List<void Function(WriteBatch batch)> operations, {
     int batchLimit = 450,
   }) async {
-    return commitBatchedOperations<WriteBatch>(
+    return FirebaseDatabaseHelpers.commitBatchedOperations<WriteBatch>(
       operations: operations,
       batchFactory: () => _db.batch(),
       commitBatch: (batch) => batch.commit(),
@@ -518,323 +144,12 @@ class FirebaseDatabaseService implements DatabaseService {
     await _commitBatchedWrites(operations);
   }
 
-  @override
-  Future<void> deleteChart(String chartId) async {
-    final user = currentUser;
-    if (user == null) return;
-
-    final chartRef = _db.collection('charts').doc(chartId);
-    final results = await Future.wait([
-      chartRef.collection('cycles').get(),
-      chartRef.collection('supplements').get(),
-      chartRef.collection('supplementLogs').get(),
-    ]);
-
-    final cyclesSnapshot = results[0];
-    final supplementsSnapshot = results[1];
-    final supplementLogsSnapshot = results[2];
-
-    final List<DocumentReference> toDelete = [];
-
-    for (final doc in cyclesSnapshot.docs) {
-      final dailySnapshot = await doc.reference
-          .collection('dailyEntries')
-          .get();
-      for (final dailyDoc in dailySnapshot.docs) {
-        toDelete.add(dailyDoc.reference);
-      }
-      toDelete.add(doc.reference);
-    }
-
-    for (final doc in supplementsSnapshot.docs) {
-      toDelete.add(doc.reference);
-    }
-
-    for (final doc in supplementLogsSnapshot.docs) {
-      toDelete.add(doc.reference);
-    }
-
-    toDelete.add(chartRef);
-
-    await _deleteDocumentsInBatches(toDelete);
-    _cachedPreferencesByChart.remove(chartId);
-
-    if (_cachedChartId == chartId) {
-      await _db.collection('users').doc(user.uid).set({
-        'chartId': null,
-      }, SetOptions(merge: true));
-      _cachedChartId = null;
-      _authController.add(user);
-    }
-  }
-
-  @override
-  Future<void> leaveChart(String chartId) async {
-    final user = currentUser;
-    if (user == null) return;
-
-    final chartRef = _db.collection('charts').doc(chartId);
-    bool shouldDeleteAll = false;
-
-    await _db.runTransaction((transaction) async {
-      final chartSnap = await transaction.get(chartRef);
-      if (!chartSnap.exists) return;
-
-      final userIds = List<String>.from(chartSnap.data()?['userIds'] ?? []);
-      final emails = List<String>.from(chartSnap.data()?['emails'] ?? []);
-
-      if (userIds.length <= 1) {
-        throw Exception(
-          "Cannot leave a chart when you are the sole collaborator. Please delete the chart instead.",
-        );
-      }
-
-      userIds.remove(user.uid);
-      final normalizedUserEmail = (user.email ?? '').trim().toLowerCase();
-      emails.removeWhere(
-        (emailEntry) => emailEntry.trim().toLowerCase() == normalizedUserEmail,
-      );
-
-      if (userIds.isEmpty) {
-        shouldDeleteAll = true;
-        transaction.delete(chartRef);
-      } else {
-        transaction.update(chartRef, {'userIds': userIds, 'emails': emails});
-      }
-    });
-
-    if (shouldDeleteAll) {
-      final results = await Future.wait([
-        chartRef.collection('cycles').get(),
-        chartRef.collection('supplements').get(),
-        chartRef.collection('supplementLogs').get(),
-      ]);
-
-      final cyclesSnapshot = results[0];
-      final supplementsSnapshot = results[1];
-      final supplementLogsSnapshot = results[2];
-
-      final List<DocumentReference> toDelete = [];
-      for (final doc in cyclesSnapshot.docs) {
-        final dailySnapshot = await doc.reference
-            .collection('dailyEntries')
-            .get();
-        for (final dailyDoc in dailySnapshot.docs) {
-          toDelete.add(dailyDoc.reference);
-        }
-        toDelete.add(doc.reference);
-      }
-
-      for (final doc in supplementsSnapshot.docs) {
-        toDelete.add(doc.reference);
-      }
-
-      for (final doc in supplementLogsSnapshot.docs) {
-        toDelete.add(doc.reference);
-      }
-
-      await _deleteDocumentsInBatches(toDelete);
-    }
-
-    _cachedPreferencesByChart.remove(chartId);
-
-    if (_cachedChartId == chartId) {
-      await _db.collection('users').doc(user.uid).set({
-        'chartId': null,
-      }, SetOptions(merge: true));
-      _cachedChartId = null;
-      _authController.add(user);
-    }
-  }
-
-  @override
-  Future<void> updateChartReminderSettings(String chartId, bool enabled) async {
-    final cached = _cachedPreferencesByChart[chartId];
-    if (cached != null) {
-      _cachedPreferencesByChart[chartId] = cached.copyWith(
-        dailyLoggingReminder: enabled,
-      );
-    }
-    await _db.collection('charts').doc(chartId).set({
-      'reminderEnabled': enabled,
-      'notificationPreferences': {'dailyLoggingReminder': enabled},
-    }, SetOptions(merge: true));
-  }
-
-  @override
-  Stream<bool> streamChartReminderEnabled(String chartId) {
-    return _db
-        .collection('charts')
-        .doc(chartId)
-        .snapshots()
-        .map((doc) => (doc.data()?['reminderEnabled'] as bool?) ?? true)
-        .transform(
-          StreamTransformer<bool, bool>.fromHandlers(
-            handleError: (e, stackTrace, sink) {
-              debugPrint(
-                'Error streaming chart reminder enabled for $chartId: $e',
-              );
-              if (_isAccessLostError(e)) {
-                _handleChartAccessLost(chartId);
-              }
-              sink.add(true);
-            },
-          ),
-        );
-  }
-
-  @override
-  Future<void> updateNotificationPreferences(
-    String chartId,
-    NotificationPreferences preferences,
-  ) async {
-    _cachedPreferencesByChart[chartId] = preferences;
-    await _db.collection('charts').doc(chartId).set({
-      'reminderEnabled': preferences.dailyLoggingReminder,
-      'notificationPreferences': preferences.toMap(),
-    }, SetOptions(merge: true));
-  }
-
-  @override
-  Stream<NotificationPreferences> streamNotificationPreferences(
-    String chartId,
-  ) {
-    return _db
-        .collection('charts')
-        .doc(chartId)
-        .snapshots()
-        .map((doc) {
-          final data = doc.data();
-          if (data == null) {
-            const prefs = NotificationPreferences();
-            _cachedPreferencesByChart[chartId] = prefs;
-            return prefs;
-          }
-          final raw = data['notificationPreferences'];
-          if (raw != null) {
-            final prefs = NotificationPreferences.fromMap(
-              Map<String, dynamic>.from(raw),
-            );
-            _cachedPreferencesByChart[chartId] = prefs;
-            return prefs;
-          }
-          final reminder = (data['reminderEnabled'] as bool?) ?? true;
-          final prefs = NotificationPreferences(dailyLoggingReminder: reminder);
-          _cachedPreferencesByChart[chartId] = prefs;
-          return prefs;
-        })
-        .transform(
-          StreamTransformer<
-            NotificationPreferences,
-            NotificationPreferences
-          >.fromHandlers(
-            handleError: (e, stackTrace, sink) {
-              debugPrint(
-                'Error streaming notification preferences for $chartId: $e',
-              );
-              if (_isAccessLostError(e)) {
-                _handleChartAccessLost(chartId);
-              }
-              sink.add(const NotificationPreferences());
-            },
-          ),
-        );
-  }
-
-  @override
-  NotificationPreferences? getLatestNotificationPreferences(String chartId) {
-    return _cachedPreferencesByChart[chartId];
-  }
-
-  @override
-  NotificationPreferences? get latestNotificationPreferences =>
-      _cachedChartId != null
-      ? getLatestNotificationPreferences(_cachedChartId!)
-      : null;
-
-  @override
-  Future<void> updateUserRole(String role) async {
-    _cachedRole = role;
-    final user = currentUser;
-    if (user == null) return;
-    try {
-      await _db.collection('users').doc(user.uid).set({
-        'role': role,
-      }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('Error updating user role: $e');
-    }
-  }
-
-  @override
-  Stream<String?> streamUserRole() {
-    return _buildUserGatedStream<String?>(
-      emptyValue: null,
-      debugLabel: 'userRole',
-      subscribe: (uid) =>
-          _db.collection('users').doc(uid).snapshots().map((doc) {
-            final role = doc.data()?['role'] as String? ?? 'wife';
-            _cachedRole = role;
-            return role;
-          }),
-    );
-  }
-
-  @override
-  Future<void> saveFcmToken(String token) async {
-    final user = currentUser;
-    if (user == null || token.isEmpty) return;
-    try {
-      await _db.collection('users').doc(user.uid).set({
-        'fcmTokens': FieldValue.arrayUnion([token]),
-      }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('Error saving FCM token: $e');
-    }
-  }
-
-  @override
-  Future<void> removeFcmToken(String token) async {
-    final user = currentUser;
-    if (user == null || token.isEmpty) return;
-    try {
-      await _db.collection('users').doc(user.uid).update({
-        'fcmTokens': FieldValue.arrayRemove([token]),
-      });
-    } catch (e) {
-      debugPrint('Error removing FCM token: $e');
-    }
-  }
-
-  @override
-  Future<void> updateUserTimezone(String timezone) async {
-    final user = currentUser;
-    if (user == null || timezone.isEmpty) return;
-    try {
-      await _db.collection('users').doc(user.uid).set({
-        'timezone': timezone,
-      }, SetOptions(merge: true));
-
-      final chartId = currentChartId;
-      if (chartId != null) {
-        await _db.collection('charts').doc(chartId).set({
-          'timezone': timezone,
-        }, SetOptions(merge: true));
-      }
-    } catch (e) {
-      debugPrint('Error updating user timezone: $e');
-    }
-  }
-
-  /// Creates a broadcast stream gated by the authenticated user ID and auth state changes.
-  ///
-  /// Emits [emptyValue] when no user is signed in or when an error occurs.
   Stream<T> _buildUserGatedStream<T>({
     required T emptyValue,
     required Stream<T> Function(String uid) subscribe,
     String? debugLabel,
   }) {
-    return buildUserGatedStreamHelper<T>(
+    return FirebaseDatabaseHelpers.buildUserGatedStreamHelper<T>(
       getCurrentUserId: () => currentUser?.uid,
       authStateChanges: authStateChanges,
       emptyValue: emptyValue,
@@ -843,15 +158,12 @@ class FirebaseDatabaseService implements DatabaseService {
     );
   }
 
-  /// Creates a broadcast stream gated by the active chart ID and auth state changes.
-  ///
-  /// Emits [emptyValue] when no chart ID is active or when an error occurs.
   Stream<T> _buildAuthGatedStream<T>({
     required T emptyValue,
     required Stream<T> Function(String chartId) subscribe,
     String? debugLabel,
   }) {
-    return buildAuthGatedStreamHelper<T>(
+    return FirebaseDatabaseHelpers.buildAuthGatedStreamHelper<T>(
       getCurrentChartId: () => currentChartId,
       authStateChanges: authStateChanges,
       emptyValue: emptyValue,
@@ -860,6 +172,65 @@ class FirebaseDatabaseService implements DatabaseService {
       onAccessLost: _handleChartAccessLost,
     );
   }
+}
+
+class FirebaseDatabaseService extends _FirebaseDatabaseServiceBase
+    with
+        _FirebaseAuthUserOps,
+        _FirebaseChartOps,
+        _FirebaseCycleOps,
+        _FirebaseSupplementOps {
+  FirebaseDatabaseService({super.auth, super.db, super.googleSignIn}) {
+    try {
+      _auth.authStateChanges().listen((user) async {
+        if (user != null) {
+          _cachedChartId = await _fetchChartId(user.uid);
+        } else {
+          _cachedChartId = null;
+          _cachedRole = null;
+          _cachedPreferencesByChart.clear();
+        }
+        _authController.add(user);
+      });
+    } catch (_) {}
+  }
+
+  @visibleForTesting
+  set cachedChartId(String? id) => _cachedChartId = id;
+
+  @visibleForTesting
+  String? get cachedRole => _cachedRole;
+
+  @visibleForTesting
+  set cachedRole(String? role) => _cachedRole = role;
+
+  @visibleForTesting
+  Future<void> reallocateAndRecalculate(String chartId) =>
+      _reallocateAndRecalculate(chartId);
+
+  @visibleForTesting
+  Future<String?> fetchChartId(String uid) => _fetchChartId(uid);
+
+  @visibleForTesting
+  Future<void> handleChartAccessLost(String chartId) =>
+      _handleChartAccessLost(chartId);
+
+  @visibleForTesting
+  static bool isAccessLostError(dynamic e) =>
+      FirebaseDatabaseHelpers.isAccessLostError(e);
+
+  @visibleForTesting
+  static Future<void> commitBatchedOperations<T>({
+    required List<void Function(T batch)> operations,
+    required T Function() batchFactory,
+    required Future<void> Function(T batch) commitBatch,
+    int batchLimit = 450,
+  }) => FirebaseDatabaseHelpers.commitBatchedOperations<T>(
+    operations: operations,
+    batchFactory: batchFactory,
+    commitBatch: commitBatch,
+    batchLimit: batchLimit,
+  );
 
   @visibleForTesting
   static Stream<T> buildGatedStreamHelper<T>({
@@ -869,58 +240,14 @@ class FirebaseDatabaseService implements DatabaseService {
     required Stream<T> Function(String key) subscribe,
     String? debugLabel,
     Future<void> Function(String key)? onAccessLost,
-  }) {
-    late StreamController<T> controller;
-    StreamSubscription<dynamic>? authSub;
-    StreamSubscription<T>? dataSub;
-    bool emittedEmptyOnError = false;
-
-    void updateListener() {
-      final key = getKey();
-      dataSub?.cancel();
-      if (key == null) {
-        dataSub = null;
-        if (!emittedEmptyOnError) {
-          controller.add(emptyValue);
-        }
-        emittedEmptyOnError = false;
-        return;
-      }
-      emittedEmptyOnError = false;
-      dataSub = subscribe(key).listen(
-        (data) {
-          emittedEmptyOnError = false;
-          controller.add(data);
-        },
-        onError: (e) {
-          if (debugLabel != null) {
-            debugPrint('Error streaming $debugLabel: $e');
-          }
-          if (_isAccessLostError(e)) {
-            emittedEmptyOnError = true;
-            onAccessLost?.call(key);
-          }
-          controller.add(emptyValue);
-        },
-      );
-    }
-
-    controller = StreamController<T>.broadcast(
-      onListen: () {
-        updateListener();
-        authSub = authStateChanges.listen((_) => updateListener());
-      },
-      onCancel: () {
-        emittedEmptyOnError = false;
-        dataSub?.cancel();
-        dataSub = null;
-        authSub?.cancel();
-        authSub = null;
-      },
-    );
-
-    return controller.stream;
-  }
+  }) => FirebaseDatabaseHelpers.buildGatedStreamHelper<T>(
+    getKey: getKey,
+    authStateChanges: authStateChanges,
+    emptyValue: emptyValue,
+    subscribe: subscribe,
+    debugLabel: debugLabel,
+    onAccessLost: onAccessLost,
+  );
 
   @visibleForTesting
   static Stream<T> buildUserGatedStreamHelper<T>({
@@ -930,16 +257,14 @@ class FirebaseDatabaseService implements DatabaseService {
     required Stream<T> Function(String uid) subscribe,
     String? debugLabel,
     Future<void> Function(String uid)? onAccessLost,
-  }) {
-    return buildGatedStreamHelper<T>(
-      getKey: getCurrentUserId,
-      authStateChanges: authStateChanges,
-      emptyValue: emptyValue,
-      subscribe: subscribe,
-      debugLabel: debugLabel,
-      onAccessLost: onAccessLost,
-    );
-  }
+  }) => FirebaseDatabaseHelpers.buildUserGatedStreamHelper<T>(
+    getCurrentUserId: getCurrentUserId,
+    authStateChanges: authStateChanges,
+    emptyValue: emptyValue,
+    subscribe: subscribe,
+    debugLabel: debugLabel,
+    onAccessLost: onAccessLost,
+  );
 
   @visibleForTesting
   static Stream<T> buildAuthGatedStreamHelper<T>({
@@ -949,612 +274,14 @@ class FirebaseDatabaseService implements DatabaseService {
     required Stream<T> Function(String chartId) subscribe,
     String? debugLabel,
     Future<void> Function(String chartId)? onAccessLost,
-  }) {
-    return buildGatedStreamHelper<T>(
-      getKey: getCurrentChartId,
-      authStateChanges: authStateChanges,
-      emptyValue: emptyValue,
-      subscribe: subscribe,
-      debugLabel: debugLabel,
-      onAccessLost: onAccessLost,
-    );
-  }
-
-  @override
-  Stream<List<Cycle>> streamCycles() {
-    return _buildAuthGatedStream<List<Cycle>>(
-      emptyValue: const [],
-      debugLabel: 'cycles',
-      subscribe: (chartId) => _db
-          .collection('charts')
-          .doc(chartId)
-          .collection('cycles')
-          .snapshots()
-          .map((snap) {
-            final cycles = snap.docs
-                .map((doc) => Cycle.fromMap(doc.data()))
-                .toList();
-            cycles.sort((a, b) => b.startDate.compareTo(a.startDate));
-            return cycles;
-          }),
-    );
-  }
-
-  Future<void> _applyCycleMutationPlan(
-    String chartId,
-    CycleMutationPlan mutationPlan,
-  ) async {
-    final cyclesCollection = _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('cycles');
-
-    final operations = <void Function(WriteBatch batch)>[];
-
-    for (final cycleIdentifier in mutationPlan.cycleIdentifiersToDelete) {
-      final cycleReference = cyclesCollection.doc(cycleIdentifier);
-      final legacyDailySnapshot = await cycleReference
-          .collection('dailyEntries')
-          .get();
-      for (final legacyDailyDocument in legacyDailySnapshot.docs) {
-        operations.add((batch) => batch.delete(legacyDailyDocument.reference));
-      }
-      operations.add((batch) => batch.delete(cycleReference));
-    }
-
-    for (final cycle in mutationPlan.cyclesToUpsert) {
-      final cycleReference = cyclesCollection.doc(cycle.id);
-      final legacyDailySnapshot = await cycleReference
-          .collection('dailyEntries')
-          .get();
-      for (final legacyDailyDocument in legacyDailySnapshot.docs) {
-        operations.add((batch) => batch.delete(legacyDailyDocument.reference));
-      }
-      operations.add((batch) {
-        batch.set(cycleReference, cycle.toMap());
-      });
-    }
-
-    await _commitBatchedWrites(operations);
-  }
-
-  Future<void> _reallocateAndRecalculate(String chartId) async {
-    final cyclesSnapshot = await _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('cycles')
-        .get();
-
-    final cycles = cyclesSnapshot.docs
-        .map((doc) => Cycle.fromMap(doc.data()))
-        .toList();
-    if (cycles.isEmpty) return;
-
-    final updatedCycles = CreightonLogic.reallocateAndRecalculateCycles(cycles);
-    await _applyCycleMutationPlan(
-      chartId,
-      CycleMutationPlan(cyclesToUpsert: updatedCycles),
-    );
-  }
-
-  @override
-  Future<void> startNewCycle(DateTime startDate, List<String> bipCodes) async {
-    final chartId = currentChartId;
-    if (chartId == null) return;
-
-    final cyclesSnapshot = await _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('cycles')
-        .get();
-    final existingCycles = cyclesSnapshot.docs
-        .map((doc) => Cycle.fromMap(doc.data()))
-        .toList();
-
-    final mutationPlan = CycleCoordinator.planStartNewCycle(
-      existingCycles: existingCycles,
-      startDate: startDate,
-      basicInfertilePatternCodes: bipCodes,
-    );
-
-    await _applyCycleMutationPlan(chartId, mutationPlan);
-  }
-
-  @override
-  Future<void> deleteCycle(String cycleId) async {
-    final chartId = currentChartId;
-    if (chartId == null) return;
-
-    final cyclesSnapshot = await _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('cycles')
-        .get();
-    final existingCycles = cyclesSnapshot.docs
-        .map((doc) => Cycle.fromMap(doc.data()))
-        .toList();
-
-    final mutationPlan = CycleCoordinator.planDeleteCycle(
-      existingCycles: existingCycles,
-      cycleIdentifier: cycleId,
-    );
-
-    await _applyCycleMutationPlan(chartId, mutationPlan);
-  }
-
-  @override
-  Future<void> updateCycleStartDate(
-    String cycleId,
-    DateTime newStartDate,
-  ) async {
-    final chartId = currentChartId;
-    if (chartId == null) return;
-
-    final cyclesSnapshot = await _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('cycles')
-        .get();
-
-    final existingCycles = cyclesSnapshot.docs
-        .map((doc) => Cycle.fromMap(doc.data()))
-        .toList();
-
-    final mutationPlan = CycleCoordinator.planUpdateCycleStartDate(
-      existingCycles: existingCycles,
-      cycleIdentifier: cycleId,
-      newStartDate: newStartDate,
-    );
-    if (mutationPlan.cyclesToUpsert.isEmpty &&
-        mutationPlan.cycleIdentifiersToDelete.isEmpty) {
-      return;
-    }
-
-    await _applyCycleMutationPlan(chartId, mutationPlan);
-  }
-
-  @override
-  Future<void> mergeCycleWithPrevious(String cycleId) async {
-    final chartId = currentChartId;
-    if (chartId == null) return;
-
-    final cyclesSnapshot = await _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('cycles')
-        .get();
-
-    final existingCycles = cyclesSnapshot.docs
-        .map((doc) => Cycle.fromMap(doc.data()))
-        .toList();
-
-    final mutationPlan = CycleCoordinator.planMergeCycleWithPrevious(
-      existingCycles: existingCycles,
-      cycleIdentifier: cycleId,
-    );
-    if (mutationPlan.cyclesToUpsert.isEmpty &&
-        mutationPlan.cycleIdentifiersToDelete.isEmpty) {
-      return;
-    }
-
-    await _applyCycleMutationPlan(chartId, mutationPlan);
-  }
-
-  @override
-  Future<void> updateBipCodes(String cycleId, List<String> bipCodes) async {
-    final chartId = currentChartId;
-    if (chartId == null) return;
-
-    final cycleRef = _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('cycles')
-        .doc(cycleId);
-
-    await _db.runTransaction((transaction) async {
-      final doc = await transaction.get(cycleRef);
-      if (!doc.exists || doc.data() == null) return;
-
-      final cycle = Cycle.fromMap(doc.data()!);
-      final updatedCycle =
-          CycleCoordinator.recalculateCycleWithBasicInfertilePattern(
-            targetCycle: cycle,
-            basicInfertilePatternCodes: bipCodes,
-          );
-
-      transaction.set(cycleRef, updatedCycle.toMap());
-    });
-  }
-
-  @override
-  Future<void> saveObservation({
-    String? cycleId,
-    required DateTime date,
-    required Sensation sensation,
-    required Stretch stretch,
-    required List<MucusColor> colors,
-    required List<Consistency> consistencies,
-    required Bleeding bleeding,
-    required String bleedingColor,
-    Frequency frequency = Frequency.none,
-    bool intercourse = false,
-    required double painLevel,
-    required List<String> painTypes,
-    required String comment,
-    bool? isVdrsExplicit,
-  }) async {
-    final chartId = currentChartId;
-    final user = currentUser;
-    if (chartId == null || user == null) {
-      Services.logger.warning(
-        'saveObservation invoked without active user or chart',
-        category: 'observation',
-        metadata: {
-          'chartId': chartId,
-          'userId': user?.uid,
-          'date': date.toIso8601String(),
-        },
-      );
-      return;
-    }
-
-    Services.logger.info(
-      'Attempting to save observation',
-      category: 'observation',
-      metadata: {
-        'chartId': chartId,
-        'userId': user.uid,
-        'date': date.toIso8601String(),
-        'sensation': sensation.name,
-        'stretch': stretch.name,
-        'bleeding': bleeding.name,
-      },
-    );
-
-    try {
-      final dateString = date.dateKey;
-      final cyclesCollection = _db
-          .collection('charts')
-          .doc(chartId)
-          .collection('cycles');
-
-      final isHeavyOrModerate =
-          bleeding == Bleeding.heavy || bleeding == Bleeding.moderate;
-
-      String targetCycleId;
-
-      final eligibleCyclesSnapshot = await cyclesCollection
-          .where('startDate', isLessThanOrEqualTo: dateString)
-          .orderBy('startDate', descending: true)
-          .limit(1)
-          .get();
-
-      if (eligibleCyclesSnapshot.docs.isEmpty) {
-        final anyCycleSnapshot = await cyclesCollection
-            .orderBy('startDate')
-            .limit(1)
-            .get();
-        final earliestCycle = anyCycleSnapshot.docs.isNotEmpty
-            ? Cycle.fromMap(anyCycleSnapshot.docs.first.data())
-            : null;
-        final inheritedBipCodes =
-            (earliestCycle != null && earliestCycle.bipCodes.isNotEmpty)
-            ? earliestCycle.bipCodes
-            : const <String>['6C'];
-        if (anyCycleSnapshot.docs.isNotEmpty) {
-          await startNewCycle(date, inheritedBipCodes);
-        } else {
-          final newCycle = Cycle(
-            id: dateString,
-            startDate: date,
-            bipCodes: inheritedBipCodes,
-            dailyEntries: const {},
-          );
-          await cyclesCollection.doc(dateString).set(newCycle.toMap());
-        }
-        targetCycleId = dateString;
-      } else {
-        final latest = Cycle.fromMap(eligibleCyclesSnapshot.docs.first.data());
-        if (isHeavyOrModerate) {
-          final autoStart = CreightonLogic.evaluateAutoCycleStart(latest, date);
-          if (autoStart != null) {
-            final autoStartKey = autoStart.dateKey;
-            final existingDoc = await cyclesCollection.doc(autoStartKey).get();
-            if (!existingDoc.exists) {
-              await startNewCycle(autoStart, latest.bipCodes);
-            }
-            targetCycleId = autoStartKey;
-          } else {
-            targetCycleId = latest.id;
-          }
-        } else {
-          targetCycleId = latest.id;
-        }
-      }
-
-      final dateKey = dateString;
-
-      final roleContext = await resolveObservationRole(
-        uid: user.uid,
-        cachedRole: _cachedRole,
-        getUserData: (uid) async {
-          final userDoc = await _db.collection('users').doc(uid).get();
-          return userDoc.data();
-        },
-      );
-      final userRole = roleContext.userRole;
-      if (roleContext.roleToCache != null) {
-        _cachedRole = roleContext.roleToCache;
-      }
-
-      final createdObservation = Observation(
-        id: CycleCoordinator.generateObservationIdentifier(),
-        timestamp: date,
-        sensation: sensation,
-        stretch: stretch,
-        colors: colors,
-        consistencies: consistencies,
-        bleeding: bleeding,
-        bleedingColor: bleedingColor,
-        frequency: frequency,
-        intercourse: intercourse,
-        painLevel: painLevel,
-        painTypes: painTypes,
-        comment: comment,
-        userId: user.uid,
-        userRole: userRole.code,
-        isVdrsExplicit: isVdrsExplicit,
-      );
-
-      final cycleRef = cyclesCollection.doc(targetCycleId);
-      late ObservationSaveResult saveResult;
-
-      await _db.runTransaction((transaction) async {
-        final cycleSnapshot = await transaction.get(cycleRef);
-        final Cycle currentCycle;
-        if (cycleSnapshot.exists && cycleSnapshot.data() != null) {
-          currentCycle = Cycle.fromMap(cycleSnapshot.data()!);
-        } else {
-          currentCycle = Cycle(
-            id: targetCycleId,
-            startDate: date,
-            bipCodes: const ['6C'],
-            dailyEntries: const {},
-          );
-        }
-
-        saveResult = CycleCoordinator.applyObservationToCycle(
-          targetCycle: currentCycle,
-          observation: createdObservation,
-        );
-
-        transaction.set(cycleRef, saveResult.updatedCycle.toMap());
-      });
-
-      final resolvedDaily = saveResult.resolvedDailyEntry;
-      final isFertile = CreightonLogic.isFertileMucusPattern(
-        entry: resolvedDaily,
-        bipCodes: saveResult.updatedCycle.bipCodes,
-      );
-      final peakLabel = resolvedDaily.peakDayLabel;
-
-      try {
-        final context = await resolveNotificationContext(
-          uid: user.uid,
-          chartId: chartId,
-          cachedRole: _cachedRole ?? userRole.code,
-          cachedPreferences: _cachedPreferencesByChart[chartId],
-          getUserData: (uid) async {
-            final doc = await _db.collection('users').doc(uid).get();
-            return doc.data();
-          },
-          getChartData: (cId) async {
-            final doc = await _db.collection('charts').doc(cId).get();
-            return doc.data();
-          },
-        );
-
-        if (roleContext.roleToCache != null && context.roleToCache != null) {
-          _cachedRole = context.roleToCache;
-        }
-        _cachedPreferencesByChart[chartId] = context.preferencesToCache;
-
-        final dispatchUserRole = context.userRole;
-        final preferences = context.preferences;
-
-        if (preferences.fertilePatternAlerts && isFertile) {
-          await Services.notifications.notifyFertilePattern(
-            role: dispatchUserRole,
-          );
-        }
-        if (preferences.fertilePatternAlerts && peakLabel != null) {
-          await Services.notifications.notifyPeakDay(
-            role: dispatchUserRole,
-            peakLabel: peakLabel,
-          );
-        }
-        if (preferences.partnerSupportReminders &&
-            (isFertile || peakLabel != null || resolvedDaily.isPeakDay)) {
-          await Services.notifications.notifyKindnessSupport(
-            role: dispatchUserRole,
-          );
-        }
-      } catch (notificationError) {
-        debugPrint('Warning: Notification dispatch error: $notificationError');
-      }
-
-      Services.logger.info(
-        'Observation saved successfully',
-        category: 'observation',
-        metadata: {
-          'chartId': chartId,
-          'targetCycleId': targetCycleId,
-          'date': dateKey,
-          'obsId': createdObservation.id,
-        },
-      );
-    } catch (error, stackTrace) {
-      Services.logger.error(
-        'Failed to save observation to Firestore',
-        category: 'observation',
-        metadata: {
-          'chartId': chartId,
-          'userId': user.uid,
-          'userEmail': user.email,
-          'targetDate': date.toIso8601String(),
-        },
-        error: error,
-        stackTrace: stackTrace,
-      );
-      rethrow;
-    }
-  }
-
-  @override
-  Future<void> deleteObservation({
-    required String cycleId,
-    required DateTime date,
-    required String observationId,
-  }) async {
-    final chartId = currentChartId;
-    if (chartId == null) return;
-
-    final cycleRef = _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('cycles')
-        .doc(cycleId);
-
-    await _db.runTransaction((transaction) async {
-      final doc = await transaction.get(cycleRef);
-      if (!doc.exists || doc.data() == null) return;
-
-      final cycle = Cycle.fromMap(doc.data()!);
-      final updatedCycle = CycleCoordinator.removeObservationFromCycle(
-        targetCycle: cycle,
-        date: date,
-        observationIdentifier: observationId,
-      );
-      if (updatedCycle == null) return;
-
-      transaction.set(cycleRef, updatedCycle.toMap());
-    });
-  }
-
-  @override
-  Stream<List<SupplementItem>> streamSupplements() {
-    return _buildAuthGatedStream<List<SupplementItem>>(
-      emptyValue: const [],
-      debugLabel: 'supplements',
-      subscribe: (chartId) => _db
-          .collection('charts')
-          .doc(chartId)
-          .collection('supplements')
-          .snapshots()
-          .map(
-            (snap) => snap.docs
-                .map((doc) => SupplementItem.fromMap(doc.data()))
-                .toList(),
-          ),
-    );
-  }
-
-  @override
-  Future<void> saveSupplement(SupplementItem item) async {
-    final chartId = _cachedChartId;
-    if (chartId == null) return;
-
-    await _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('supplements')
-        .doc(item.id)
-        .set(item.toMap(), SetOptions(merge: true));
-  }
-
-  @override
-  Future<void> deleteSupplement(String supplementId) async {
-    final chartId = _cachedChartId;
-    if (chartId == null) return;
-
-    await _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('supplements')
-        .doc(supplementId)
-        .delete();
-  }
-
-  @override
-  Future<void> resetDefaultSupplements() async {
-    final chartId = _cachedChartId;
-    if (chartId == null) return;
-
-    final batch = _db.batch();
-    final suppCol = _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('supplements');
-    final existing = await suppCol.get();
-    for (final doc in existing.docs) {
-      batch.delete(doc.reference);
-    }
-    for (final preset in SupplementPresets.defaultList) {
-      batch.set(suppCol.doc(preset.id), preset.toMap());
-    }
-    await batch.commit();
-  }
-
-  @override
-  Stream<Map<String, DailySupplementLog>> streamDailySupplementLogs() {
-    return _buildAuthGatedStream<Map<String, DailySupplementLog>>(
-      emptyValue: const {},
-      debugLabel: 'daily supplement logs',
-      subscribe: (chartId) => _db
-          .collection('charts')
-          .doc(chartId)
-          .collection('supplementLogs')
-          .snapshots()
-          .map((snap) {
-            final map = <String, DailySupplementLog>{};
-            for (final doc in snap.docs) {
-              map[doc.id] = DailySupplementLog.fromMap(doc.data());
-            }
-            return map;
-          }),
-    );
-  }
-
-  @override
-  Future<void> logSupplementDose({
-    required DateTime date,
-    required String supplementId,
-    required SupplementTimeOfDay timeOfDay,
-    required bool taken,
-  }) async {
-    final chartId = _cachedChartId;
-    if (chartId == null) return;
-
-    final dateKey = date.dateKey;
-    final logRef = _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('supplementLogs')
-        .doc(dateKey);
-
-    await _db.runTransaction((transaction) async {
-      final doc = await transaction.get(logRef);
-      DailySupplementLog log;
-      if (doc.exists && doc.data() != null) {
-        log = DailySupplementLog.fromMap(doc.data()!);
-      } else {
-        log = DailySupplementLog(date: date, takenDoses: {});
-      }
-
-      final updatedLog = log.withToggled(supplementId, timeOfDay, taken);
-      transaction.set(logRef, updatedLog.toMap());
-    });
-  }
+  }) => FirebaseDatabaseHelpers.buildAuthGatedStreamHelper<T>(
+    getCurrentChartId: getCurrentChartId,
+    authStateChanges: authStateChanges,
+    emptyValue: emptyValue,
+    subscribe: subscribe,
+    debugLabel: debugLabel,
+    onAccessLost: onAccessLost,
+  );
 
   @visibleForTesting
   static Future<NotificationDispatchContext> resolveNotificationContext({
@@ -1565,120 +292,23 @@ class FirebaseDatabaseService implements DatabaseService {
     required Future<Map<String, dynamic>?> Function(String uid) getUserData,
     required Future<Map<String, dynamic>?> Function(String chartId)
     getChartData,
-  }) async {
-    NotificationPreferences parsePreferences(Map<String, dynamic>? chartData) {
-      if (chartData == null) return const NotificationPreferences();
-      final raw = chartData['notificationPreferences'];
-      if (raw != null) {
-        return NotificationPreferences.fromMap(Map<String, dynamic>.from(raw));
-      }
-      final reminder = (chartData['reminderEnabled'] as bool?) ?? true;
-      return NotificationPreferences(dailyLoggingReminder: reminder);
-    }
-
-    if (cachedRole != null && cachedPreferences != null) {
-      return NotificationDispatchContext(
-        userRole: UserRole.fromString(cachedRole),
-        preferences: cachedPreferences,
-        roleToCache: cachedRole,
-        preferencesToCache: cachedPreferences,
-      );
-    }
-
-    if (cachedRole != null) {
-      final chartData = await getChartData(chartId);
-      final preferences = parsePreferences(chartData);
-      return NotificationDispatchContext(
-        userRole: UserRole.fromString(cachedRole),
-        preferences: preferences,
-        roleToCache: cachedRole,
-        preferencesToCache: preferences,
-      );
-    }
-
-    if (cachedPreferences != null) {
-      final userData = await getUserData(uid);
-      final userRoleStr = (userData?['role'] as String?) ?? 'wife';
-      return NotificationDispatchContext(
-        userRole: UserRole.fromString(userRoleStr),
-        preferences: cachedPreferences,
-        roleToCache: userRoleStr,
-        preferencesToCache: cachedPreferences,
-      );
-    }
-
-    final results = await Future.wait([
-      getUserData(uid),
-      getChartData(chartId),
-    ]);
-    final userData = results[0];
-    final chartData = results[1];
-
-    final userRoleStr = (userData?['role'] as String?) ?? 'wife';
-    final preferences = parsePreferences(chartData);
-
-    return NotificationDispatchContext(
-      userRole: UserRole.fromString(userRoleStr),
-      preferences: preferences,
-      roleToCache: userRoleStr,
-      preferencesToCache: preferences,
-    );
-  }
+  }) => DatabaseHelpers.resolveNotificationContext(
+    uid: uid,
+    chartId: chartId,
+    cachedRole: cachedRole,
+    cachedPreferences: cachedPreferences,
+    getUserData: getUserData,
+    getChartData: getChartData,
+  );
 
   @visibleForTesting
   static Future<ObservationRoleContext> resolveObservationRole({
     required String uid,
     required String? cachedRole,
     required Future<Map<String, dynamic>?> Function(String uid) getUserData,
-  }) async {
-    if (cachedRole != null) {
-      return ObservationRoleContext(
-        userRole: UserRole.fromString(cachedRole),
-        roleToCache: cachedRole,
-      );
-    }
-
-    UserRole userRole = UserRole.wife;
-    String? roleToCache;
-    try {
-      final userData = await getUserData(uid);
-      final userRoleString = userData?['role'] as String?;
-      userRole = UserRole.fromString(userRoleString);
-      if (userData != null) {
-        roleToCache = userRole.code;
-      }
-    } catch (error) {
-      Services.logger.warning(
-        'Failed to fetch user role for observation: $error',
-      );
-    }
-
-    return ObservationRoleContext(userRole: userRole, roleToCache: roleToCache);
-  }
-}
-
-@visibleForTesting
-class NotificationDispatchContext {
-  final UserRole userRole;
-  final NotificationPreferences preferences;
-  final String? roleToCache;
-  final NotificationPreferences preferencesToCache;
-
-  const NotificationDispatchContext({
-    required this.userRole,
-    required this.preferences,
-    required this.roleToCache,
-    required this.preferencesToCache,
-  });
-}
-
-@visibleForTesting
-class ObservationRoleContext {
-  final UserRole userRole;
-  final String? roleToCache;
-
-  const ObservationRoleContext({
-    required this.userRole,
-    required this.roleToCache,
-  });
+  }) => DatabaseHelpers.resolveObservationRole(
+    uid: uid,
+    cachedRole: cachedRole,
+    getUserData: getUserData,
+  );
 }
