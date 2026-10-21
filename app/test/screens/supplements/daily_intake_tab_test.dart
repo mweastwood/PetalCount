@@ -47,10 +47,11 @@ void main() {
 
       expect(find.text('Aug 25, 2026'), findsOneWidget);
       expect(find.text('Cycle Day 6'), findsOneWidget);
-      expect(find.text('Daily Adherence'), findsOneWidget);
-      expect(find.text('Morning'), findsOneWidget);
-      expect(find.text('Afternoon'), findsOneWidget);
-      expect(find.text('Evening'), findsOneWidget);
+      expect(find.text("Today's Supplements"), findsOneWidget);
+      expect(find.text('Next 6 Days'), findsOneWidget);
+      expect(find.text('Morning'), findsWidgets);
+      expect(find.text('Afternoon'), findsWidgets);
+      expect(find.text('Evening'), findsWidgets);
 
       await tester.tap(find.byTooltip('Previous Day'));
       expect(dateOffset, equals(-1));
