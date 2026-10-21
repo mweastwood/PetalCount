@@ -88,7 +88,9 @@ class _DailyIntakeTabState extends State<DailyIntakeTab> {
 
   List<SupplementDayForecast> _buildSevenDayForecast() {
     Cycle? effectiveFallbackCycle = widget.cycle;
-    if (effectiveFallbackCycle == null && widget.cycles.isEmpty) {
+    if (effectiveFallbackCycle == null &&
+        widget.cycles.isEmpty &&
+        (widget.cycleDay > 1 || widget.daysPastPeak != null)) {
       final syntheticStart = widget.selectedDate.subtractCalendarDays(
         widget.cycleDay - 1,
       );

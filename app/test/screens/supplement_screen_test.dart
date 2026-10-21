@@ -464,18 +464,20 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Supplements & Protocols'), findsOneWidget);
-        expect(find.text('Cycle Day 1'), findsOneWidget);
+        expect(find.text('Cycle Day 1'), findsWidgets);
+        expect(find.text('Cycle Day 4'), findsNothing);
+        expect(find.textContaining('Clomid'), findsNothing);
 
         expect(find.text('Aug 25, 2026'), findsOneWidget);
         await tester.tap(find.byTooltip('Next Day'));
         await tester.pumpAndSettle();
         expect(find.text('Aug 26, 2026'), findsOneWidget);
-        expect(find.text('Cycle Day 1'), findsOneWidget);
+        expect(find.text('Cycle Day 1'), findsWidgets);
 
         await tester.tap(find.byTooltip('Previous Day'));
         await tester.pumpAndSettle();
         expect(find.text('Aug 25, 2026'), findsOneWidget);
-        expect(find.text('Cycle Day 1'), findsOneWidget);
+        expect(find.text('Cycle Day 1'), findsWidgets);
       },
     );
 

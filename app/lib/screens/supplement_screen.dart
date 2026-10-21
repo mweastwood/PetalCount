@@ -100,19 +100,19 @@ class _SupplementScreenState extends State<SupplementScreen> {
   void _showResetPresetsConfirmation(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Reset Supplement Presets?'),
         content: const Text(
           'This will reset your supplement list to the standard Creighton / NaPro prescription and supplement instructions for wife and husband.',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           FilledButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               await Services.db.resetDefaultSupplements();
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -132,20 +132,20 @@ class _SupplementScreenState extends State<SupplementScreen> {
   void _showDeleteSupplementDialog(BuildContext context, SupplementItem item) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text('Delete ${item.name}?'),
         content: Text(
           'Are you sure you want to remove this supplement from your ${item.targetRole.displayName.toLowerCase()} formulary?',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               await Services.db.deleteSupplement(item.id);
             },
             child: const Text('Delete'),
@@ -179,7 +179,7 @@ class _SupplementScreenState extends State<SupplementScreen> {
                 IconButton(
                   icon: const Icon(Icons.restore),
                   tooltip: 'Reset Default Presets',
-                  onPressed: () => _showResetPresetsConfirmation(context),
+                  onPressed: () => _showResetPresetsConfirmation(sheetContext),
                 ),
               ],
             ),

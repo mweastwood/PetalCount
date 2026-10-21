@@ -106,7 +106,7 @@ class SupplementForecastEngine {
       );
       final cycleDay = cycle != null
           ? calendarDaysBetween(cycle.startDate, date) + 1
-          : 1 + dayOffset;
+          : 1;
       final daysPastPeak = calculateDaysPastPeak(cycle, date);
       final hasPeakOccurred = daysPastPeak != null && daysPastPeak >= 0;
 
@@ -157,11 +157,20 @@ class SupplementForecastEngine {
           scheduled.add(item);
         }
 
-        final couldStartIfPeakSoon =
-            item.ruleType == SupplementScheduleRuleType.peakOffset &&
-            dayOffset > 0 &&
-            item.startPeakOffset != null &&
-            dayOffset >= item.startPeakOffset!;
+        bool couldStartIfPeakSoon = false;
+        if (item.ruleType == SupplementScheduleRuleType.peakOffset &&
+            item.startPeakOffset != null) {
+          final startOffset = item.startPeakOffset!;
+          final endOffset = item.durationDays != null
+              ? (startOffset + item.durationDays! - 1)
+              : (item.endPeakOffset ?? startOffset);
+          couldStartIfPeakSoon =
+              daysPastPeak == null &&
+              dayOffset > 0 &&
+              startOffset <= dayOffset &&
+              endOffset >= 0 &&
+              startOffset <= endOffset;
+        }
 
         if (activeByFallback || couldStartIfPeakSoon) {
           conditional.add(item);

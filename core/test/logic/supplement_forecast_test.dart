@@ -154,5 +154,146 @@ void main() {
         );
       },
     );
+
+    test(
+      'handles navigating to a pre-Peak date when Peak Day is already recorded later in the cycle (daysPastPeak < 0 transitioning to >= 0)',
+      () {
+        // Cycle starts Aug 12; Peak Day is recorded on Aug 27 (Cycle Day 16).
+        // Forecast starts on Aug 25 (2 days before recorded Peak, daysPastPeak = -2).
+        final peakDate = DateTime(2026, 8, 27);
+        final cycle = Cycle(
+          id: 'c1',
+          startDate: DateTime(2026, 8, 12),
+          dailyEntries: {
+            peakDate.dateKey: DailyEntry.raw(date: peakDate, peakDayLabel: 'P'),
+          },
+        );
+
+        final forecast = SupplementForecastEngine.buildForecast(
+          startDate: startDate, // Aug 25
+          supplements: SupplementPresets.defaultList,
+          role: UserRole.wife,
+          cycles: [cycle],
+        );
+
+        // Day 0 (Aug 25, P-2) and Day 1 (Aug 26, P-1): Peak has not yet occurred as of date,
+        // but Peak Date is already known (daysPastPeak < 0), so Progesterone (P+3) cannot
+        // start on Day 1 via couldStartIfPeakSoon.
+        expect(forecast[0].daysPastPeak, -2);
+        expect(forecast[0].hasPeakOccurred, isFalse);
+
+        expect(forecast[1].daysPastPeak, -1);
+        expect(forecast[1].hasPeakOccurred, isFalse);
+        expect(
+          forecast[1].conditionalOnPeakSupplements.any(
+            (s) => s.name.startsWith('Progesterone'),
+          ),
+          isFalse,
+        );
+
+        // Day 2 (Aug 27, P): Transitions to hasPeakOccurred == true
+        expect(forecast[2].daysPastPeak, 0);
+        expect(forecast[2].hasPeakOccurred, isTrue);
+        expect(forecast[2].conditionalOnPeakSupplements, isEmpty);
+        expect(
+          forecast[2].scheduledSupplements.map((s) => s.name),
+          containsAll(['FertileCM', 'Mucinex ER']),
+        );
+
+        // Day 4 (Aug 29, P+2): FertileCM & Mucinex ER stopped after P+1; Progesterone not yet
+        expect(forecast[4].daysPastPeak, 2);
+        expect(forecast[4].hasPeakOccurred, isTrue);
+        expect(
+          forecast[4].scheduledSupplements.any((s) => s.name == 'FertileCM'),
+          isFalse,
+        );
+        expect(
+          forecast[4].scheduledSupplements.any(
+            (s) => s.name.startsWith('Progesterone'),
+          ),
+          isFalse,
+        );
+
+        // Day 5 (Aug 30, P+3): Progesterone starts deterministically on P+3
+        expect(forecast[5].daysPastPeak, 3);
+        expect(forecast[5].hasPeakOccurred, isTrue);
+        expect(
+          forecast[5].scheduledSupplements.any(
+            (s) => s.name.startsWith('Progesterone'),
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'excludes custom peakOffset supplements with invalid or pre-Peak-only windows from conditionalOnPeakSupplements',
+      () {
+        final cycle = Cycle(id: 'c1', startDate: DateTime(2026, 8, 20));
+        final customSupplements = [
+          const SupplementItem(
+            id: 'pre_peak_only',
+            name: 'PrePeakOffsetOnly',
+            quantity: '1 cap',
+            morningDose: 1,
+            ruleType: SupplementScheduleRuleType.peakOffset,
+            startPeakOffset: -2,
+            endPeakOffset: -1,
+          ),
+          const SupplementItem(
+            id: 'zero_duration',
+            name: 'ZeroDurationPeakOffset',
+            quantity: '1 cap',
+            morningDose: 1,
+            ruleType: SupplementScheduleRuleType.peakOffset,
+            startPeakOffset: 1,
+            durationDays: 0,
+          ),
+          const SupplementItem(
+            id: 'inverted_window',
+            name: 'InvertedPeakOffset',
+            quantity: '1 cap',
+            morningDose: 1,
+            ruleType: SupplementScheduleRuleType.peakOffset,
+            startPeakOffset: 3,
+            endPeakOffset: 1,
+          ),
+        ];
+
+        final forecast = SupplementForecastEngine.buildForecast(
+          startDate: startDate,
+          supplements: customSupplements,
+          role: UserRole.wife,
+          cycles: [cycle],
+        );
+
+        for (final day in forecast) {
+          expect(day.conditionalOnPeakSupplements, isEmpty);
+          expect(day.scheduledSupplements, isEmpty);
+        }
+      },
+    );
+
+    test(
+      'keeps cycleDay at 1 across all forecast days when no cycle exists and does not schedule Cycle Day 4-8 medications',
+      () {
+        final forecast = SupplementForecastEngine.buildForecast(
+          startDate: startDate,
+          supplements: SupplementPresets.defaultList,
+          role: UserRole.wife,
+          cycles: const [],
+          fallbackCycle: null,
+        );
+
+        expect(forecast, hasLength(7));
+        for (final day in forecast) {
+          expect(day.cycleDay, 1);
+          expect(
+            day.scheduledSupplements.any((s) => s.name == 'Clomid'),
+            isFalse,
+          );
+        }
+      },
+    );
   });
 }
