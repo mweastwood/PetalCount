@@ -1,7 +1,5 @@
+import 'package:core/core.dart';
 import 'package:flutter/material.dart';
-
-import '../../logic/models/observation.dart';
-import '../../logic/utils/date_utils.dart';
 
 class ObservationSummaryStepCard extends StatelessWidget {
   final DateTime combinedDateTime;

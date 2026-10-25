@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io' show Platform;
 
+import 'package:core/core.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -9,10 +10,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
-import '../../models/user_role.dart';
-import '../../utils/date_utils.dart';
 import '../services.dart';
-import 'cycle_notification_formatter.dart';
 import 'notification_service_interface.dart';
 
 class LocalNotificationService implements NotificationService {

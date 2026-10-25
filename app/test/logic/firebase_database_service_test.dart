@@ -5,15 +5,10 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_firestore_platform_interface/cloud_firestore_platform_interface.dart'
     as firestore_platform;
+import 'package:core/core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:petal_count/logic/models/cycle.dart';
-import 'package:petal_count/logic/models/daily_entry.dart';
-import 'package:petal_count/logic/models/notification_preferences.dart';
-import 'package:petal_count/logic/models/observation.dart';
-import 'package:petal_count/logic/models/supplement.dart';
 import 'package:petal_count/logic/services/database/firebase_database_service.dart';
-import 'package:petal_count/logic/utils/date_utils.dart';
 
 // =============================================================================
 // Fake Implementations for FirebaseAuth and FirebaseFirestore

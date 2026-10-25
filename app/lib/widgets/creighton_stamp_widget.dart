@@ -1,6 +1,6 @@
+import 'package:core/core.dart';
 import 'package:flutter/material.dart';
 
-import '../logic/models/daily_entry.dart';
 import '../theme/creighton_theme.dart';
 import 'baby_icon.dart';
 

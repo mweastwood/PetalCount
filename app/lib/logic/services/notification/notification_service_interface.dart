@@ -1,4 +1,4 @@
-import '../../models/user_role.dart';
+import 'package:core/core.dart';
 
 abstract class NotificationService {
   Future<void> init();
