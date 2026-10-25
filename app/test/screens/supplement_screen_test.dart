@@ -564,19 +564,19 @@ void main() {
         final date = DateTime(2026, 8, 25);
         await Services.db.logSupplementDose(
           date: date,
-          supplementId: 'prenatal',
+          supplementId: 'preset_prenatal',
           timeOfDay: SupplementTimeOfDay.morning,
           taken: true,
         );
         await Services.db.logSupplementDose(
           date: date,
-          supplementId: 'coq10',
+          supplementId: 'preset_coq10',
           timeOfDay: SupplementTimeOfDay.morning,
           taken: true,
         );
         await Services.db.logSupplementDose(
           date: date,
-          supplementId: 'vitamind',
+          supplementId: 'preset_vitamind',
           timeOfDay: SupplementTimeOfDay.morning,
           taken: true,
         );
@@ -589,6 +589,8 @@ void main() {
           surfaceSize: const Size(412, 915),
         );
         await tester.pumpAndSettle();
+
+        expect(find.text('3 / 16 taken'), findsOneWidget);
 
         await screenMatchesGolden(
           tester,
