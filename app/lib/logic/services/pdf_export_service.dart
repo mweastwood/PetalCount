@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../theme/baby_svg.dart';
 import '../../theme/creighton_theme.dart';
+import 'services.dart';
 import 'web_download_helper.dart';
 
 class PdfExportService {
@@ -91,7 +92,10 @@ class PdfExportService {
 
       if (kIsWeb) {
         downloadFileWeb(bytes, filename, mimeType: 'application/pdf');
-        debugPrint('Web PDF generation and download completed');
+        Services.logger.info(
+          'Web PDF generation and download completed',
+          category: 'pdf',
+        );
         return;
       }
 
@@ -106,7 +110,11 @@ class PdfExportService {
         ),
       );
     } catch (e) {
-      debugPrint('Error generating or sharing PDF: $e');
+      Services.logger.error(
+        'Error generating or sharing PDF',
+        category: 'pdf',
+        error: e,
+      );
     }
   }
 

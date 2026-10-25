@@ -16,7 +16,11 @@ mixin _FirebaseChartOps on _FirebaseDatabaseServiceBase {
         userTimezone = userDoc.data()?['timezone'] as String?;
       }
     } catch (e) {
-      debugPrint('Error fetching user timezone on createChart: $e');
+      Services.logger.warning(
+        'Error fetching user timezone on createChart',
+        category: 'chart',
+        error: e,
+      );
     }
 
     await chartRef.set({
@@ -88,7 +92,13 @@ mixin _FirebaseChartOps on _FirebaseDatabaseServiceBase {
       if (snap.exists) {
         doc = snap;
       }
-    } catch (_) {}
+    } catch (e) {
+      Services.logger.debug(
+        'Direct invitation doc lookup failed, falling back to email query',
+        category: 'chart',
+        metadata: {'invitationId': invitationId, 'error': e.toString()},
+      );
+    }
 
     if (doc == null || !doc.exists) {
       final cleanEmail = user.email?.trim().toLowerCase() ?? '';
@@ -147,7 +157,13 @@ mixin _FirebaseChartOps on _FirebaseDatabaseServiceBase {
       if (snap.exists) {
         doc = snap;
       }
-    } catch (_) {}
+    } catch (e) {
+      Services.logger.debug(
+        'Direct invitation doc lookup failed, falling back to email query',
+        category: 'chart',
+        metadata: {'invitationId': invitationId, 'error': e.toString()},
+      );
+    }
 
     if (doc == null || !doc.exists) {
       final cleanEmail = user.email?.trim().toLowerCase() ?? '';
@@ -336,8 +352,11 @@ mixin _FirebaseChartOps on _FirebaseDatabaseServiceBase {
         .transform(
           StreamTransformer<bool, bool>.fromHandlers(
             handleError: (e, stackTrace, sink) {
-              debugPrint(
-                'Error streaming chart reminder enabled for $chartId: $e',
+              Services.logger.error(
+                'Error streaming chart reminder enabled for $chartId',
+                category: 'chart',
+                error: e,
+                stackTrace: stackTrace,
               );
               if (FirebaseDatabaseHelpers.isAccessLostError(e)) {
                 _handleChartAccessLost(chartId);
@@ -381,8 +400,11 @@ mixin _FirebaseChartOps on _FirebaseDatabaseServiceBase {
             NotificationPreferences
           >.fromHandlers(
             handleError: (e, stackTrace, sink) {
-              debugPrint(
-                'Error streaming notification preferences for $chartId: $e',
+              Services.logger.error(
+                'Error streaming notification preferences for $chartId',
+                category: 'chart',
+                error: e,
+                stackTrace: stackTrace,
               );
               if (FirebaseDatabaseHelpers.isAccessLostError(e)) {
                 _handleChartAccessLost(chartId);

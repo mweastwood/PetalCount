@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:core/core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/services/database/firebase_database_service.dart';
+import 'package:petal_count/logic/services/services.dart';
 
 void main() {
   group('FirebaseDatabaseService.buildAuthGatedStreamHelper', () {
@@ -140,6 +142,7 @@ void main() {
         addTearDown(authController.close);
         addTearDown(dataController.close);
 
+        Services.logger.clear();
         final loggedMessages = <String>[];
         final originalDebugPrint = debugPrint;
         debugPrint = (String? message, {int? wrapWidth}) {
@@ -169,10 +172,20 @@ void main() {
           contains(
             predicate<String>(
               (msg) =>
-                  msg.contains('Error streaming test-cycles:') &&
+                  msg.contains('Error streaming test-cycles') &&
                   msg.contains('Firestore query failed'),
             ),
           ),
+        );
+        expect(
+          Services.logger.logs.any(
+            (e) =>
+                e.level == LogLevel.error &&
+                e.category == 'database' &&
+                e.message == 'Error streaming test-cycles' &&
+                (e.error?.contains('Firestore query failed') ?? false),
+          ),
+          isTrue,
         );
       },
     );
@@ -455,6 +468,7 @@ void main() {
         addTearDown(authController.close);
         addTearDown(dataController.close);
 
+        Services.logger.clear();
         final loggedMessages = <String>[];
         final originalDebugPrint = debugPrint;
         debugPrint = (String? message, {int? wrapWidth}) {
@@ -484,10 +498,20 @@ void main() {
           contains(
             predicate<String>(
               (msg) =>
-                  msg.contains('Error streaming userRole:') &&
+                  msg.contains('Error streaming userRole') &&
                   msg.contains('Firestore user fetch failed'),
             ),
           ),
+        );
+        expect(
+          Services.logger.logs.any(
+            (e) =>
+                e.level == LogLevel.error &&
+                e.category == 'database' &&
+                e.message == 'Error streaming userRole' &&
+                (e.error?.contains('Firestore user fetch failed') ?? false),
+          ),
+          isTrue,
         );
       },
     );

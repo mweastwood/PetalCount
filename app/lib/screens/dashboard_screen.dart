@@ -117,7 +117,13 @@ class _DashboardScreenState extends State<DashboardScreen>
         isTodayLogged: isTodayLogged,
         now: widget.todayOverride,
       );
-    } catch (_) {}
+    } catch (e) {
+      Services.logger.warning(
+        'Error syncing daily logging reminder',
+        category: 'notification',
+        error: e,
+      );
+    }
   }
 
   Future<void> _maybeNotifyBreastSelfExam(
@@ -139,14 +145,26 @@ class _DashboardScreenState extends State<DashboardScreen>
       final roleStr = await Services.db.streamUserRole().first;
       final role = UserRole.fromString(roleStr);
       await Services.notifications.notifyBreastSelfExam(role: role, now: now);
-    } catch (_) {}
+    } catch (e) {
+      Services.logger.warning(
+        'Error dispatching breast self-exam notification',
+        category: 'notification',
+        error: e,
+      );
+    }
   }
 
   Future<void> _refreshAndSyncReminders() async {
     try {
       final cycles = await Services.db.streamCycles().first;
       _syncReminderStatus(cycles);
-    } catch (_) {}
+    } catch (e) {
+      Services.logger.warning(
+        'Error refreshing and syncing reminders',
+        category: 'notification',
+        error: e,
+      );
+    }
   }
 
   void _toggleSpeedDial() {

@@ -67,7 +67,11 @@ mixin _FirebaseAuthUserOps on _FirebaseDatabaseServiceBase {
       if (!kIsWeb &&
           e is GoogleSignInException &&
           e.code == GoogleSignInExceptionCode.canceled) {
-        debugPrint('Google Sign-In canceled: $e');
+        Services.logger.warning(
+          'Google Sign-In canceled',
+          category: 'auth',
+          error: e,
+        );
         throw GoogleSignInException(
           code: e.code,
           description:
@@ -77,7 +81,11 @@ mixin _FirebaseAuthUserOps on _FirebaseDatabaseServiceBase {
           details: e.details,
         );
       }
-      debugPrint('Error signing in with Google: $e');
+      Services.logger.error(
+        'Error signing in with Google',
+        category: 'auth',
+        error: e,
+      );
       rethrow;
     }
   }
@@ -103,7 +111,11 @@ mixin _FirebaseAuthUserOps on _FirebaseDatabaseServiceBase {
         'role': role,
       }, SetOptions(merge: true));
     } catch (e) {
-      debugPrint('Error updating user role: $e');
+      Services.logger.error(
+        'Error updating user role',
+        category: 'auth',
+        error: e,
+      );
     }
   }
 
@@ -130,7 +142,11 @@ mixin _FirebaseAuthUserOps on _FirebaseDatabaseServiceBase {
         'fcmTokens': FieldValue.arrayUnion([token]),
       }, SetOptions(merge: true));
     } catch (e) {
-      debugPrint('Error saving FCM token: $e');
+      Services.logger.error(
+        'Error saving FCM token',
+        category: 'auth',
+        error: e,
+      );
     }
   }
 
@@ -143,7 +159,11 @@ mixin _FirebaseAuthUserOps on _FirebaseDatabaseServiceBase {
         'fcmTokens': FieldValue.arrayRemove([token]),
       });
     } catch (e) {
-      debugPrint('Error removing FCM token: $e');
+      Services.logger.error(
+        'Error removing FCM token',
+        category: 'auth',
+        error: e,
+      );
     }
   }
 
@@ -163,7 +183,11 @@ mixin _FirebaseAuthUserOps on _FirebaseDatabaseServiceBase {
         }, SetOptions(merge: true));
       }
     } catch (e) {
-      debugPrint('Error updating user timezone: $e');
+      Services.logger.error(
+        'Error updating user timezone',
+        category: 'auth',
+        error: e,
+      );
     }
   }
 }

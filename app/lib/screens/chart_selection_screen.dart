@@ -35,7 +35,11 @@ class _ChartSelectionScreenState extends State<ChartSelectionScreen> {
     try {
       await Services.db.createChart();
     } catch (e) {
-      debugPrint('Error creating chart: $e');
+      Services.logger.error(
+        'Error creating chart',
+        category: 'chart',
+        error: e,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -68,7 +72,11 @@ class _ChartSelectionScreenState extends State<ChartSelectionScreen> {
         Navigator.of(context).pop();
       }
     } catch (e) {
-      debugPrint('Error accepting invitation: $e');
+      Services.logger.error(
+        'Error accepting invitation',
+        category: 'chart',
+        error: e,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -98,7 +106,11 @@ class _ChartSelectionScreenState extends State<ChartSelectionScreen> {
       await Services.db.declineInvitation(invitationId);
       await _loadInvitations();
     } catch (e) {
-      debugPrint('Error declining invitation: $e');
+      Services.logger.error(
+        'Error declining invitation',
+        category: 'chart',
+        error: e,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
