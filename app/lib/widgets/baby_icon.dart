@@ -1,7 +1,7 @@
+import 'package:core/core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../logic/models/daily_entry.dart';
 import '../theme/baby_svg.dart';
 import '../theme/creighton_theme.dart';
 

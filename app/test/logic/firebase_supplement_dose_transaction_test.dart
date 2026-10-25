@@ -1,10 +1,9 @@
 // ignore_for_file: subtype_of_sealed_class, prefer_initializing_formals
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:core/core.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:petal_count/logic/models/supplement.dart';
 import 'package:petal_count/logic/services/database/firebase_database_service.dart';
-import 'package:petal_count/logic/utils/date_utils.dart';
 
 class FakeFirebaseFirestore extends Fake implements FirebaseFirestore {
   final Map<String, Map<String, dynamic>> store = {};

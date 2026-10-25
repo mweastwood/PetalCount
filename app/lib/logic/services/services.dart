@@ -1,6 +1,6 @@
+import 'package:core/core.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/widgets.dart';
-import '../app_logger.dart';
 import 'database_service.dart';
 import 'notification/notification_service.dart';
 

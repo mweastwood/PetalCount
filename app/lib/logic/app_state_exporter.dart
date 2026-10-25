@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:core/core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'app_config.dart';
-import 'app_logger.dart';
 import 'services/database_service.dart';
 import 'services/services.dart';
 import 'services/web_download_helper.dart';

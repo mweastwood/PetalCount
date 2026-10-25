@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:core/core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:petal_count/logic/app_logger.dart';
 import 'package:petal_count/logic/app_state_exporter.dart';
 import 'package:petal_count/logic/services/database/in_memory_database_service.dart';
 

@@ -1,6 +1,6 @@
+import 'package:core/core.dart';
 import 'package:flutter/material.dart';
 
-import '../../logic/models/observation.dart';
 import 'option_card.dart';
 
 enum MucusSubStep { presence, stretch, color, consistency }

@@ -1,6 +1,6 @@
+import 'package:core/core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:petal_count/logic/models/observation.dart';
 import 'package:petal_count/widgets/wizard/mucus_step_card.dart';
 import 'package:petal_count/widgets/wizard/option_card.dart';
 

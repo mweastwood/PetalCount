@@ -1,9 +1,5 @@
+import 'package:core/core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
-import '../../models/cycle.dart';
-import '../../models/notification_preferences.dart';
-import '../../models/observation.dart';
-import '../../models/supplement.dart';
 
 abstract class DatabaseService {
   User? get currentUser;

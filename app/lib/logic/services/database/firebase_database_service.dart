@@ -1,18 +1,12 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:core/core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../app_config.dart';
-import '../../models/cycle.dart';
-import '../../models/notification_preferences.dart';
-import '../../models/observation.dart';
-import '../../models/supplement.dart';
-import '../../utils/date_utils.dart';
-import '../creighton_logic.dart';
-import '../cycle_coordinator.dart';
 import '../services.dart';
 import 'database_helpers.dart';
 import 'database_service_interface.dart';

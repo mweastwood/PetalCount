@@ -1,11 +1,9 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:core/core.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../models/daily_entry.dart';
-import '../../models/notification_preferences.dart';
-import '../../models/user_role.dart';
 import 'database_helpers.dart';
 
 /// Shared pure/static helpers for [FirebaseDatabaseService] (batch chunking,

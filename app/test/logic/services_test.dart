@@ -1,9 +1,9 @@
 // ignore_for_file: subtype_of_sealed_class, depend_on_referenced_packages
 
+import 'package:core/core.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_core_platform_interface/firebase_core_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:petal_count/logic/app_logger.dart';
 import 'package:petal_count/logic/services/database_service.dart';
 import 'package:petal_count/logic/services/notification/notification_service.dart';
 import 'package:petal_count/logic/services/services.dart';
