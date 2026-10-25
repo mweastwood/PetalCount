@@ -46,26 +46,6 @@ mixin _FirebaseSupplementOps on _FirebaseDatabaseServiceBase {
   }
 
   @override
-  Future<void> resetDefaultSupplements() async {
-    final chartId = _cachedChartId;
-    if (chartId == null) return;
-
-    final batch = _db.batch();
-    final suppCol = _db
-        .collection('charts')
-        .doc(chartId)
-        .collection('supplements');
-    final existing = await suppCol.get();
-    for (final doc in existing.docs) {
-      batch.delete(doc.reference);
-    }
-    for (final preset in SupplementPresets.defaultList) {
-      batch.set(suppCol.doc(preset.id), preset.toMap());
-    }
-    await batch.commit();
-  }
-
-  @override
   Stream<Map<String, DailySupplementLog>> streamDailySupplementLogs() {
     return _buildAuthGatedStream<Map<String, DailySupplementLog>>(
       emptyValue: const {},

@@ -9,7 +9,30 @@ void main() {
   setUp(() async {
     db = InMemoryDatabaseService();
     Services.db = db;
-    await Services.db.resetDefaultSupplements();
+    await Services.db.saveSupplement(
+      const SupplementItem(
+        id: 'supp_prenatal',
+        name: 'Prenatal',
+        quantity: 'tablet',
+        morningDose: 1,
+      ),
+    );
+    await Services.db.saveSupplement(
+      const SupplementItem(
+        id: 'supp_coq10',
+        name: 'CoQ10',
+        quantity: '200 mg',
+        morningDose: 1,
+      ),
+    );
+    await Services.db.saveSupplement(
+      const SupplementItem(
+        id: 'supp_vitamind',
+        name: 'Vitamin D',
+        quantity: '3000 units',
+        morningDose: 1,
+      ),
+    );
   });
 
   group('FormularyTab Tests', () {

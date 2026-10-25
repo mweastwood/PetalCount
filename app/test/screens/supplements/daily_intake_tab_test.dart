@@ -3,13 +3,43 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/logic.dart';
 import 'package:petal_count/screens/supplements/daily_intake_tab.dart';
 
+const _testSupplements = <SupplementItem>[
+  SupplementItem(
+    id: 'supp_prenatal',
+    name: 'Prenatal',
+    quantity: 'tablet',
+    morningDose: 1,
+  ),
+  SupplementItem(
+    id: 'supp_coq10',
+    name: 'CoQ10',
+    quantity: '200 mg',
+    morningDose: 1,
+  ),
+  SupplementItem(
+    id: 'supp_berberine',
+    name: 'Berberine',
+    quantity: '500 mg',
+    takeWithFood: true,
+    morningDose: 1,
+    afternoonDose: 1,
+    eveningDose: 1,
+  ),
+];
+
+Future<void> _seedTestSupplements(DatabaseService db) async {
+  for (final item in _testSupplements) {
+    await db.saveSupplement(item);
+  }
+}
+
 void main() {
   late InMemoryDatabaseService db;
 
   setUp(() async {
     db = InMemoryDatabaseService();
     Services.db = db;
-    await Services.db.resetDefaultSupplements();
+    await _seedTestSupplements(Services.db);
   });
 
   group('DailyIntakeTab Tests', () {
@@ -47,10 +77,11 @@ void main() {
 
       expect(find.text('Aug 25, 2026'), findsOneWidget);
       expect(find.text('Cycle Day 6'), findsOneWidget);
-      expect(find.text('Daily Adherence'), findsOneWidget);
-      expect(find.text('Morning'), findsOneWidget);
-      expect(find.text('Afternoon'), findsOneWidget);
-      expect(find.text('Evening'), findsOneWidget);
+      expect(find.text("Today's Supplements"), findsOneWidget);
+      expect(find.text('Next 6 Days'), findsOneWidget);
+      expect(find.text('Morning'), findsWidgets);
+      expect(find.text('Afternoon'), findsWidgets);
+      expect(find.text('Evening'), findsWidgets);
 
       await tester.tap(find.byTooltip('Previous Day'));
       expect(dateOffset, equals(-1));
@@ -147,7 +178,7 @@ void main() {
 
         final spyDb = _SpyDatabaseService();
         Services.db = spyDb;
-        await Services.db.resetDefaultSupplements();
+        await _seedTestSupplements(Services.db);
 
         final supps = await Services.db.streamSupplements().first;
         final date = DateTime(2026, 8, 25);
@@ -223,7 +254,7 @@ void main() {
         final spyDb = _SpyDatabaseService();
         spyDb.shouldThrowOnLog = true;
         Services.db = spyDb;
-        await Services.db.resetDefaultSupplements();
+        await _seedTestSupplements(Services.db);
 
         final supps = await Services.db.streamSupplements().first;
         final date = DateTime(2026, 8, 25);
@@ -256,6 +287,57 @@ void main() {
           ),
           findsOneWidget,
         );
+      },
+    );
+
+    testWidgets(
+      'renders empty-plan state when no active supplements exist for the selected role',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        final date = DateTime(2026, 8, 25);
+        final log = DailySupplementLog(date: date, takenDoses: {});
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: DailyIntakeTab(
+                selectedDate: date,
+                cycleDay: 6,
+                daysPastPeak: null,
+                hasPeakOccurred: false,
+                supplements: const [],
+                dailyLog: log,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Aug 25, 2026'), findsOneWidget);
+        expect(
+          find.text('No supplements in your wife plan yet.'),
+          findsOneWidget,
+        );
+        expect(
+          find.text(
+            'Tap the edit button to add supplements and schedule rules.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text("Today's Supplements"), findsNothing);
+        expect(find.text('Next 6 Days'), findsNothing);
+
+        await tester.tap(find.text('👨 Husband'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('No supplements in your husband plan yet.'),
+          findsOneWidget,
+        );
+        expect(find.text('Next 6 Days'), findsNothing);
       },
     );
   });

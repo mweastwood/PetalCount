@@ -23,9 +23,7 @@ class SupplementScreen extends StatefulWidget {
   State<SupplementScreen> createState() => _SupplementScreenState();
 }
 
-class _SupplementScreenState extends State<SupplementScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _SupplementScreenState extends State<SupplementScreen> {
   late DateTime _selectedDate;
   late UserRole _activeRole;
   bool _hasManuallyChangedRole = false;
@@ -40,12 +38,6 @@ class _SupplementScreenState extends State<SupplementScreen>
     final now = widget.initialDate ?? DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
     _activeRole = widget.initialRole ?? UserRole.wife;
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      if (mounted) {
-        setState(() {});
-      }
-    });
     _cyclesStream = Services.db.streamCycles();
     _supplementsStream = Services.db.streamSupplements();
     _supplementLogsStream = Services.db.streamDailySupplementLogs();
@@ -72,7 +64,6 @@ class _SupplementScreenState extends State<SupplementScreen>
   @override
   void dispose() {
     _userRoleSubscription?.cancel();
-    _tabController.dispose();
     super.dispose();
   }
 
@@ -90,14 +81,11 @@ class _SupplementScreenState extends State<SupplementScreen>
   }
 
   Cycle? _findCycleForDate(List<Cycle> cycles, DateTime date) {
-    final sorted = List<Cycle>.from(cycles)
-      ..sort((a, b) => a.startDate.compareTo(b.startDate));
-    for (int i = sorted.length - 1; i >= 0; i--) {
-      if (!sorted[i].startDate.isAfter(date)) {
-        return sorted[i];
-      }
-    }
-    return null;
+    return SupplementForecastEngine.findCycleForDate(
+      cycles,
+      date,
+      fallbackCycle: widget.activeCycle,
+    );
   }
 
   int _calculateCycleDay(Cycle? cycle, DateTime date) {
@@ -106,67 +94,26 @@ class _SupplementScreenState extends State<SupplementScreen>
   }
 
   int? _calculateDaysPastPeak(Cycle? cycle, DateTime date) {
-    if (cycle == null) return null;
-    DateTime? peakDate;
-    for (final entry in cycle.sortedEntries) {
-      if (entry.isPeakDay) {
-        peakDate = entry.date;
-        break;
-      }
-    }
-    if (peakDate == null) return null;
-    return calendarDaysBetween(peakDate, date);
-  }
-
-  void _showResetPresetsConfirmation(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset Supplement Presets?'),
-        content: const Text(
-          'This will reset your supplement list to the standard Creighton / NaPro prescription and supplement instructions for wife and husband.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await Services.db.resetDefaultSupplements();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Supplements reset to standard presets.'),
-                  ),
-                );
-              }
-            },
-            child: const Text('Reset'),
-          ),
-        ],
-      ),
-    );
+    return SupplementForecastEngine.calculateDaysPastPeak(cycle, date);
   }
 
   void _showDeleteSupplementDialog(BuildContext context, SupplementItem item) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text('Delete ${item.name}?'),
         content: Text(
           'Are you sure you want to remove this supplement from your ${item.targetRole.displayName.toLowerCase()} formulary?',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               await Services.db.deleteSupplement(item.id);
             },
             child: const Text('Delete'),
@@ -176,19 +123,70 @@ class _SupplementScreenState extends State<SupplementScreen>
     );
   }
 
+  void _showEditSupplementPlanSheet(
+    BuildContext context,
+    List<SupplementItem> initialSupplements,
+  ) {
+    final sheetStream = Services.db.streamSupplements();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) {
+        return FractionallySizedBox(
+          heightFactor: 0.92,
+          child: ScaffoldMessenger(
+            child: Builder(
+              builder: (innerContext) => Scaffold(
+                appBar: AppBar(
+                  title: const Text('Edit Supplement Plan'),
+                  leading: IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.pop(sheetContext),
+                  ),
+                ),
+                body: StreamBuilder<List<SupplementItem>>(
+                  stream: sheetStream,
+                  initialData: initialSupplements,
+                  builder: (context, snapshot) {
+                    final supplements = snapshot.data ?? initialSupplements;
+                    return FormularyTab(
+                      supplements: supplements,
+                      initialRoleFilter: null,
+                      onEdit: (item) =>
+                          AddEditSupplementDialog.show(innerContext, item),
+                      onDelete: (item) =>
+                          _showDeleteSupplementDialog(innerContext, item),
+                    );
+                  },
+                ),
+                floatingActionButton: FloatingActionButton.extended(
+                  key: const Key('btn_add_supplement_fab'),
+                  onPressed: () => AddEditSupplementDialog.show(
+                    innerContext,
+                    null,
+                    null,
+                    _activeRole,
+                  ),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Supplement'),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Cycle>>(
       stream: _cyclesStream,
       builder: (context, cycleSnapshot) {
         final cycles = cycleSnapshot.data ?? [];
-        final fallbackCycle =
-            (widget.activeCycle != null &&
-                !widget.activeCycle!.startDate.isAfter(_selectedDate))
-            ? widget.activeCycle
-            : null;
-        final activeCycle =
-            _findCycleForDate(cycles, _selectedDate) ?? fallbackCycle;
+        final activeCycle = _findCycleForDate(cycles, _selectedDate);
         final cycleDay = _calculateCycleDay(activeCycle, _selectedDate);
         final daysPastPeak = _calculateDaysPastPeak(activeCycle, _selectedDate);
         final hasPeakOccurred = daysPastPeak != null && daysPastPeak >= 0;
@@ -199,102 +197,23 @@ class _SupplementScreenState extends State<SupplementScreen>
             final supplements = supplementsSnapshot.data ?? [];
 
             return Scaffold(
-              appBar: AppBar(
-                title: const Text('Supplements & Protocols'),
-                bottom: TabBar(
-                  controller: _tabController,
-                  tabs: const [
-                    Tab(
-                      icon: Icon(Icons.check_circle_outline),
-                      text: 'Daily Intake',
-                    ),
-                    Tab(
-                      icon: Icon(Icons.calendar_view_week),
-                      text: 'Cycle Plan',
-                    ),
-                    Tab(
-                      icon: Icon(Icons.medication_outlined),
-                      text: 'Formulary',
-                    ),
-                  ],
-                ),
-                actions: [
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert),
-                    onSelected: (value) {
-                      if (value == 'reset') {
-                        _showResetPresetsConfirmation(context);
-                      } else if (value == 'add') {
-                        AddEditSupplementDialog.show(
-                          context,
-                          null,
-                          null,
-                          _activeRole,
-                        );
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'add',
-                        child: Row(
-                          children: [
-                            Icon(Icons.add, size: 20),
-                            SizedBox(width: 8),
-                            Text('Add Supplement'),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'reset',
-                        child: Row(
-                          children: [
-                            Icon(Icons.restore, size: 20),
-                            SizedBox(width: 8),
-                            Text('Reset Default Presets'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              body: TabBarView(
-                controller: _tabController,
-                children: [
-                  StreamBuilder<Map<String, DailySupplementLog>>(
-                    stream: _supplementLogsStream,
-                    builder: (context, logSnapshot) {
-                      final logs = logSnapshot.data ?? {};
-                      final dateKey = _selectedDate.dateKey;
-                      final dailyLog =
-                          logs[dateKey] ??
-                          DailySupplementLog(
-                            date: _selectedDate,
-                            takenDoses: {},
-                          );
-                      return DailyIntakeTab(
-                        selectedDate: _selectedDate,
-                        cycle: activeCycle,
-                        cycleDay: cycleDay,
-                        daysPastPeak: daysPastPeak,
-                        hasPeakOccurred: hasPeakOccurred,
-                        supplements: supplements,
-                        dailyLog: dailyLog,
-                        initialRole: _activeRole,
-                        onRoleChanged: (role) {
-                          setState(() {
-                            _hasManuallyChangedRole = true;
-                            _activeRole = role;
-                          });
-                        },
-                        onDateChanged: _changeDate,
-                        onGoToToday: _goToToday,
-                      );
-                    },
-                  ),
-                  CyclePlanTab(
-                    supplements: supplements,
+              body: StreamBuilder<Map<String, DailySupplementLog>>(
+                stream: _supplementLogsStream,
+                builder: (context, logSnapshot) {
+                  final logs = logSnapshot.data ?? {};
+                  final dateKey = _selectedDate.dateKey;
+                  final dailyLog =
+                      logs[dateKey] ??
+                      DailySupplementLog(date: _selectedDate, takenDoses: {});
+                  return DailyIntakeTab(
+                    selectedDate: _selectedDate,
                     cycle: activeCycle,
+                    cycles: cycles,
+                    cycleDay: cycleDay,
+                    daysPastPeak: daysPastPeak,
+                    hasPeakOccurred: hasPeakOccurred,
+                    supplements: supplements,
+                    dailyLog: dailyLog,
                     initialRole: _activeRole,
                     onRoleChanged: (role) {
                       setState(() {
@@ -302,30 +221,18 @@ class _SupplementScreenState extends State<SupplementScreen>
                         _activeRole = role;
                       });
                     },
-                  ),
-                  FormularyTab(
-                    supplements: supplements,
-                    initialRoleFilter: null,
-                    onEdit: (item) =>
-                        AddEditSupplementDialog.show(context, item),
-                    onDelete: (item) =>
-                        _showDeleteSupplementDialog(context, item),
-                  ),
-                ],
+                    onDateChanged: _changeDate,
+                    onGoToToday: _goToToday,
+                  );
+                },
               ),
-              floatingActionButton: _tabController.index == 2
-                  ? FloatingActionButton.extended(
-                      key: const Key('btn_add_supplement_fab'),
-                      onPressed: () => AddEditSupplementDialog.show(
-                        context,
-                        null,
-                        null,
-                        _activeRole,
-                      ),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Supplement'),
-                    )
-                  : null,
+              floatingActionButton: FloatingActionButton(
+                key: const Key('btn_edit_supplement_plan_fab'),
+                tooltip: 'Edit Supplement Plan',
+                onPressed: () =>
+                    _showEditSupplementPlanSheet(context, supplements),
+                child: const Icon(Icons.edit),
+              ),
             );
           },
         );

@@ -53,16 +53,6 @@ mixin _InMemorySupplementOps on _InMemoryDatabaseServiceBase {
   }
 
   @override
-  Future<void> resetDefaultSupplements() async {
-    final chartId = _chartId;
-    if (chartId == null) return;
-    _supplements[chartId] = {
-      for (final s in SupplementPresets.defaultList) s.id: s,
-    };
-    _emitSupplements();
-  }
-
-  @override
   Stream<Map<String, DailySupplementLog>> streamDailySupplementLogs() {
     late StreamController<Map<String, DailySupplementLog>> c;
     StreamSubscription<Map<String, DailySupplementLog>>? sub;

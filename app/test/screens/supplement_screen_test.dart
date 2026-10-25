@@ -5,10 +5,123 @@ import 'package:petal_count/logic/logic.dart';
 import 'package:petal_count/screens/supplement_screen.dart';
 import 'package:petal_count/screens/supplements/supplements.dart';
 
+const _testSupplements = <SupplementItem>[
+  SupplementItem(
+    id: 'supp_prenatal',
+    name: 'Prenatal',
+    quantity: 'tablet',
+    takeWithFood: false,
+    morningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.allDays,
+    instructions: 'Baseline nutritional support',
+  ),
+  SupplementItem(
+    id: 'supp_coq10',
+    name: 'CoQ10',
+    quantity: '200 mg',
+    takeWithFood: false,
+    morningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.allDays,
+    instructions: 'Oocyte quality & mitochondrial support',
+  ),
+  SupplementItem(
+    id: 'supp_vitamind',
+    name: 'Vitamin D',
+    quantity: '3000 units',
+    takeWithFood: false,
+    morningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.allDays,
+    instructions: 'Endocrine & immune support',
+  ),
+  SupplementItem(
+    id: 'supp_berberine',
+    name: 'Berberine',
+    quantity: '500 mg (1 tablet)',
+    takeWithFood: true,
+    morningDose: 1,
+    afternoonDose: 1,
+    eveningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.allDays,
+    instructions: 'Metabolic & glucose regulation',
+  ),
+  SupplementItem(
+    id: 'supp_clomid',
+    name: 'Clomid',
+    quantity: '50 mg (1 tablet)',
+    takeWithFood: false,
+    morningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.cycleDays,
+    startCycleDay: 4,
+    endCycleDay: 8,
+    instructions: 'Follicular recruitment & ovulation induction (Days 4–8)',
+  ),
+  SupplementItem(
+    id: 'supp_fertilecm',
+    name: 'FertileCM',
+    quantity: 'tablet',
+    takeWithFood: false,
+    morningDose: 1,
+    afternoonDose: 1,
+    eveningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.cycleDaysOrPeak,
+    startCycleDay: 8,
+    endCycleDay: 19,
+    endPeakOffset: 1,
+    instructions:
+        'Cervical mucus hydration & vascular flow (Day 8 to P+1 or Day 19)',
+  ),
+  SupplementItem(
+    id: 'supp_mucinex',
+    name: 'Mucinex ER',
+    quantity: '600mg',
+    takeWithFood: false,
+    morningDose: 1,
+    eveningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.cycleDaysOrPeak,
+    startCycleDay: 9,
+    endCycleDay: 19,
+    endPeakOffset: 1,
+    instructions: 'Mucus thinning (Day 9 to P+1 or Day 19)',
+  ),
+  SupplementItem(
+    id: 'supp_progesterone',
+    name: 'Progesterone (sustained release)',
+    quantity: '400mg (2 tablets)',
+    takeWithFood: false,
+    morningDose: 1,
+    eveningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.peakOffset,
+    startPeakOffset: 3,
+    startCycleDay: 21,
+    durationDays: 10,
+    instructions: 'Luteal phase support (P+3 or Day 21 for 10 days)',
+  ),
+  SupplementItem(
+    id: 'supp_mens_multi',
+    name: "Men's Multivitamin",
+    quantity: '1 tablet',
+    takeWithFood: true,
+    morningDose: 1,
+    targetRole: UserRole.husband,
+    ruleType: SupplementScheduleRuleType.allDays,
+    instructions: 'Baseline male nutritional & energy support',
+  ),
+];
+
 void main() {
   setUp(() async {
     Services.db = InMemoryDatabaseService();
-    await Services.db.resetDefaultSupplements();
+    for (final item in _testSupplements) {
+      await Services.db.saveSupplement(item);
+    }
   });
 
   const defaultCycleSentinel = Object();
@@ -37,33 +150,73 @@ void main() {
   }
 
   group('SupplementScreen Widget Tests', () {
-    testWidgets('Renders all 3 tabs and shows daily intake checklist', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(1080, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+      'Renders unified screen with Today supplements, Next 6 Days forecast, and Pencil FAB',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(createTestWidget());
+        await tester.pumpAndSettle();
 
-      expect(find.text('Supplements & Protocols'), findsOneWidget);
-      expect(find.text('Daily Intake'), findsOneWidget);
-      expect(find.text('Cycle Plan'), findsOneWidget);
-      expect(find.text('Formulary'), findsOneWidget);
+        expect(find.text('Supplements & Protocols'), findsNothing);
+        expect(find.text("Today's Supplements"), findsOneWidget);
+        expect(find.text('Next 6 Days'), findsOneWidget);
+        expect(
+          find.byKey(const Key('btn_edit_supplement_plan_fab')),
+          findsOneWidget,
+        );
 
-      expect(find.text('Daily Adherence'), findsOneWidget);
-      expect(find.text('Morning'), findsOneWidget);
-      expect(find.text('Afternoon'), findsOneWidget);
-      expect(find.text('Evening'), findsOneWidget);
+        // Verify preset supplements are visible at the top
+        expect(find.text('Prenatal'), findsOneWidget);
+        expect(find.text('CoQ10'), findsOneWidget);
+        expect(find.text('Berberine'), findsWidgets);
 
-      // Verify some preset supplements are visible
-      expect(find.text('Prenatal'), findsOneWidget);
-      expect(find.text('CoQ10'), findsOneWidget);
-      expect(find.text('Berberine'), findsWidgets);
-    });
+        // Verify all 6 upcoming day cards are rendered as we scroll through the 7-day forecast
+        for (int i = 1; i <= 6; i++) {
+          final cardFinder = find.byKey(Key('upcoming_day_card_$i'));
+          await tester.scrollUntilVisible(cardFinder, 200);
+          expect(cardFinder, findsOneWidget);
+        }
 
-    testWidgets('Tapping checkbox logs supplement dose adherence', (
+        // Verify Conditional on Peak section appears on upcoming days when Peak is not yet recorded
+        expect(find.text('Conditional on Peak'), findsWidgets);
+      },
+    );
+
+    testWidgets(
+      'Auto-uses Peak from active cycle when detected and removes Conditional on Peak sections',
+      (tester) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        final peakDate = DateTime(2026, 8, 24);
+        final cycleWithPeak = Cycle(
+          id: 'cycle_peak',
+          startDate: DateTime(2026, 8, 12),
+          dailyEntries: {
+            peakDate.dateKey: DailyEntry.raw(date: peakDate, peakDayLabel: 'P'),
+          },
+        );
+
+        await tester.pumpWidget(
+          createTestWidget(
+            initialDate: DateTime(2026, 8, 25),
+            cycle: cycleWithPeak,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Cycle Day 14 • Post-Peak (P+1)'), findsOneWidget);
+        expect(find.text('Conditional on Peak'), findsNothing);
+        await tester.scrollUntilVisible(find.text('Cycle Day 16 • P+3'), 200);
+        expect(find.text('Cycle Day 16 • P+3'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Tapping checkbox logs supplement dose adherence for Today', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1080, 2400);
@@ -108,26 +261,8 @@ void main() {
       expect(find.text('Aug 25, 2026'), findsOneWidget);
     });
 
-    testWidgets('Cycle Plan matrix tab displays schedule data table', (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(1080, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      await tester.pumpWidget(createTestWidget());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Cycle Plan'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Cycle Protocol Matrix'), findsOneWidget);
-      expect(find.text('Morning Schedule'), findsOneWidget);
-      expect(find.byType(DataTable), findsWidgets);
-    });
-
     testWidgets(
-      'Formulary tab displays all supplements with edit/delete buttons',
+      'Tapping Pencil FAB opens Edit Supplement Plan sheet with edit/delete/add actions',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
         tester.view.devicePixelRatio = 1.0;
@@ -136,20 +271,18 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Formulary'));
+        await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
         await tester.pumpAndSettle();
 
-        expect(find.text('Prenatal'), findsOneWidget);
-        expect(find.text('CoQ10'), findsOneWidget);
-        expect(find.text('Vitamin D'), findsOneWidget);
-
+        expect(find.text('Edit Supplement Plan'), findsOneWidget);
+        expect(find.byType(FormularyTab), findsOneWidget);
         expect(find.byTooltip('Edit Supplement'), findsWidgets);
         expect(find.byTooltip('Delete Supplement'), findsWidgets);
       },
     );
 
     testWidgets(
-      'Opening Add Supplement dialog allows creating new supplement',
+      'Opening Add Supplement dialog from Edit Plan sheet allows creating new supplement',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
         tester.view.devicePixelRatio = 1.0;
@@ -158,7 +291,7 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Formulary'));
+        await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
         await tester.pumpAndSettle();
 
         await tester.tap(find.byKey(const Key('btn_add_supplement_fab')));
@@ -195,17 +328,15 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Formulary'));
+        await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
         await tester.pumpAndSettle();
 
         await tester.tap(find.byKey(const Key('btn_add_supplement_fab')));
         await tester.pumpAndSettle();
 
-        // Tap Save immediately with empty fields
         await tester.tap(find.text('Save'));
         await tester.pumpAndSettle();
 
-        // Expect error text on both fields and dialog remains open
         expect(find.text('Supplement name is required'), findsOneWidget);
         expect(find.text('Dosage / quantity is required'), findsOneWidget);
         expect(find.text('Add Supplement'), findsWidgets);
@@ -213,7 +344,7 @@ void main() {
     );
 
     testWidgets(
-      'Can toggle between wife and husband daily intake checklists and log doses',
+      'Can toggle between wife and husband checklists and log doses',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
         tester.view.devicePixelRatio = 1.0;
@@ -222,18 +353,15 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        // Initially Wife checklist is selected
         expect(find.text('Prenatal'), findsOneWidget);
         expect(find.text("Men's Multivitamin"), findsNothing);
 
-        // Switch to Husband checklist
         await tester.tap(find.text('👨 Husband'));
         await tester.pumpAndSettle();
 
         expect(find.text("Men's Multivitamin"), findsOneWidget);
         expect(find.text('Prenatal'), findsNothing);
 
-        // Check off husband's supplement dose
         final husbandCheckbox = find.byType(Checkbox).first;
         expect(tester.widget<Checkbox>(husbandCheckbox).value, isFalse);
 
@@ -245,7 +373,6 @@ void main() {
           isTrue,
         );
 
-        // Switch back to Wife checklist and verify state is separate
         await tester.tap(find.text('👩 Wife'));
         await tester.pumpAndSettle();
 
@@ -258,7 +385,7 @@ void main() {
     );
 
     testWidgets(
-      'Can filter formulary by wife and husband and edit each other supplements',
+      'Can filter formulary in Edit Plan sheet by wife and husband and edit supplements',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
         tester.view.devicePixelRatio = 1.0;
@@ -267,23 +394,38 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Formulary'));
+        await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
         await tester.pumpAndSettle();
 
-        // Filter to Wife and verify wife supplement is shown
-        await tester.tap(find.text('👩 Wife (14)'));
+        await tester.tap(find.text('👩 Wife (8)'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Prenatal'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(FormularyTab),
+            matching: find.text('Prenatal'),
+          ),
+          findsOneWidget,
+        );
 
-        // Filter to Husband and verify husband supplement is shown
-        await tester.tap(find.text('👨 Husband (6)'));
+        await tester.tap(find.text('👨 Husband (1)'));
         await tester.pumpAndSettle();
 
-        expect(find.text("Men's Multivitamin"), findsOneWidget);
-        expect(find.text('Prenatal'), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byType(FormularyTab),
+            matching: find.text("Men's Multivitamin"),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(
+            of: find.byType(FormularyTab),
+            matching: find.text('Prenatal'),
+          ),
+          findsNothing,
+        );
 
-        // Tap edit on husband supplement
         await tester.tap(find.byTooltip('Edit Supplement').first);
         await tester.pumpAndSettle();
 
@@ -293,7 +435,6 @@ void main() {
           findsOneWidget,
         );
 
-        // Update quantity
         final qtyField = find.widgetWithText(TextField, 'Dosage / Quantity *');
         await tester.enterText(qtyField, '2 gummies');
         await tester.tap(find.text('Save'));
@@ -308,43 +449,6 @@ void main() {
     );
 
     testWidgets(
-      'Reset Default Presets confirmation flow restores presets and shows snackbar',
-      (tester) async {
-        tester.view.physicalSize = const Size(1080, 2400);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-
-        // Mutate initial state by removing a preset
-        await Services.db.deleteSupplement('preset_prenatal');
-        final suppsBefore = await Services.db.streamSupplements().first;
-        expect(suppsBefore.any((s) => s.id == 'preset_prenatal'), isFalse);
-
-        await tester.pumpWidget(createTestWidget());
-        await tester.pumpAndSettle();
-
-        // Open overflow menu
-        await tester.tap(find.byIcon(Icons.more_vert));
-        await tester.pumpAndSettle();
-
-        // Select Reset Default Presets
-        await tester.tap(find.text('Reset Default Presets'));
-        await tester.pumpAndSettle();
-
-        // Tap Reset button in the confirmation dialog
-        await tester.tap(find.widgetWithText(FilledButton, 'Reset'));
-        await tester.pumpAndSettle();
-
-        // Verify SnackBar is displayed and preset is restored in database
-        expect(
-          find.text('Supplements reset to standard presets.'),
-          findsOneWidget,
-        );
-        final restoredSupps = await Services.db.streamSupplements().first;
-        expect(restoredSupps.any((s) => s.id == 'preset_prenatal'), isTrue);
-      },
-    );
-
-    testWidgets(
       'Delete Supplement confirmation flow deletes supplement from database and UI',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
@@ -354,25 +458,26 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        // Navigate to Formulary tab
-        await tester.tap(find.text('Formulary'));
+        await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
         await tester.pumpAndSettle();
 
-        expect(find.text('Prenatal'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(FormularyTab),
+            matching: find.text('Prenatal'),
+          ),
+          findsOneWidget,
+        );
 
-        // Tap delete on the first supplement
         await tester.tap(find.byTooltip('Delete Supplement').first);
         await tester.pumpAndSettle();
 
-        // Verify confirmation dialog appears
         expect(find.byType(AlertDialog), findsOneWidget);
         expect(find.text('Delete Prenatal?'), findsOneWidget);
 
-        // Tap Delete in dialog
         await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
         await tester.pumpAndSettle();
 
-        // Verify supplement is deleted from database and list
         final suppsAfter = await Services.db.streamSupplements().first;
         expect(suppsAfter.any((s) => s.name == 'Prenatal'), isFalse);
         expect(find.text('Prenatal'), findsNothing);
@@ -389,40 +494,46 @@ void main() {
         await tester.pumpWidget(createTestWidget());
         await tester.pumpAndSettle();
 
-        // Navigate to Formulary tab
-        await tester.tap(find.text('Formulary'));
+        await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
         await tester.pumpAndSettle();
 
-        expect(find.text('Prenatal'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(FormularyTab),
+            matching: find.text('Prenatal'),
+          ),
+          findsOneWidget,
+        );
 
-        // Tap delete on the first supplement
         await tester.tap(find.byTooltip('Delete Supplement').first);
         await tester.pumpAndSettle();
 
-        // Verify confirmation dialog appears
         expect(find.byType(AlertDialog), findsOneWidget);
         expect(find.text('Delete Prenatal?'), findsOneWidget);
 
-        // Tap Cancel
         await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
         await tester.pumpAndSettle();
 
-        // Verify dialog is dismissed and supplement remains
         expect(find.byType(AlertDialog), findsNothing);
         final suppsAfter = await Services.db.streamSupplements().first;
         expect(suppsAfter.any((s) => s.name == 'Prenatal'), isTrue);
-        expect(find.text('Prenatal'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(FormularyTab),
+            matching: find.text('Prenatal'),
+          ),
+          findsOneWidget,
+        );
       },
     );
 
     testWidgets(
-      'Empty cycle state renders properly across all tabs and handles date navigation',
+      'Empty cycle state renders properly and handles date navigation',
       (tester) async {
         tester.view.physicalSize = const Size(1080, 2400);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.resetPhysicalSize);
 
-        // Remove all cycles from Services.db so streamCycles() is empty
         final cycles = await Services.db.streamCycles().first;
         for (final c in cycles) {
           await Services.db.deleteCycle(c.id);
@@ -433,34 +544,21 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // Verify screen renders without throwing exceptions
-        expect(find.text('Supplements & Protocols'), findsOneWidget);
-        expect(find.text('Cycle Day 1'), findsOneWidget);
-        expect(find.textContaining('Peak'), findsNothing);
+        expect(find.text('Supplements & Protocols'), findsNothing);
+        expect(find.text('Cycle Day 1'), findsWidgets);
+        expect(find.text('Cycle Day 4'), findsNothing);
+        expect(find.textContaining('Clomid'), findsNothing);
 
-        // Date navigation behaves properly without an active cycle
         expect(find.text('Aug 25, 2026'), findsOneWidget);
         await tester.tap(find.byTooltip('Next Day'));
         await tester.pumpAndSettle();
         expect(find.text('Aug 26, 2026'), findsOneWidget);
-        expect(find.text('Cycle Day 1'), findsOneWidget);
+        expect(find.text('Cycle Day 1'), findsWidgets);
 
         await tester.tap(find.byTooltip('Previous Day'));
         await tester.pumpAndSettle();
         expect(find.text('Aug 25, 2026'), findsOneWidget);
-        expect(find.text('Cycle Day 1'), findsOneWidget);
-
-        // Switch to Cycle Plan tab and verify table mounts gracefully
-        await tester.tap(find.text('Cycle Plan'));
-        await tester.pumpAndSettle();
-        expect(find.text('Cycle Protocol Matrix'), findsOneWidget);
-        expect(find.byType(DataTable), findsWidgets);
-
-        // Switch to Formulary tab and verify items display cleanly
-        await tester.tap(find.text('Formulary'));
-        await tester.pumpAndSettle();
-        expect(find.text('Prenatal'), findsOneWidget);
-        expect(find.byTooltip('Edit Supplement'), findsWidgets);
+        expect(find.text('Cycle Day 1'), findsWidgets);
       },
     );
 
@@ -494,20 +592,10 @@ void main() {
             )
             .stream;
 
-        // 1. Date navigation triggers setState()
         await tester.tap(find.byTooltip('Next Day'));
         await tester.pumpAndSettle();
 
-        // 2. Role toggle triggers setState()
         await tester.tap(find.text('👨 Husband'));
-        await tester.pumpAndSettle();
-
-        // 3. Tab navigation triggers TabController listener setState()
-        await tester.tap(find.text('Cycle Plan'));
-        await tester.pumpAndSettle();
-
-        // 4. Return to Daily Intake tab to inspect stream instances after all rebuilds
-        await tester.tap(find.text('Daily Intake'));
         await tester.pumpAndSettle();
 
         final cycleStreamAfter = tester
@@ -530,53 +618,9 @@ void main() {
             )
             .stream;
 
-        // Verify all 3 stream instances remained identical (cached) across interactions
         expect(identical(cycleStreamAfter, cycleStreamBefore), isTrue);
         expect(identical(suppStreamAfter, suppStreamBefore), isTrue);
         expect(identical(logStreamAfter, logStreamBefore), isTrue);
-      },
-    );
-
-    testWidgets(
-      'DailySupplementLog StreamBuilder is localized to DailyIntakeTab inside TabBarView',
-      (tester) async {
-        tester.view.physicalSize = const Size(1080, 2400);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-
-        await tester.pumpWidget(createTestWidget());
-        await tester.pumpAndSettle();
-
-        final logStreamBuilderFinder = find.byWidgetPredicate(
-          (w) => w is StreamBuilder<Map<String, DailySupplementLog>>,
-        );
-
-        // DailySupplementLog StreamBuilder is localized inside TabBarView
-        expect(
-          find.descendant(
-            of: find.byType(TabBarView),
-            matching: logStreamBuilderFinder,
-          ),
-          findsOneWidget,
-        );
-
-        // DailySupplementLog StreamBuilder is an ancestor of DailyIntakeTab
-        expect(
-          find.ancestor(
-            of: find.byType(DailyIntakeTab),
-            matching: logStreamBuilderFinder,
-          ),
-          findsOneWidget,
-        );
-
-        // Scaffold is NOT wrapped by DailySupplementLog StreamBuilder
-        expect(
-          find.ancestor(
-            of: find.byType(Scaffold),
-            matching: logStreamBuilderFinder,
-          ),
-          findsNothing,
-        );
       },
     );
   });
@@ -601,19 +645,19 @@ void main() {
         final date = DateTime(2026, 8, 25);
         await Services.db.logSupplementDose(
           date: date,
-          supplementId: 'prenatal',
+          supplementId: 'supp_prenatal',
           timeOfDay: SupplementTimeOfDay.morning,
           taken: true,
         );
         await Services.db.logSupplementDose(
           date: date,
-          supplementId: 'coq10',
+          supplementId: 'supp_coq10',
           timeOfDay: SupplementTimeOfDay.morning,
           taken: true,
         );
         await Services.db.logSupplementDose(
           date: date,
-          supplementId: 'vitamind',
+          supplementId: 'supp_vitamind',
           timeOfDay: SupplementTimeOfDay.morning,
           taken: true,
         );
@@ -627,6 +671,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
+        expect(find.text('3 / 7 taken'), findsOneWidget);
+
         await screenMatchesGolden(
           tester,
           'supplement_screen_daily_intake_adherence_logged',
@@ -634,23 +680,74 @@ void main() {
       },
     );
 
-    testGoldens('SupplementScreen Cycle Plan matrix tab golden', (
-      tester,
-    ) async {
-      await tester.pumpWidgetBuilder(
-        createTestWidget(
-          initialDate: DateTime(2026, 8, 25),
-          cycle: Cycle(id: 'cycle_test', startDate: DateTime(2026, 8, 20)),
-        ),
-        surfaceSize: const Size(900, 700),
-      );
-      await tester.pumpAndSettle();
+    testGoldens(
+      'SupplementScreen Next 6 Days forecast (pre-Peak with Conditional on Peak) golden',
+      (tester) async {
+        await tester.pumpWidgetBuilder(
+          createTestWidget(
+            initialDate: DateTime(2026, 8, 25),
+            cycle: Cycle(id: 'cycle_test', startDate: DateTime(2026, 8, 20)),
+          ),
+          surfaceSize: const Size(412, 915),
+        );
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Cycle Plan'));
-      await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('upcoming_day_card_1')),
+          250,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await Scrollable.ensureVisible(
+          tester.element(find.text('Next 6 Days')),
+          alignment: 0.02,
+        );
+        await tester.pumpAndSettle();
 
-      await screenMatchesGolden(tester, 'supplement_screen_cycle_plan_matrix');
-    });
+        await screenMatchesGolden(
+          tester,
+          'supplement_screen_forecast_pre_peak',
+        );
+      },
+    );
+
+    testGoldens(
+      'SupplementScreen Next 6 Days forecast (post-Peak locked in) golden',
+      (tester) async {
+        final peakDate = DateTime(2026, 8, 24);
+        final cycleWithPeak = Cycle(
+          id: 'cycle_peak',
+          startDate: DateTime(2026, 8, 12),
+          dailyEntries: {
+            peakDate.dateKey: DailyEntry.raw(date: peakDate, peakDayLabel: 'P'),
+          },
+        );
+
+        await tester.pumpWidgetBuilder(
+          createTestWidget(
+            initialDate: DateTime(2026, 8, 25),
+            cycle: cycleWithPeak,
+          ),
+          surfaceSize: const Size(412, 915),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('upcoming_day_card_1')),
+          250,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await Scrollable.ensureVisible(
+          tester.element(find.text('Next 6 Days')),
+          alignment: 0.02,
+        );
+        await tester.pumpAndSettle();
+
+        await screenMatchesGolden(
+          tester,
+          'supplement_screen_forecast_post_peak',
+        );
+      },
+    );
 
     testGoldens('SupplementScreen Formulary tab golden', (tester) async {
       await tester.pumpWidgetBuilder(
@@ -662,7 +759,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Formulary'));
+      await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
       await tester.pumpAndSettle();
 
       await screenMatchesGolden(tester, 'supplement_screen_formulary');
@@ -680,37 +777,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Formulary'));
+      await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const Key('btn_add_supplement_fab')));
       await tester.pumpAndSettle();
 
       await screenMatchesGolden(tester, 'supplement_screen_add_dialog');
-    });
-
-    testGoldens('SupplementScreen Reset Presets Dialog golden', (tester) async {
-      await tester.pumpWidgetBuilder(
-        createTestWidget(
-          initialDate: DateTime(2026, 8, 25),
-          cycle: Cycle(id: 'cycle_test', startDate: DateTime(2026, 8, 20)),
-        ),
-        surfaceSize: const Size(412, 915),
-      );
-      await tester.pumpAndSettle();
-
-      // Open overflow popup menu
-      await tester.tap(find.byIcon(Icons.more_vert));
-      await tester.pumpAndSettle();
-
-      // Tap Reset Default Presets to open confirmation dialog
-      await tester.tap(find.text('Reset Default Presets'));
-      await tester.pumpAndSettle();
-
-      await screenMatchesGolden(
-        tester,
-        'supplement_screen_reset_presets_dialog',
-      );
     });
   });
 }

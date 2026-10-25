@@ -882,7 +882,7 @@ void main() {
   // ===========================================================================
   group('Group 2: Chart CRUD & Membership Management', () {
     test(
-      'createChart: creates chart doc with default reminderEnabled, presets, and links user',
+      'createChart: creates chart doc with default reminderEnabled and links user without preset supplements',
       () async {
         fakeDb.store['users/user_123'] = {
           'uid': 'user_123',
@@ -903,14 +903,11 @@ void main() {
         expect(chartData['reminderEnabled'], isTrue);
         expect(chartData['timezone'], equals('America/New_York'));
 
-        // Supplements populated
-        final defaultPresets = SupplementPresets.defaultList;
-        for (final preset in defaultPresets) {
-          final suppDoc =
-              fakeDb.store['charts/$createdChartId/supplements/${preset.id}'];
-          expect(suppDoc, isNotNull);
-          expect(suppDoc!['name'], equals(preset.name));
-        }
+        // No preset supplements seeded
+        final suppKeys = fakeDb.store.keys.where(
+          (k) => k.startsWith('charts/$createdChartId/supplements/'),
+        );
+        expect(suppKeys, isEmpty);
 
         // User document updated
         final userDoc = fakeDb.store['users/user_123'];
@@ -1621,26 +1618,6 @@ void main() {
       expect(supplements.length, equals(1));
       expect(supplements.first.name, equals('Item 1'));
     });
-
-    test(
-      'resetDefaultSupplements: replaces existing supplements with default presets',
-      () async {
-        fakeDb.store['charts/$chartId/supplements/custom_supp'] = {
-          'id': 'custom_supp',
-          'name': 'Custom',
-        };
-
-        await service.resetDefaultSupplements();
-
-        expect(fakeDb.store['charts/$chartId/supplements/custom_supp'], isNull);
-        for (final preset in SupplementPresets.defaultList) {
-          expect(
-            fakeDb.store['charts/$chartId/supplements/${preset.id}'],
-            isNotNull,
-          );
-        }
-      },
-    );
 
     test(
       'logSupplementDose: toggles dose in supplementLogs transaction',

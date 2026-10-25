@@ -11,7 +11,6 @@ void main() {
   setUp(() async {
     db = InMemoryDatabaseService();
     Services.db = db;
-    await Services.db.resetDefaultSupplements();
   });
 
   Finder findDoseRow(String label) {
