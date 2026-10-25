@@ -288,6 +288,12 @@ class JsFirestoreDatabase implements FirestoreDatabase {
   @override
   Future<List<DocumentSnapshot>> getAll(List<DocumentReference> refs) async {
     if (refs.isEmpty) return <DocumentSnapshot>[];
+    final hasGetAll = _db is js.JsObject
+        ? _db.hasProperty('getAll')
+        : js_util.hasProperty(_db, 'getAll');
+    if (!hasGetAll) {
+      return Future.wait(refs.map((r) => r.get()));
+    }
     final jsRefs =
         refs.map((r) => (r as JsDocumentReference).rawJsRef).toList();
     final promise = _db is js.JsObject

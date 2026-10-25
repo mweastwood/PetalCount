@@ -393,9 +393,11 @@ async function runTests() {
         }
         if (colName === 'users') {
           return {
-            doc: () => ({
+            doc: (uid) => ({
+              id: uid,
               get: () =>
                 Promise.resolve({
+                  id: uid,
                   exists: true,
                   data: () => ({
                     uid: 'user_husband',
@@ -409,6 +411,7 @@ async function runTests() {
         }
         return {};
       },
+      getAll: (...refs) => Promise.all(refs.map((r) => r.get())),
     };
     currentMockMessaging = {
       sendEachForMulticast: async (msg) => {
