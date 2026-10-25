@@ -3,8 +3,6 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import '../utils/date_utils.dart';
 import 'user_role.dart';
 
-export 'supplement_presets.dart';
-
 part 'supplement.freezed.dart';
 part 'supplement.g.dart';
 

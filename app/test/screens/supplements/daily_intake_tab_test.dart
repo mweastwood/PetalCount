@@ -3,13 +3,43 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/logic.dart';
 import 'package:petal_count/screens/supplements/daily_intake_tab.dart';
 
+const _testSupplements = <SupplementItem>[
+  SupplementItem(
+    id: 'supp_prenatal',
+    name: 'Prenatal',
+    quantity: 'tablet',
+    morningDose: 1,
+  ),
+  SupplementItem(
+    id: 'supp_coq10',
+    name: 'CoQ10',
+    quantity: '200 mg',
+    morningDose: 1,
+  ),
+  SupplementItem(
+    id: 'supp_berberine',
+    name: 'Berberine',
+    quantity: '500 mg',
+    takeWithFood: true,
+    morningDose: 1,
+    afternoonDose: 1,
+    eveningDose: 1,
+  ),
+];
+
+Future<void> _seedTestSupplements(DatabaseService db) async {
+  for (final item in _testSupplements) {
+    await db.saveSupplement(item);
+  }
+}
+
 void main() {
   late InMemoryDatabaseService db;
 
   setUp(() async {
     db = InMemoryDatabaseService();
     Services.db = db;
-    await Services.db.resetDefaultSupplements();
+    await _seedTestSupplements(Services.db);
   });
 
   group('DailyIntakeTab Tests', () {
@@ -148,7 +178,7 @@ void main() {
 
         final spyDb = _SpyDatabaseService();
         Services.db = spyDb;
-        await Services.db.resetDefaultSupplements();
+        await _seedTestSupplements(Services.db);
 
         final supps = await Services.db.streamSupplements().first;
         final date = DateTime(2026, 8, 25);
@@ -224,7 +254,7 @@ void main() {
         final spyDb = _SpyDatabaseService();
         spyDb.shouldThrowOnLog = true;
         Services.db = spyDb;
-        await Services.db.resetDefaultSupplements();
+        await _seedTestSupplements(Services.db);
 
         final supps = await Services.db.streamSupplements().first;
         final date = DateTime(2026, 8, 25);

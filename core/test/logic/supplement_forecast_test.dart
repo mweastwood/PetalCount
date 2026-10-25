@@ -2,6 +2,72 @@ import 'package:core/core.dart';
 import 'package:test/test.dart';
 
 void main() {
+  const testSupplements = <SupplementItem>[
+    SupplementItem(
+      id: 'prenatal',
+      name: 'Prenatal',
+      quantity: 'tablet',
+      morningDose: 1,
+      targetRole: UserRole.wife,
+      ruleType: SupplementScheduleRuleType.allDays,
+    ),
+    SupplementItem(
+      id: 'clomid',
+      name: 'Clomid',
+      quantity: '50 mg (1 tablet)',
+      morningDose: 1,
+      targetRole: UserRole.wife,
+      ruleType: SupplementScheduleRuleType.cycleDays,
+      startCycleDay: 4,
+      endCycleDay: 8,
+    ),
+    SupplementItem(
+      id: 'fertilecm',
+      name: 'FertileCM',
+      quantity: 'tablet',
+      morningDose: 1,
+      afternoonDose: 1,
+      eveningDose: 1,
+      targetRole: UserRole.wife,
+      ruleType: SupplementScheduleRuleType.cycleDaysOrPeak,
+      startCycleDay: 8,
+      endCycleDay: 19,
+      endPeakOffset: 1,
+    ),
+    SupplementItem(
+      id: 'mucinex',
+      name: 'Mucinex ER',
+      quantity: '600mg',
+      morningDose: 1,
+      eveningDose: 1,
+      targetRole: UserRole.wife,
+      ruleType: SupplementScheduleRuleType.cycleDaysOrPeak,
+      startCycleDay: 9,
+      endCycleDay: 19,
+      endPeakOffset: 1,
+    ),
+    SupplementItem(
+      id: 'progesterone',
+      name: 'Progesterone (sustained release)',
+      quantity: '400mg (2 tablets)',
+      morningDose: 1,
+      eveningDose: 1,
+      targetRole: UserRole.wife,
+      ruleType: SupplementScheduleRuleType.peakOffset,
+      startPeakOffset: 3,
+      startCycleDay: 21,
+      durationDays: 10,
+    ),
+    SupplementItem(
+      id: 'mens_multi',
+      name: "Men's Multivitamin",
+      quantity: '1 tablet',
+      morningDose: 1,
+      targetRole: UserRole.husband,
+      ruleType: SupplementScheduleRuleType.allDays,
+    ),
+  ];
+
   group('SupplementForecastEngine', () {
     final startDate = DateTime(2026, 8, 25);
 
@@ -12,7 +78,7 @@ void main() {
         final cycle = Cycle(id: 'c1', startDate: DateTime(2026, 8, 20));
         final forecast = SupplementForecastEngine.buildForecast(
           startDate: startDate,
-          supplements: SupplementPresets.defaultList,
+          supplements: testSupplements,
           role: UserRole.wife,
           cycles: [cycle],
         );
@@ -74,7 +140,7 @@ void main() {
         final cycle = Cycle(id: 'c1', startDate: DateTime(2026, 8, 16));
         final forecast = SupplementForecastEngine.buildForecast(
           startDate: startDate,
-          supplements: SupplementPresets.defaultList,
+          supplements: testSupplements,
           role: UserRole.wife,
           cycles: [cycle],
         );
@@ -109,7 +175,7 @@ void main() {
 
         final forecast = SupplementForecastEngine.buildForecast(
           startDate: startDate,
-          supplements: SupplementPresets.defaultList,
+          supplements: testSupplements,
           role: UserRole.wife,
           cycles: [cycle],
         );
@@ -171,7 +237,7 @@ void main() {
 
         final forecast = SupplementForecastEngine.buildForecast(
           startDate: startDate, // Aug 25
-          supplements: SupplementPresets.defaultList,
+          supplements: testSupplements,
           role: UserRole.wife,
           cycles: [cycle],
         );
@@ -279,7 +345,7 @@ void main() {
       () {
         final forecast = SupplementForecastEngine.buildForecast(
           startDate: startDate,
-          supplements: SupplementPresets.defaultList,
+          supplements: testSupplements,
           role: UserRole.wife,
           cycles: const [],
           fallbackCycle: null,

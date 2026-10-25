@@ -5,10 +5,123 @@ import 'package:petal_count/logic/logic.dart';
 import 'package:petal_count/screens/supplement_screen.dart';
 import 'package:petal_count/screens/supplements/supplements.dart';
 
+const _testSupplements = <SupplementItem>[
+  SupplementItem(
+    id: 'supp_prenatal',
+    name: 'Prenatal',
+    quantity: 'tablet',
+    takeWithFood: false,
+    morningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.allDays,
+    instructions: 'Baseline nutritional support',
+  ),
+  SupplementItem(
+    id: 'supp_coq10',
+    name: 'CoQ10',
+    quantity: '200 mg',
+    takeWithFood: false,
+    morningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.allDays,
+    instructions: 'Oocyte quality & mitochondrial support',
+  ),
+  SupplementItem(
+    id: 'supp_vitamind',
+    name: 'Vitamin D',
+    quantity: '3000 units',
+    takeWithFood: false,
+    morningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.allDays,
+    instructions: 'Endocrine & immune support',
+  ),
+  SupplementItem(
+    id: 'supp_berberine',
+    name: 'Berberine',
+    quantity: '500 mg (1 tablet)',
+    takeWithFood: true,
+    morningDose: 1,
+    afternoonDose: 1,
+    eveningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.allDays,
+    instructions: 'Metabolic & glucose regulation',
+  ),
+  SupplementItem(
+    id: 'supp_clomid',
+    name: 'Clomid',
+    quantity: '50 mg (1 tablet)',
+    takeWithFood: false,
+    morningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.cycleDays,
+    startCycleDay: 4,
+    endCycleDay: 8,
+    instructions: 'Follicular recruitment & ovulation induction (Days 4–8)',
+  ),
+  SupplementItem(
+    id: 'supp_fertilecm',
+    name: 'FertileCM',
+    quantity: 'tablet',
+    takeWithFood: false,
+    morningDose: 1,
+    afternoonDose: 1,
+    eveningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.cycleDaysOrPeak,
+    startCycleDay: 8,
+    endCycleDay: 19,
+    endPeakOffset: 1,
+    instructions:
+        'Cervical mucus hydration & vascular flow (Day 8 to P+1 or Day 19)',
+  ),
+  SupplementItem(
+    id: 'supp_mucinex',
+    name: 'Mucinex ER',
+    quantity: '600mg',
+    takeWithFood: false,
+    morningDose: 1,
+    eveningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.cycleDaysOrPeak,
+    startCycleDay: 9,
+    endCycleDay: 19,
+    endPeakOffset: 1,
+    instructions: 'Mucus thinning (Day 9 to P+1 or Day 19)',
+  ),
+  SupplementItem(
+    id: 'supp_progesterone',
+    name: 'Progesterone (sustained release)',
+    quantity: '400mg (2 tablets)',
+    takeWithFood: false,
+    morningDose: 1,
+    eveningDose: 1,
+    targetRole: UserRole.wife,
+    ruleType: SupplementScheduleRuleType.peakOffset,
+    startPeakOffset: 3,
+    startCycleDay: 21,
+    durationDays: 10,
+    instructions: 'Luteal phase support (P+3 or Day 21 for 10 days)',
+  ),
+  SupplementItem(
+    id: 'supp_mens_multi',
+    name: "Men's Multivitamin",
+    quantity: '1 tablet',
+    takeWithFood: true,
+    morningDose: 1,
+    targetRole: UserRole.husband,
+    ruleType: SupplementScheduleRuleType.allDays,
+    instructions: 'Baseline male nutritional & energy support',
+  ),
+];
+
 void main() {
   setUp(() async {
     Services.db = InMemoryDatabaseService();
-    await Services.db.resetDefaultSupplements();
+    for (final item in _testSupplements) {
+      await Services.db.saveSupplement(item);
+    }
   });
 
   const defaultCycleSentinel = Object();
@@ -284,7 +397,7 @@ void main() {
         await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('👩 Wife (14)'));
+        await tester.tap(find.text('👩 Wife (8)'));
         await tester.pumpAndSettle();
 
         expect(
@@ -295,7 +408,7 @@ void main() {
           findsOneWidget,
         );
 
-        await tester.tap(find.text('👨 Husband (6)'));
+        await tester.tap(find.text('👨 Husband (1)'));
         await tester.pumpAndSettle();
 
         expect(
@@ -332,38 +445,6 @@ void main() {
           (s) => s.name == "Men's Multivitamin",
         );
         expect(updatedMens.quantity, equals('2 gummies'));
-      },
-    );
-
-    testWidgets(
-      'Reset Default Presets confirmation flow restores presets and shows snackbar',
-      (tester) async {
-        tester.view.physicalSize = const Size(1080, 2400);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-
-        await Services.db.deleteSupplement('preset_prenatal');
-        final suppsBefore = await Services.db.streamSupplements().first;
-        expect(suppsBefore.any((s) => s.id == 'preset_prenatal'), isFalse);
-
-        await tester.pumpWidget(createTestWidget());
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.byTooltip('Reset Default Presets'));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.widgetWithText(FilledButton, 'Reset'));
-        await tester.pumpAndSettle();
-
-        expect(
-          find.text('Supplements reset to standard presets.'),
-          findsOneWidget,
-        );
-        final restoredSupps = await Services.db.streamSupplements().first;
-        expect(restoredSupps.any((s) => s.id == 'preset_prenatal'), isTrue);
       },
     );
 
@@ -564,19 +645,19 @@ void main() {
         final date = DateTime(2026, 8, 25);
         await Services.db.logSupplementDose(
           date: date,
-          supplementId: 'preset_prenatal',
+          supplementId: 'supp_prenatal',
           timeOfDay: SupplementTimeOfDay.morning,
           taken: true,
         );
         await Services.db.logSupplementDose(
           date: date,
-          supplementId: 'preset_coq10',
+          supplementId: 'supp_coq10',
           timeOfDay: SupplementTimeOfDay.morning,
           taken: true,
         );
         await Services.db.logSupplementDose(
           date: date,
-          supplementId: 'preset_vitamind',
+          supplementId: 'supp_vitamind',
           timeOfDay: SupplementTimeOfDay.morning,
           taken: true,
         );
@@ -590,7 +671,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('3 / 16 taken'), findsOneWidget);
+        expect(find.text('3 / 7 taken'), findsOneWidget);
 
         await screenMatchesGolden(
           tester,
@@ -703,28 +784,6 @@ void main() {
       await tester.pumpAndSettle();
 
       await screenMatchesGolden(tester, 'supplement_screen_add_dialog');
-    });
-
-    testGoldens('SupplementScreen Reset Presets Dialog golden', (tester) async {
-      await tester.pumpWidgetBuilder(
-        createTestWidget(
-          initialDate: DateTime(2026, 8, 25),
-          cycle: Cycle(id: 'cycle_test', startDate: DateTime(2026, 8, 20)),
-        ),
-        surfaceSize: const Size(412, 915),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byKey(const Key('btn_edit_supplement_plan_fab')));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byTooltip('Reset Default Presets'));
-      await tester.pumpAndSettle();
-
-      await screenMatchesGolden(
-        tester,
-        'supplement_screen_reset_presets_dialog',
-      );
     });
   });
 }

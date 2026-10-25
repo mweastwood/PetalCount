@@ -18,9 +18,7 @@ mixin _InMemoryChartOps on _InMemoryDatabaseServiceBase {
     _users[_currentUser!.uid]!['chartId'] = chartId;
     _chartId = chartId;
     _cycles[chartId] = {};
-    _supplements[chartId] = {
-      for (final item in SupplementPresets.defaultList) item.id: item,
-    };
+    _supplements[chartId] = {};
     _authController.add(_currentUser); // Trigger refresh
     _emitCharts();
     _emitCycles();

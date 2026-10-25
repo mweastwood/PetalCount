@@ -29,13 +29,6 @@ mixin _FirebaseChartOps on _FirebaseDatabaseServiceBase {
       'createdAt': FieldValue.serverTimestamp(),
     });
 
-    final batch = _db.batch();
-    final suppCol = chartRef.collection('supplements');
-    for (final preset in SupplementPresets.defaultList) {
-      batch.set(suppCol.doc(preset.id), preset.toMap());
-    }
-    await batch.commit();
-
     await _db.collection('users').doc(user.uid).set({
       'chartId': chartId,
       'uid': user.uid,

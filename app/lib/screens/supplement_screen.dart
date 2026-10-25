@@ -97,38 +97,6 @@ class _SupplementScreenState extends State<SupplementScreen> {
     return SupplementForecastEngine.calculateDaysPastPeak(cycle, date);
   }
 
-  void _showResetPresetsConfirmation(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Reset Supplement Presets?'),
-        content: const Text(
-          'This will reset your supplement list to the standard Creighton / NaPro prescription and supplement instructions for wife and husband.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext);
-              await Services.db.resetDefaultSupplements();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Supplements reset to standard presets.'),
-                  ),
-                );
-              }
-            },
-            child: const Text('Reset'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showDeleteSupplementDialog(BuildContext context, SupplementItem item) {
     showDialog(
       context: context,
@@ -177,14 +145,6 @@ class _SupplementScreenState extends State<SupplementScreen> {
                     tooltip: 'Close',
                     onPressed: () => Navigator.pop(sheetContext),
                   ),
-                  actions: [
-                    IconButton(
-                      icon: const Icon(Icons.restore),
-                      tooltip: 'Reset Default Presets',
-                      onPressed: () =>
-                          _showResetPresetsConfirmation(innerContext),
-                    ),
-                  ],
                 ),
                 body: StreamBuilder<List<SupplementItem>>(
                   stream: sheetStream,

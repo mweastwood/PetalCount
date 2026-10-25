@@ -157,10 +157,8 @@ class InMemoryDatabaseService extends _InMemoryDatabaseServiceBase
     // Add some mock daily observations to represent a standard cycle
     _prepopulateMockData(mockCycle.id, mockCycleStart);
 
-    // Prepopulate supplements for mock chart
-    _supplements['mock_shared_chart'] = {
-      for (final item in SupplementPresets.defaultList) item.id: item,
-    };
+    // Initialize empty supplements map for mock chart
+    _supplements['mock_shared_chart'] = {};
 
     _authController.stream.listen((user) {
       _emitCycles();

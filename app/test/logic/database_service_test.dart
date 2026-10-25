@@ -639,11 +639,9 @@ void main() {
   });
 
   group('Supplement Database Operations', () {
-    test('streamSupplements yields preset list for initial chart', () async {
+    test('streamSupplements yields empty list for initial chart', () async {
       final supps = await db.streamSupplements().first;
-      expect(supps.length, 20);
-      expect(supps.any((s) => s.name == 'Prenatal'), isTrue);
-      expect(supps.any((s) => s.name == "Men's Multivitamin"), isTrue);
+      expect(supps, isEmpty);
     });
 
     test('saveSupplement adds new supplement and updates stream', () async {
@@ -657,51 +655,43 @@ void main() {
       await db.saveSupplement(newSupp);
 
       final supps = await db.streamSupplements().first;
-      expect(supps.length, 21);
+      expect(supps.length, 1);
       expect(supps.any((s) => s.id == 'supp_custom_1'), isTrue);
     });
 
     test(
       'deleteSupplement removes supplement and does not re-seed when empty',
       () async {
+        const supp1 = SupplementItem(
+          id: 'supp_1',
+          name: 'Prenatal',
+          quantity: '1 tablet',
+          morningDose: 1,
+        );
+        const supp2 = SupplementItem(
+          id: 'supp_2',
+          name: 'CoQ10',
+          quantity: '200 mg',
+          morningDose: 1,
+        );
+        await db.saveSupplement(supp1);
+        await db.saveSupplement(supp2);
+
         var supps = await db.streamSupplements().first;
-        expect(supps.length, 20);
+        expect(supps.length, 2);
 
         // Delete one supplement
-        await db.deleteSupplement('preset_prenatal');
+        await db.deleteSupplement('supp_1');
         supps = await db.streamSupplements().first;
-        expect(supps.length, 19);
-        expect(supps.any((s) => s.id == 'preset_prenatal'), isFalse);
+        expect(supps.length, 1);
+        expect(supps.any((s) => s.id == 'supp_1'), isFalse);
 
-        // Delete all remaining supplements to verify empty list does not silently re-seed
-        final remainingIds = supps.map((s) => s.id).toList();
-        for (final id in remainingIds) {
-          await db.deleteSupplement(id);
-        }
-
+        // Delete remaining supplement to verify empty list stays empty
+        await db.deleteSupplement('supp_2');
         supps = await db.streamSupplements().first;
         expect(supps, isEmpty);
       },
     );
-
-    test('resetDefaultSupplements restores all standard presets', () async {
-      // Clear all supplements first
-      final suppsInitial = await db.streamSupplements().first;
-      for (final s in suppsInitial) {
-        await db.deleteSupplement(s.id);
-      }
-      expect(await db.streamSupplements().first, isEmpty);
-
-      // Reset to presets
-      await db.resetDefaultSupplements();
-
-      final suppsReset = await db.streamSupplements().first;
-      expect(suppsReset.length, 20);
-      expect(
-        suppsReset.map((s) => s.name),
-        containsAll(['Prenatal', 'CoQ10', 'Vitamin D', "Men's Multivitamin"]),
-      );
-    });
 
     test(
       'logSupplementDose records and toggles dose adherence per date and time of day',
@@ -750,6 +740,14 @@ void main() {
     test(
       'streamSupplements and streamDailySupplementLogs update dynamically when active chart changes or unlinks',
       () async {
+        const initialSupp = SupplementItem(
+          id: 'supp_init',
+          name: 'Prenatal',
+          quantity: '1 tablet',
+          morningDose: 1,
+        );
+        await db.saveSupplement(initialSupp);
+
         final suppQueue = StreamQueue(
           db.streamSupplements().asBroadcastStream(),
         );
@@ -757,7 +755,7 @@ void main() {
           db.streamDailySupplementLogs().asBroadcastStream(),
         );
 
-        expect(await suppQueue.next, hasLength(20));
+        expect(await suppQueue.next, hasLength(1));
         expect(await logQueue.next, isEmpty);
         await pumpEventQueue();
 
@@ -766,9 +764,9 @@ void main() {
         expect(await suppQueue.next, isEmpty);
         expect(await logQueue.next, isEmpty);
 
-        // Create new chart
+        // Create new chart (starts with no preset supplements)
         await db.createChart();
-        expect(await suppQueue.next, hasLength(20));
+        expect(await suppQueue.next, isEmpty);
         expect(await logQueue.next, isEmpty);
 
         // Log dose on new chart
@@ -841,6 +839,14 @@ void main() {
     test(
       'streamSupplements supports re-subscription and forwards errors correctly',
       () async {
+        await db.saveSupplement(
+          const SupplementItem(
+            id: 'supp_1',
+            name: 'Prenatal',
+            quantity: '1 tablet',
+            morningDose: 1,
+          ),
+        );
         final stream = db.streamSupplements();
 
         // 1. Initial subscription receives initial list of supplements
@@ -861,7 +867,7 @@ void main() {
 
         // Should receive current items upon re-subscribing
         expect(receivedLists, hasLength(1));
-        expect(receivedLists.first, hasLength(20));
+        expect(receivedLists.first, hasLength(1));
 
         // 3. Error forwarding
         final testException = Exception('Test supplements error propagation');

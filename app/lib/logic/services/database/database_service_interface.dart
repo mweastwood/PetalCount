@@ -77,7 +77,6 @@ abstract class DatabaseService {
   Stream<List<SupplementItem>> streamSupplements();
   Future<void> saveSupplement(SupplementItem item);
   Future<void> deleteSupplement(String supplementId);
-  Future<void> resetDefaultSupplements();
 
   Stream<Map<String, DailySupplementLog>> streamDailySupplementLogs();
   Future<void> logSupplementDose({

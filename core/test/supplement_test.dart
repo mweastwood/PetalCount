@@ -3,43 +3,6 @@ import 'package:core/core.dart';
 
 void main() {
   group('Supplement Model Tests', () {
-    test(
-      'SupplementPresets defaultList contains 14 wife items and male presets',
-      () {
-        final presets = SupplementPresets.defaultList;
-        final wifePresets = presets
-            .where((s) => s.targetRole == UserRole.wife)
-            .toList();
-        final husbandPresets = presets
-            .where((s) => s.targetRole == UserRole.husband)
-            .toList();
-
-        expect(wifePresets.length, 14);
-        expect(husbandPresets.length, 6);
-
-        final wifeNames = wifePresets.map((s) => s.name).toList();
-        expect(wifeNames, contains('Prenatal'));
-        expect(wifeNames, contains('CoQ10'));
-        expect(wifeNames, contains('Vitamin D'));
-        expect(wifeNames, contains('NAC (N-Acetyl Cysteine)'));
-        expect(wifeNames, contains('L-methylfolate and sublingual B12'));
-        expect(wifeNames, contains('Myo-inositol'));
-        expect(wifeNames, contains('Berberine'));
-        expect(wifeNames, contains('Fatty 15'));
-        expect(wifeNames, contains('Magnesium L-Theonate'));
-        expect(wifeNames, contains('Perfect Amino'));
-        expect(wifeNames, contains('Clomid'));
-        expect(wifeNames, contains('FertileCM'));
-        expect(wifeNames, contains('Mucinex ER'));
-        expect(wifeNames, contains('Progesterone (sustained release)'));
-
-        final husbandNames = husbandPresets.map((s) => s.name).toList();
-        expect(husbandNames, contains("Men's Multivitamin"));
-        expect(husbandNames, contains('CoQ10 (Male Support)'));
-        expect(husbandNames, contains('Zinc & L-Methylfolate'));
-      },
-    );
-
     test('isScheduledFor evaluates allDays daily supplements accurately', () {
       const supp = SupplementItem(
         id: '1',
