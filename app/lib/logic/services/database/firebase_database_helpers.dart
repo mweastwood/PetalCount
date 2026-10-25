@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:core/core.dart';
-import 'package:flutter/foundation.dart';
 
+import '../services.dart';
 import 'database_helpers.dart';
 
 /// Shared pure/static helpers for [FirebaseDatabaseService] (batch chunking,
@@ -88,7 +88,11 @@ class FirebaseDatabaseHelpers {
         },
         onError: (e) {
           if (debugLabel != null) {
-            debugPrint('Error streaming $debugLabel: $e');
+            Services.logger.error(
+              'Error streaming $debugLabel',
+              category: 'database',
+              error: e,
+            );
           }
           if (isAccessLostError(e)) {
             emittedEmptyOnError = true;

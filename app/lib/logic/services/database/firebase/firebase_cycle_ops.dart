@@ -402,7 +402,11 @@ mixin _FirebaseCycleOps on _FirebaseDatabaseServiceBase {
           preferences: context.preferences,
         );
       } catch (notificationError) {
-        debugPrint('Warning: Notification dispatch error: $notificationError');
+        Services.logger.warning(
+          'Notification dispatch error',
+          category: 'notification',
+          error: notificationError,
+        );
       }
 
       Services.logger.info(

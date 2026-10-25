@@ -54,7 +54,13 @@ abstract class _FirebaseDatabaseServiceBase implements DatabaseService {
         await _db.collection('users').doc(user.uid).set({
           'chartId': null,
         }, SetOptions(merge: true));
-      } catch (_) {}
+      } catch (e) {
+        Services.logger.warning(
+          'Error clearing chartId on access lost',
+          category: 'database',
+          error: e,
+        );
+      }
       _authController.add(user);
     }
   }
@@ -69,7 +75,11 @@ abstract class _FirebaseDatabaseServiceBase implements DatabaseService {
         'chartId': null,
       }, SetOptions(merge: true));
     } catch (e) {
-      debugPrint('Error clearing stale chartId in Firestore: $e');
+      Services.logger.error(
+        'Error clearing stale chartId in Firestore',
+        category: 'database',
+        error: e,
+      );
     }
   }
 
@@ -99,7 +109,11 @@ abstract class _FirebaseDatabaseServiceBase implements DatabaseService {
 
         return chartId;
       } catch (e) {
-        debugPrint('Error verifying chart $chartId for user $uid: $e');
+        Services.logger.error(
+          'Error verifying chart $chartId for user $uid',
+          category: 'database',
+          error: e,
+        );
         if (FirebaseDatabaseHelpers.isAccessLostError(e)) {
           await _cleanupStaleChartReference(uid, chartId);
           return null;
@@ -108,7 +122,11 @@ abstract class _FirebaseDatabaseServiceBase implements DatabaseService {
         return chartId;
       }
     } catch (e) {
-      debugPrint('Error fetching chartId: $e');
+      Services.logger.error(
+        'Error fetching chartId',
+        category: 'database',
+        error: e,
+      );
     }
     return null;
   }

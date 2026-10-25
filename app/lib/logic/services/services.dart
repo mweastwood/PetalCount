@@ -7,7 +7,9 @@ import 'notification/notification_service.dart';
 class Services {
   static DatabaseService db = InMemoryDatabaseService();
   static NotificationService notifications = InMemoryNotificationService();
-  static final AppLogger logger = AppLogger(logPrinter: debugPrint);
+  static final AppLogger logger = AppLogger(
+    logPrinter: (message) => debugPrint(message),
+  );
   static bool get loggerInitialized => true;
 
   static Future<void> init({

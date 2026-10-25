@@ -83,7 +83,11 @@ class LocalNotificationService implements NotificationService {
         tz.setLocalLocation(tz.getLocation(localTimezoneInfo.identifier));
       }
     } catch (error) {
-      debugPrint('Warning: Timezone initialization failed: $error');
+      Services.logger.warning(
+        'Timezone initialization failed',
+        category: 'notification',
+        error: error,
+      );
     }
 
     if (kIsWeb) {
@@ -109,8 +113,10 @@ class LocalNotificationService implements NotificationService {
       await _notificationsPlugin.initialize(settings: initializationSettings);
       _isInitialized = true;
     } catch (error) {
-      debugPrint(
-        'Warning: FlutterLocalNotificationsPlugin initialize failed: $error',
+      Services.logger.warning(
+        'FlutterLocalNotificationsPlugin initialize failed',
+        category: 'notification',
+        error: error,
       );
       _isInitialized = true;
     }
@@ -153,7 +159,11 @@ class LocalNotificationService implements NotificationService {
         return granted ?? false;
       }
     } catch (e) {
-      debugPrint('Warning: requestPermissions failed: $e');
+      Services.logger.warning(
+        'requestPermissions failed',
+        category: 'notification',
+        error: e,
+      );
     }
     return false;
   }
@@ -228,7 +238,11 @@ class LocalNotificationService implements NotificationService {
         matchDateTimeComponents: DateTimeComponents.time,
       );
     } catch (e) {
-      debugPrint('Warning: Failed to zonedSchedule notification: $e');
+      Services.logger.warning(
+        'Failed to zonedSchedule notification',
+        category: 'notification',
+        error: e,
+      );
     }
   }
 
@@ -242,7 +256,11 @@ class LocalNotificationService implements NotificationService {
     try {
       await _notificationsPlugin.cancel(id: dailyReminderNotificationId);
     } catch (e) {
-      debugPrint('Warning: Failed to cancel notification: $e');
+      Services.logger.warning(
+        'Failed to cancel notification',
+        category: 'notification',
+        error: e,
+      );
     }
   }
 
@@ -301,7 +319,11 @@ class LocalNotificationService implements NotificationService {
         notificationDetails: notificationDetails,
       );
     } catch (e) {
-      debugPrint('Warning: showNotification failed: $e');
+      Services.logger.warning(
+        'showNotification failed',
+        category: 'notification',
+        error: e,
+      );
     }
   }
 
@@ -451,7 +473,11 @@ class LocalNotificationService implements NotificationService {
             }
           },
           onError: (Object error) {
-            debugPrint('Warning: FCM tokenRefreshStream error: $error');
+            Services.logger.warning(
+              'FCM tokenRefreshStream error',
+              category: 'notification',
+              error: error,
+            );
           },
         );
       }
@@ -474,7 +500,11 @@ class LocalNotificationService implements NotificationService {
             }
           },
           onError: (Object error) {
-            debugPrint('Warning: FCM onMessageStream error: $error');
+            Services.logger.warning(
+              'FCM onMessageStream error',
+              category: 'notification',
+              error: error,
+            );
           },
         );
       }
@@ -486,7 +516,11 @@ class LocalNotificationService implements NotificationService {
       await _onMessageSubscription?.cancel();
       _onMessageSubscription = null;
       _fcmConfigured = false;
-      debugPrint('Warning: setupFcmPushNotifications failed: $e');
+      Services.logger.warning(
+        'setupFcmPushNotifications failed',
+        category: 'notification',
+        error: e,
+      );
     } finally {
       _isConfiguringFcm = false;
     }
@@ -499,7 +533,11 @@ class LocalNotificationService implements NotificationService {
     try {
       return await FirebaseMessaging.instance.getToken();
     } catch (e) {
-      debugPrint('Warning: getFcmToken failed: $e');
+      Services.logger.warning(
+        'getFcmToken failed',
+        category: 'notification',
+        error: e,
+      );
       return null;
     }
   }
