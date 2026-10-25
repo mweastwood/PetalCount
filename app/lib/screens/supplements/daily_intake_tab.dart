@@ -127,6 +127,7 @@ class _DailyIntakeTabState extends State<DailyIntakeTab> {
     final roleSupplements = widget.supplements
         .where((s) => s.targetRole == _selectedRole)
         .toList();
+    final hasRoleSupplements = roleSupplements.any((s) => s.isActive);
 
     final activeSupplements = roleSupplements
         .where(
@@ -190,105 +191,150 @@ class _DailyIntakeTabState extends State<DailyIntakeTab> {
         ),
         const SizedBox(height: 12),
 
-        // Adherence Progress Card
-        Card(
-          elevation: 0,
-          color: theme.colorScheme.surfaceContainerHigh,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        if (!hasRoleSupplements)
+          Card(
+            elevation: 0,
+            color: theme.colorScheme.surfaceContainerLowest,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(
+                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Center(
+                child: Column(
                   children: [
+                    Icon(
+                      Icons.medication_outlined,
+                      size: 40,
+                      color: theme.colorScheme.outline,
+                    ),
+                    const SizedBox(height: 8),
                     Text(
-                      "Today's Supplements",
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                      'No supplements in your ${_selectedRole.displayName.toLowerCase()} plan yet.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.outline,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
+                    const SizedBox(height: 4),
                     Text(
-                      '$takenDoses / $totalDoses taken',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: takenDoses == totalDoses && totalDoses > 0
-                            ? Colors.green
-                            : theme.colorScheme.primary,
+                      'Tap the edit button to add supplements and schedule rules.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.outline,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 8,
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      takenDoses == totalDoses && totalDoses > 0
-                          ? Colors.green
-                          : theme.colorScheme.primary,
+              ),
+            ),
+          )
+        else ...[
+          // Adherence Progress Card
+          Card(
+            elevation: 0,
+            color: theme.colorScheme.surfaceContainerHigh,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Today's Supplements",
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '$takenDoses / $totalDoses taken',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: takenDoses == totalDoses && totalDoses > 0
+                              ? Colors.green
+                              : theme.colorScheme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 8,
+                      backgroundColor:
+                          theme.colorScheme.surfaceContainerHighest,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        takenDoses == totalDoses && totalDoses > 0
+                            ? Colors.green
+                            : theme.colorScheme.primary,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-        // Time of Day Sections for Today
-        ...SupplementTimeOfDay.values.map((time) {
-          final itemsForTime = activeSupplements
-              .where((s) => s.doseForTime(time) > 0)
-              .toList();
+          // Time of Day Sections for Today
+          ...SupplementTimeOfDay.values.map((time) {
+            final itemsForTime = activeSupplements
+                .where((s) => s.doseForTime(time) > 0)
+                .toList();
 
-          return _buildTimeOfDaySection(
-            context: context,
-            theme: theme,
-            time: time,
-            items: itemsForTime,
-          );
-        }),
+            return _buildTimeOfDaySection(
+              context: context,
+              theme: theme,
+              time: time,
+              items: itemsForTime,
+            );
+          }),
 
-        if (todayForecast.conditionalOnPeakSupplements.isNotEmpty) ...[
+          if (todayForecast.conditionalOnPeakSupplements.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            _buildConditionalOnPeakSection(
+              theme: theme,
+              dayOffset: 0,
+              items: todayForecast.conditionalOnPeakSupplements,
+            ),
+            const SizedBox(height: 8),
+          ],
+
+          const Divider(height: 28),
+
+          // Next 6 Days Forecast Section
+          Text(
+            'Next 6 Days',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 4),
-          _buildConditionalOnPeakSection(
-            theme: theme,
-            dayOffset: 0,
-            items: todayForecast.conditionalOnPeakSupplements,
+          Text(
+            widget.hasPeakOccurred
+                ? 'Peak Day is recorded — peak-based supplements are locked in for the upcoming week.'
+                : 'Read-only 6-day preview. Peak-dependent supplements are listed under "Conditional on Peak" until Peak Day is recorded.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+
+          ...upcomingDays.map(
+            (dayForecast) => _buildUpcomingDayCard(theme, dayForecast),
+          ),
         ],
-
-        const Divider(height: 28),
-
-        // Next 6 Days Forecast Section
-        Text(
-          'Next 6 Days',
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          widget.hasPeakOccurred
-              ? 'Peak Day is recorded — peak-based supplements are locked in for the upcoming week.'
-              : 'Read-only 6-day preview. Peak-dependent supplements are listed under "Conditional on Peak" until Peak Day is recorded.',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        ...upcomingDays.map(
-          (dayForecast) => _buildUpcomingDayCard(theme, dayForecast),
-        ),
       ],
     );
   }

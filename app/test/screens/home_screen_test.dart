@@ -88,7 +88,7 @@ void main() {
 
     // Verify SupplementScreen content is rendered
     expect(find.byType(SupplementScreen), findsOneWidget);
-    expect(find.text("Today's Supplements"), findsOneWidget);
+    expect(find.text('No supplements in your wife plan yet.'), findsOneWidget);
     expect(
       find.byKey(const Key('btn_edit_supplement_plan_fab')),
       findsOneWidget,
@@ -116,7 +116,7 @@ void main() {
     // Verify drawer closed and supplements tab is shown
     expect(find.byType(Drawer), findsNothing);
     expect(find.byType(SupplementScreen), findsOneWidget);
-    expect(find.text("Today's Supplements"), findsOneWidget);
+    expect(find.text('No supplements in your wife plan yet.'), findsOneWidget);
   });
 
   testGoldens('Dashboard hamburger menu drawer open state golden', (
