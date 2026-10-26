@@ -1,226 +1,13 @@
-// ignore_for_file: subtype_of_sealed_class, prefer_initializing_formals
-
-import 'dart:async';
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:core/core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/logic/app_state_exporter.dart';
 import 'package:petal_count/logic/services/database/firebase_database_service.dart';
 import 'package:petal_count/logic/services/database/in_memory_database_service.dart';
 
-class _FakeUser extends Fake implements User {
-  @override
-  final String uid;
-  @override
-  final String? email;
-  @override
-  bool get isAnonymous => false;
-
-  _FakeUser({required this.uid, this.email});
-}
-
-class _FakeFirebaseAuth extends Fake implements FirebaseAuth {
-  final User? _currentUser;
-  final StreamController<User?> _authController =
-      StreamController<User?>.broadcast();
-
-  _FakeFirebaseAuth({User? currentUser}) : _currentUser = currentUser;
-
-  @override
-  User? get currentUser => _currentUser;
-
-  @override
-  Stream<User?> authStateChanges() => _authController.stream;
-}
-
-class _FakeFirebaseFirestore extends Fake implements FirebaseFirestore {
-  final Map<String, Map<String, dynamic>> store = {};
-  final Map<String, Object> getDocErrors = {};
-
-  @override
-  CollectionReference<Map<String, dynamic>> collection(String collectionPath) {
-    return _FakeCollectionReference(this, collectionPath);
-  }
-}
-
-class _FakeQueryFilter {
-  final String field;
-  final dynamic isEqualTo;
-  final dynamic arrayContains;
-
-  _FakeQueryFilter({required this.field, this.isEqualTo, this.arrayContains});
-
-  bool matches(Map<String, dynamic> data) {
-    if (isEqualTo != null && data[field] != isEqualTo) {
-      return false;
-    }
-    if (arrayContains != null) {
-      final val = data[field];
-      if (val is! List || !val.contains(arrayContains)) {
-        return false;
-      }
-    }
-    return true;
-  }
-}
-
-class _FakeQuery extends Fake implements Query<Map<String, dynamic>> {
-  final _FakeFirebaseFirestore firestoreInstance;
-  final String collectionPath;
-  final List<_FakeQueryFilter> filters;
-
-  _FakeQuery(
-    this.firestoreInstance,
-    this.collectionPath, {
-    List<_FakeQueryFilter>? filters,
-  }) : filters = filters ?? [];
-
-  @override
-  Query<Map<String, dynamic>> where(
-    Object field, {
-    Object? isEqualTo,
-    Object? isNotEqualTo,
-    Object? isLessThan,
-    Object? isLessThanOrEqualTo,
-    Object? isGreaterThan,
-    Object? isGreaterThanOrEqualTo,
-    Object? arrayContains,
-    Iterable<Object?>? arrayContainsAny,
-    Iterable<Object?>? whereIn,
-    Iterable<Object?>? whereNotIn,
-    bool? isNull,
-  }) {
-    return _FakeQuery(
-      firestoreInstance,
-      collectionPath,
-      filters: [
-        ...filters,
-        _FakeQueryFilter(
-          field: field.toString(),
-          isEqualTo: isEqualTo,
-          arrayContains: arrayContains,
-        ),
-      ],
-    );
-  }
-
-  @override
-  Future<QuerySnapshot<Map<String, dynamic>>> get([GetOptions? options]) async {
-    final prefix = '$collectionPath/';
-    final docs = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-    for (final entry in firestoreInstance.store.entries) {
-      if (entry.key.startsWith(prefix)) {
-        final remainder = entry.key.substring(prefix.length);
-        if (!remainder.contains('/')) {
-          final data = Map<String, dynamic>.from(entry.value);
-          if (filters.every((f) => f.matches(data))) {
-            docs.add(
-              _FakeQueryDocumentSnapshot(
-                id: remainder,
-                data: data,
-                reference: _FakeDocumentReference(firestoreInstance, entry.key),
-              ),
-            );
-          }
-        }
-      }
-    }
-    return _FakeQuerySnapshot(docs);
-  }
-}
-
-class _FakeCollectionReference extends _FakeQuery
-    implements CollectionReference<Map<String, dynamic>> {
-  @override
-  final String path;
-
-  _FakeCollectionReference(_FakeFirebaseFirestore firestoreInstance, this.path)
-    : super(firestoreInstance, path);
-
-  @override
-  DocumentReference<Map<String, dynamic>> doc([String? documentPath]) {
-    return _FakeDocumentReference(firestoreInstance, '$path/$documentPath');
-  }
-}
-
-class _FakeDocumentReference extends Fake
-    implements DocumentReference<Map<String, dynamic>> {
-  final _FakeFirebaseFirestore firestoreInstance;
-  @override
-  final String path;
-
-  _FakeDocumentReference(this.firestoreInstance, this.path);
-
-  @override
-  String get id => path.split('/').last;
-
-  @override
-  CollectionReference<Map<String, dynamic>> collection(String collectionPath) {
-    return _FakeCollectionReference(firestoreInstance, '$path/$collectionPath');
-  }
-
-  @override
-  Future<DocumentSnapshot<Map<String, dynamic>>> get([
-    GetOptions? options,
-  ]) async {
-    if (firestoreInstance.getDocErrors.containsKey(path)) {
-      throw firestoreInstance.getDocErrors[path]!;
-    }
-    final data = firestoreInstance.store[path];
-    return _FakeDocumentSnapshot(
-      id: id,
-      data: data != null ? Map<String, dynamic>.from(data) : null,
-      reference: this,
-    );
-  }
-}
-
-class _FakeDocumentSnapshot extends Fake
-    implements DocumentSnapshot<Map<String, dynamic>> {
-  @override
-  final String id;
-  final Map<String, dynamic>? _data;
-  @override
-  final DocumentReference<Map<String, dynamic>> reference;
-
-  _FakeDocumentSnapshot({
-    required this.id,
-    required Map<String, dynamic>? data,
-    required this.reference,
-  }) : _data = data;
-
-  @override
-  bool get exists => _data != null;
-
-  @override
-  Map<String, dynamic>? data() => _data;
-}
-
-class _FakeQueryDocumentSnapshot extends _FakeDocumentSnapshot
-    implements QueryDocumentSnapshot<Map<String, dynamic>> {
-  _FakeQueryDocumentSnapshot({
-    required super.id,
-    required Map<String, dynamic> super.data,
-    required super.reference,
-  });
-
-  @override
-  bool get exists => true;
-
-  @override
-  Map<String, dynamic> data() => super.data()!;
-}
-
-class _FakeQuerySnapshot extends Fake
-    implements QuerySnapshot<Map<String, dynamic>> {
-  @override
-  final List<QueryDocumentSnapshot<Map<String, dynamic>>> docs;
-
-  _FakeQuerySnapshot(this.docs);
-}
+import '../helpers/fake_firebase.dart';
 
 void main() {
   group('AppStateExporter Unit & Widget Tests', () {
@@ -429,17 +216,17 @@ void main() {
   });
 
   group('AppStateExporter.exportStateRaw with FirebaseDatabaseService', () {
-    late _FakeFirebaseAuth fakeAuth;
-    late _FakeFirebaseFirestore fakeFirestore;
+    late FakeFirebaseAuth fakeAuth;
+    late FakeFirebaseFirestore fakeFirestore;
     late FirebaseDatabaseService firebaseService;
     late AppLogger mockLogger;
     late AppStateExporter exporter;
 
     setUp(() {
-      fakeAuth = _FakeFirebaseAuth(
-        currentUser: _FakeUser(uid: 'user_123', email: 'user@example.com'),
+      fakeAuth = FakeFirebaseAuth(
+        currentUser: FakeUser(uid: 'user_123', email: 'user@example.com'),
       );
-      fakeFirestore = _FakeFirebaseFirestore();
+      fakeFirestore = FakeFirebaseFirestore();
       firebaseService = FirebaseDatabaseService(
         auth: fakeAuth,
         db: fakeFirestore,
