@@ -167,7 +167,7 @@ class AppStateExporter {
     final databaseState = <String, dynamic>{};
 
     if (_db is FirebaseDatabaseService && user != null) {
-      final firestore = FirebaseFirestore.instance;
+      final firestore = _db.firestore;
 
       try {
         // User profile document
@@ -279,6 +279,12 @@ class AppStateExporter {
           'diagnosis': diagnosis,
         };
       } catch (e, st) {
+        _logger?.warning(
+          'Error fetching Firestore state during export',
+          category: 'export',
+          error: e,
+          stackTrace: st,
+        );
         databaseState['error'] = 'Error fetching Firestore state: $e';
         databaseState['stackTrace'] = st.toString();
       }

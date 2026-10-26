@@ -79,13 +79,12 @@ mixin _FirebaseChartOps on _FirebaseDatabaseServiceBase {
     return snap.docs.map((doc) => doc.data()).toList();
   }
 
-  @override
-  Future<void> acceptInvitation(String invitationId) async {
-    final user = currentUser;
-    if (user == null) return;
-
+  Future<DocumentSnapshot<Map<String, dynamic>>?> _resolvePendingInvitation(
+    String invitationId,
+    User user,
+  ) async {
     DocumentSnapshot<Map<String, dynamic>>? doc;
-    var docRef = _db.collection('invitations').doc(invitationId);
+    final docRef = _db.collection('invitations').doc(invitationId);
 
     try {
       final snap = await docRef.get();
@@ -100,7 +99,7 @@ mixin _FirebaseChartOps on _FirebaseDatabaseServiceBase {
       );
     }
 
-    if (doc == null || !doc.exists) {
+    if (doc == null) {
       final cleanEmail = user.email?.trim().toLowerCase() ?? '';
       final snap = await _db
           .collection('invitations')
@@ -109,11 +108,28 @@ mixin _FirebaseChartOps on _FirebaseDatabaseServiceBase {
           .get();
       if (snap.docs.isNotEmpty) {
         doc = snap.docs.first;
-        docRef = doc.reference;
       }
     }
 
-    if (doc == null || !doc.exists) {
+    if (doc == null) {
+      Services.logger.warning(
+        'Invitation not found or already processed',
+        category: 'chart',
+        metadata: {'invitationId': invitationId, 'uid': user.uid},
+      );
+      return null;
+    }
+
+    return doc;
+  }
+
+  @override
+  Future<void> acceptInvitation(String invitationId) async {
+    final user = currentUser;
+    if (user == null) return;
+
+    final doc = await _resolvePendingInvitation(invitationId, user);
+    if (doc == null) {
       throw Exception("Invitation not found");
     }
 
@@ -138,7 +154,7 @@ mixin _FirebaseChartOps on _FirebaseDatabaseServiceBase {
     }, SetOptions(merge: true));
 
     // Update invitation status
-    await docRef.update({'status': 'accepted'});
+    await doc.reference.update({'status': 'accepted'});
 
     _cachedChartId = chartId;
     _authController.add(user);
@@ -149,40 +165,12 @@ mixin _FirebaseChartOps on _FirebaseDatabaseServiceBase {
     final user = currentUser;
     if (user == null) return;
 
-    DocumentSnapshot<Map<String, dynamic>>? doc;
-    var docRef = _db.collection('invitations').doc(invitationId);
-
-    try {
-      final snap = await docRef.get();
-      if (snap.exists) {
-        doc = snap;
-      }
-    } catch (e) {
-      Services.logger.debug(
-        'Direct invitation doc lookup failed, falling back to email query',
-        category: 'chart',
-        metadata: {'invitationId': invitationId, 'error': e.toString()},
-      );
-    }
-
-    if (doc == null || !doc.exists) {
-      final cleanEmail = user.email?.trim().toLowerCase() ?? '';
-      final snap = await _db
-          .collection('invitations')
-          .where('invitationId', isEqualTo: cleanEmail)
-          .where('status', isEqualTo: 'pending')
-          .get();
-      if (snap.docs.isNotEmpty) {
-        doc = snap.docs.first;
-        docRef = doc.reference;
-      }
-    }
-
-    if (doc == null || !doc.exists) {
+    final doc = await _resolvePendingInvitation(invitationId, user);
+    if (doc == null) {
       return;
     }
 
-    await docRef.update({'status': 'declined'});
+    await doc.reference.update({'status': 'declined'});
   }
 
   @override
