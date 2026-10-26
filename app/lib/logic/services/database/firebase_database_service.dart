@@ -28,6 +28,7 @@ abstract class _FirebaseDatabaseServiceBase implements DatabaseService {
 
   FirebaseAuth get _auth => _authInstance ?? FirebaseAuth.instance;
   FirebaseFirestore get _db => _dbInstance ?? FirebaseFirestore.instance;
+  FirebaseFirestore get firestore => _db;
   GoogleSignIn get _googleSignIn =>
       _googleSignInInstance ?? GoogleSignIn.instance;
 
