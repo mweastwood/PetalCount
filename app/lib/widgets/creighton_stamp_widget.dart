@@ -185,7 +185,9 @@ class CreightonStampWidget extends StatelessWidget {
         children: [
           // Baby Icon in center for fertile stamps, or '?' for unlogged days
           if (hasBaby)
-            Center(child: BabyIcon.forStamp(stampType, size: babySize, date: date))
+            Center(
+              child: BabyIcon.forStamp(stampType, size: babySize, date: date),
+            )
           else if (stampType == null)
             Center(
               child: Text(

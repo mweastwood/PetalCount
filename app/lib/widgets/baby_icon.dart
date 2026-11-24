@@ -50,7 +50,8 @@ class BabyIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final effectiveColor = color ?? CreightonTheme.babyIconGreen;
     final effectiveVariant =
-        variant ?? (date != null ? BabySvg.variantForDate(date!) : BabyVariant.classic);
+        variant ??
+        (date != null ? BabySvg.variantForDate(date!) : BabyVariant.classic);
 
     return SvgPicture.string(
       BabySvg.getSvg(variant: effectiveVariant),

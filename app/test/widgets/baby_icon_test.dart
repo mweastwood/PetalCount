@@ -320,29 +320,65 @@ void main() {
   group('Holiday Easter Egg Variants', () {
     test('variantForDate returns expected variants on exact holiday dates', () {
       // NYE & New Year's Day (2 dates)
-      expect(BabySvg.variantForDate(DateTime(2026, 12, 31)), BabyVariant.newYear);
+      expect(
+        BabySvg.variantForDate(DateTime(2026, 12, 31)),
+        BabyVariant.newYear,
+      );
       expect(BabySvg.variantForDate(DateTime(2027, 1, 1)), BabyVariant.newYear);
-      expect(BabySvg.variantForDate(DateTime(2026, 12, 30)), BabyVariant.classic);
+      expect(
+        BabySvg.variantForDate(DateTime(2026, 12, 30)),
+        BabyVariant.classic,
+      );
       expect(BabySvg.variantForDate(DateTime(2027, 1, 2)), BabyVariant.classic);
 
       // Fixed single-day holidays
-      expect(BabySvg.variantForDate(DateTime(2026, 2, 14)), BabyVariant.valentines);
-      expect(BabySvg.variantForDate(DateTime(2026, 2, 13)), BabyVariant.classic);
-      expect(BabySvg.variantForDate(DateTime(2026, 2, 15)), BabyVariant.classic);
+      expect(
+        BabySvg.variantForDate(DateTime(2026, 2, 14)),
+        BabyVariant.valentines,
+      );
+      expect(
+        BabySvg.variantForDate(DateTime(2026, 2, 13)),
+        BabyVariant.classic,
+      );
+      expect(
+        BabySvg.variantForDate(DateTime(2026, 2, 15)),
+        BabyVariant.classic,
+      );
 
-      expect(BabySvg.variantForDate(DateTime(2026, 3, 17)), BabyVariant.stPatricks);
-      expect(BabySvg.variantForDate(DateTime(2026, 3, 16)), BabyVariant.classic);
+      expect(
+        BabySvg.variantForDate(DateTime(2026, 3, 17)),
+        BabyVariant.stPatricks,
+      );
+      expect(
+        BabySvg.variantForDate(DateTime(2026, 3, 16)),
+        BabyVariant.classic,
+      );
 
       expect(BabySvg.variantForDate(DateTime(2026, 7, 4)), BabyVariant.july4);
       expect(BabySvg.variantForDate(DateTime(2026, 7, 3)), BabyVariant.classic);
       expect(BabySvg.variantForDate(DateTime(2026, 7, 5)), BabyVariant.classic);
 
-      expect(BabySvg.variantForDate(DateTime(2026, 10, 31)), BabyVariant.halloween);
-      expect(BabySvg.variantForDate(DateTime(2026, 10, 30)), BabyVariant.classic);
+      expect(
+        BabySvg.variantForDate(DateTime(2026, 10, 31)),
+        BabyVariant.halloween,
+      );
+      expect(
+        BabySvg.variantForDate(DateTime(2026, 10, 30)),
+        BabyVariant.classic,
+      );
 
-      expect(BabySvg.variantForDate(DateTime(2026, 12, 25)), BabyVariant.christmas);
-      expect(BabySvg.variantForDate(DateTime(2026, 12, 24)), BabyVariant.classic);
-      expect(BabySvg.variantForDate(DateTime(2026, 12, 26)), BabyVariant.classic);
+      expect(
+        BabySvg.variantForDate(DateTime(2026, 12, 25)),
+        BabyVariant.christmas,
+      );
+      expect(
+        BabySvg.variantForDate(DateTime(2026, 12, 24)),
+        BabyVariant.classic,
+      );
+      expect(
+        BabySvg.variantForDate(DateTime(2026, 12, 26)),
+        BabyVariant.classic,
+      );
 
       // Moveable Easter Sunday across years
       expect(BabySvg.variantForDate(DateTime(2024, 3, 31)), BabyVariant.easter);
@@ -352,27 +388,42 @@ void main() {
       expect(BabySvg.variantForDate(DateTime(2026, 4, 6)), BabyVariant.classic);
 
       // Moveable Thanksgiving (4th Thursday of November) across years
-      expect(BabySvg.variantForDate(DateTime(2025, 11, 27)), BabyVariant.thanksgiving);
-      expect(BabySvg.variantForDate(DateTime(2026, 11, 26)), BabyVariant.thanksgiving);
-      expect(BabySvg.variantForDate(DateTime(2026, 11, 19)), BabyVariant.classic);
-      expect(BabySvg.variantForDate(DateTime(2026, 11, 27)), BabyVariant.classic);
+      expect(
+        BabySvg.variantForDate(DateTime(2025, 11, 27)),
+        BabyVariant.thanksgiving,
+      );
+      expect(
+        BabySvg.variantForDate(DateTime(2026, 11, 26)),
+        BabyVariant.thanksgiving,
+      );
+      expect(
+        BabySvg.variantForDate(DateTime(2026, 11, 19)),
+        BabyVariant.classic,
+      );
+      expect(
+        BabySvg.variantForDate(DateTime(2026, 11, 27)),
+        BabyVariant.classic,
+      );
     });
 
-    test('getSvg returns valid SVG for every BabyVariant and replaces colors', () {
-      for (final variant in BabyVariant.values) {
-        final defaultSvg = BabySvg.getSvg(variant: variant);
-        expect(defaultSvg, contains('<svg'));
-        expect(defaultSvg, contains('viewBox="0 0 64 64"'));
-        expect(defaultSvg, contains('#2E7D32'));
+    test(
+      'getSvg returns valid SVG for every BabyVariant and replaces colors',
+      () {
+        for (final variant in BabyVariant.values) {
+          final defaultSvg = BabySvg.getSvg(variant: variant);
+          expect(defaultSvg, contains('<svg'));
+          expect(defaultSvg, contains('viewBox="0 0 64 64"'));
+          expect(defaultSvg, contains('#2E7D32'));
 
-        final whiteSvg = BabySvg.getSvg(
-          strokeColor: '#FFFFFF',
-          variant: variant,
-        );
-        expect(whiteSvg, isNot(contains('#2E7D32')));
-        expect(whiteSvg, contains('#FFFFFF'));
-      }
-    });
+          final whiteSvg = BabySvg.getSvg(
+            strokeColor: '#FFFFFF',
+            variant: variant,
+          );
+          expect(whiteSvg, isNot(contains('#2E7D32')));
+          expect(whiteSvg, contains('#FFFFFF'));
+        }
+      },
+    );
 
     testWidgets('BabyIcon renders holiday variants when date is provided', (
       tester,
@@ -393,6 +444,75 @@ void main() {
 
       expect(find.byType(BabyIcon), findsNWidgets(3));
       expect(find.byType(SvgPicture), findsNWidgets(3));
+    });
+
+    testGoldens('BabyIcon renders holiday Easter egg stamps golden', (
+      tester,
+    ) async {
+      final entries = <(String, DateTime)>[
+        ('Classic', DateTime(2026, 6, 15)),
+        ('NYE', DateTime(2026, 12, 31)),
+        ('Val.', DateTime(2026, 2, 14)),
+        ('St. Pat.', DateTime(2026, 3, 17)),
+        ('Easter', DateTime(2026, 4, 5)),
+        ('July 4', DateTime(2026, 7, 4)),
+        ('Hall.', DateTime(2026, 10, 31)),
+        ('Thanksg.', DateTime(2026, 11, 26)),
+        ('Xmas', DateTime(2026, 12, 25)),
+      ];
+
+      await tester.pumpWidgetBuilder(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: Scaffold(
+            backgroundColor: Colors.grey.shade100,
+            body: Center(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final (label, date) in entries)
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(
+                              color: CreightonTheme.greenBorder,
+                              width: 1.5,
+                            ),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Center(
+                            child: BabyIcon(
+                              size: 32,
+                              color: CreightonTheme.babyIconDarkGreen,
+                              date: date,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        surfaceSize: const Size(320, 160),
+      );
+
+      await screenMatchesGolden(tester, 'holiday_baby_stamps');
     });
   });
 }
