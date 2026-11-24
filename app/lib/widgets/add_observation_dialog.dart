@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../logic/logic.dart';
 import 'wizard/wizard.dart';

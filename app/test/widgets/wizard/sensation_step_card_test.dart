@@ -1,5 +1,5 @@
 import 'package:core/core.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:petal_count/widgets/wizard/option_card.dart';
 import 'package:petal_count/widgets/wizard/sensation_step_card.dart';

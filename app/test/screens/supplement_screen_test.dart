@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:golden_toolkit/golden_toolkit.dart';
 import 'package:petal_count/logic/logic.dart';
@@ -773,6 +773,7 @@ void main() {
           initialDate: DateTime(2026, 8, 25),
           cycle: Cycle(id: 'cycle_test', startDate: DateTime(2026, 8, 20)),
         ),
+        wrapper: (child) => child,
         surfaceSize: const Size(412, 915),
       );
       await tester.pumpAndSettle();

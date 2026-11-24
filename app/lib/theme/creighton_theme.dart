@@ -1,5 +1,5 @@
 import 'package:core/core.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Centralized design tokens, color palettes, and layout dimensions for Creighton charting components.
 class CreightonTheme {

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../logic/logic.dart';
 import '../creighton_stamp_widget.dart';
@@ -8,6 +8,7 @@ class TimelineTrackNode extends StatelessWidget {
   final StampType? stampType;
   final String? peakDayLabel;
   final int dayNumber;
+  final DateTime? date;
   final VoidCallback? onTap;
 
   const TimelineTrackNode({
@@ -15,6 +16,7 @@ class TimelineTrackNode extends StatelessWidget {
     this.stampType,
     this.peakDayLabel,
     required this.dayNumber,
+    this.date,
     this.onTap,
   });
 
@@ -46,6 +48,7 @@ class TimelineTrackNode extends StatelessWidget {
                 stampType: stampType,
                 peakDayLabel: peakDayLabel,
                 dayNumber: dayNumber,
+                date: date,
               ),
             ),
           ),

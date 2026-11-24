@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:golden_toolkit/golden_toolkit.dart';
 import 'package:petal_count/main.dart';
@@ -258,6 +258,7 @@ void main() {
   ) async {
     await tester.pumpWidgetBuilder(
       PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+      wrapper: (child) => child,
       surfaceSize: const Size(400, 800),
     );
     await tester.pumpAndSettle();
@@ -286,6 +287,7 @@ void main() {
   ) async {
     await tester.pumpWidgetBuilder(
       PetalCountApp(todayOverride: DateTime(2026, 8, 3)),
+      wrapper: (child) => child,
       surfaceSize: const Size(400, 800),
     );
     await tester.pumpAndSettle();

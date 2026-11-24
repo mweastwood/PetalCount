@@ -1,5 +1,5 @@
 import 'package:core/core.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../theme/creighton_theme.dart';
 import 'baby_icon.dart';
@@ -17,6 +17,7 @@ class CreightonStampWidget extends StatelessWidget {
   final StampType? stampType;
   final String? peakDayLabel;
   final int? dayNumber;
+  final DateTime? date;
   final double? width;
   final double? height;
   final BorderRadiusGeometry? borderRadius;
@@ -30,6 +31,7 @@ class CreightonStampWidget extends StatelessWidget {
     required this.stampType,
     this.peakDayLabel,
     this.dayNumber,
+    this.date,
     this.width,
     this.height,
     this.borderRadius,
@@ -42,6 +44,7 @@ class CreightonStampWidget extends StatelessWidget {
     super.key,
     required this.stampType,
     this.peakDayLabel,
+    this.date,
     this.width = 44.0,
     this.height = 48.0,
     this.borderRadius,
@@ -55,6 +58,7 @@ class CreightonStampWidget extends StatelessWidget {
     super.key,
     this.stampType,
     this.peakDayLabel,
+    this.date,
     this.height = 46.0,
     this.width = double.infinity,
     this.borderRadius,
@@ -69,6 +73,7 @@ class CreightonStampWidget extends StatelessWidget {
     this.stampType,
     this.peakDayLabel,
     this.dayNumber,
+    this.date,
     double size = 52.0,
     this.borderRadius,
     this.border,
@@ -136,7 +141,7 @@ class CreightonStampWidget extends StatelessWidget {
           if (hasBaby)
             Positioned(
               bottom: hasPeakLabel ? 2 : (effectiveHeight - babySize) / 2,
-              child: BabyIcon.forStamp(stampType, size: babySize),
+              child: BabyIcon.forStamp(stampType, size: babySize, date: date),
             ),
           if (hasPeakLabel)
             Positioned(
@@ -180,7 +185,9 @@ class CreightonStampWidget extends StatelessWidget {
         children: [
           // Baby Icon in center for fertile stamps, or '?' for unlogged days
           if (hasBaby)
-            Center(child: BabyIcon.forStamp(stampType, size: babySize))
+            Center(
+              child: BabyIcon.forStamp(stampType, size: babySize, date: date),
+            )
           else if (stampType == null)
             Center(
               child: Text(
@@ -256,7 +263,7 @@ class CreightonStampWidget extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           if (hasBaby)
-            BabyIcon.forStamp(stampType, size: babySize)
+            BabyIcon.forStamp(stampType, size: babySize, date: date)
           else if (dayNumber != null)
             Text(
               '$dayNumber',

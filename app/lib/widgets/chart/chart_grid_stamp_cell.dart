@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../logic/logic.dart';
 import '../../theme/theme.dart';
@@ -72,6 +72,7 @@ class ChartGridStampCell extends StatelessWidget {
               CreightonStampWidget.gridSticker(
                 stampType: currentEntry?.stampType,
                 peakDayLabel: currentEntry?.peakDayLabel,
+                date: dayDate,
               ),
               // BOTTOM CELL DATA SECTION
               Expanded(

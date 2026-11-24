@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../logic/logic.dart';
 import 'add_observation_dialog.dart';
@@ -155,6 +155,7 @@ class DailyDetailSheet extends StatelessWidget {
                 CreightonStampWidget.badge(
                   stampType: activeEntry.stampType,
                   peakDayLabel: activeEntry.peakDayLabel,
+                  date: activeEntry.date,
                 ),
                 const SizedBox(width: 12),
                 Text(

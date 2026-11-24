@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Notification banner displayed on Cycle Day 7 reminding the user to perform
 /// a routine Creighton Model Breast Self-Exam (BSE).
