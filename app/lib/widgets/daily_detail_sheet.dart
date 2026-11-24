@@ -155,6 +155,7 @@ class DailyDetailSheet extends StatelessWidget {
                 CreightonStampWidget.badge(
                   stampType: activeEntry.stampType,
                   peakDayLabel: activeEntry.peakDayLabel,
+                  date: activeEntry.date,
                 ),
                 const SizedBox(width: 12),
                 Text(

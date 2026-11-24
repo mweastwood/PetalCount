@@ -134,6 +134,7 @@ class ObservationsScreen extends StatelessWidget {
                 stampType: entry?.stampType,
                 peakDayLabel: entry?.peakDayLabel,
                 dayNumber: item.dayNumber,
+                date: item.date,
                 onTap: item.cycle != null
                     ? () {
                         CycleOptionsDialog.show(

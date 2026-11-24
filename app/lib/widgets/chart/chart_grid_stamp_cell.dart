@@ -72,6 +72,7 @@ class ChartGridStampCell extends StatelessWidget {
               CreightonStampWidget.gridSticker(
                 stampType: currentEntry?.stampType,
                 peakDayLabel: currentEntry?.peakDayLabel,
+                date: dayDate,
               ),
               // BOTTOM CELL DATA SECTION
               Expanded(
