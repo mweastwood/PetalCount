@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Reusable styled chip for displaying bleeding flow, mucus sensation, or pain details in the timeline.
 class TimelineSummaryChip extends StatelessWidget {

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Zero-state dashboard view displayed when no cycles or observations have been logged.
 ///

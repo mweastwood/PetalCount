@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../logic/logic.dart';
 import 'widgets/daily_intake_forecast_cards.dart';
