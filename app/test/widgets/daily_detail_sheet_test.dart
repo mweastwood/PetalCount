@@ -953,4 +953,77 @@ void main() {
       },
     );
   });
+
+  group('DailyDetailSheet Legacy Intercourse Comment Sanitization Tests', () {
+    testWidgets(
+      'hides Notes Summary and per-observation Notes for legacy Intercourse comment',
+      (WidgetTester tester) async {
+        final obs = Observation(
+          id: 'obs-legacy-i',
+          timestamp: DateTime(2026, 8, 3, 22, 15),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          intercourse: true,
+          comment: 'Intercourse',
+          userId: 'wife_uid',
+        );
+        final entry = DailyEntry(
+          date: testDate,
+          resolvedVdrsCode: '0 I',
+          stampType: StampType.green,
+          observations: [obs],
+          painLevel: 0,
+          painTypes: const [],
+          comments: 'Intercourse',
+        );
+
+        await tester.pumpWidget(
+          buildTestWidget(entry: entry, cycle: testCycle),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('Notes Summary:'), findsNothing);
+        expect(find.textContaining('Notes:'), findsNothing);
+        expect(find.text('Intercourse (I)'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'strips legacy Intercourse prefix in Notes Summary and per-observation Notes',
+      (WidgetTester tester) async {
+        final obs = Observation(
+          id: 'obs-legacy-i-note',
+          timestamp: DateTime(2026, 8, 3, 22, 15),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          intercourse: true,
+          comment: 'Intercourse • Evening note',
+          userId: 'wife_uid',
+        );
+        final entry = DailyEntry(
+          date: testDate,
+          resolvedVdrsCode: '0 I',
+          stampType: StampType.green,
+          observations: [obs],
+          painLevel: 0,
+          painTypes: const [],
+          comments: 'Intercourse • Evening note',
+        );
+
+        await tester.pumpWidget(
+          buildTestWidget(entry: entry, cycle: testCycle),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Notes Summary: Evening note'), findsOneWidget);
+        expect(find.text('Notes: Evening note'), findsOneWidget);
+      },
+    );
+  });
 }

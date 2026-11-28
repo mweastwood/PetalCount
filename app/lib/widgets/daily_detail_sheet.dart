@@ -199,10 +199,10 @@ class DailyDetailSheet extends StatelessWidget {
                 ],
               ],
             ),
-            if (activeEntry.comments.isNotEmpty) ...[
+            if (activeEntry.displayComments.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
-                'Notes Summary: ${activeEntry.comments}',
+                'Notes Summary: ${activeEntry.displayComments}',
                 style: const TextStyle(fontStyle: FontStyle.italic),
               ),
             ],
@@ -258,6 +258,7 @@ class DailyDetailSheet extends StatelessWidget {
                     currentUserRole: currentRole,
                     currentUserId: effectiveCurrentUserId,
                   );
+                  final displayComment = observation.displayComment;
                   return Card(
                     elevation: 0,
                     color: theme.colorScheme.surfaceContainerHighest.withValues(
@@ -270,8 +271,8 @@ class DailyDetailSheet extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(details.join(' | ')),
-                          if (observation.comment.isNotEmpty)
-                            Text('Notes: ${observation.comment}'),
+                          if (displayComment.isNotEmpty)
+                            Text('Notes: $displayComment'),
                           Text(
                             author.isNotEmpty
                                 ? 'Logged at ${AppDateFormats.timeOfDayPadded.format(observation.timestamp)} by $author'

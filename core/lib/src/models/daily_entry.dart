@@ -143,6 +143,27 @@ abstract class DailyEntry with _$DailyEntry {
   bool get hasIntercourse =>
       observations.any((observation) => observation.intercourse);
 
+  /// Comments formatted for display with legacy `'Intercourse'` segments stripped.
+  String get displayComments {
+    final trimmed = comments.trim();
+    if (trimmed.isEmpty) {
+      return '';
+    }
+    if (!hasIntercourse) {
+      return trimmed;
+    }
+    return trimmed
+        .split('; ')
+        .map(
+          (part) => Observation.sanitizeLegacyIntercourseComment(
+            part,
+            hasIntercourse: true,
+          ),
+        )
+        .where((part) => part.isNotEmpty)
+        .join('; ');
+  }
+
   factory DailyEntry.fromJson(Map<String, dynamic> json) =>
       _$DailyEntryFromJson(json);
 

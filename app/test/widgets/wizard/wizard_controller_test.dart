@@ -653,7 +653,7 @@ void main() {
       expect(obs.intercourse, isTrue);
       expect(obs.painLevel, 4.0);
       expect(obs.painTypes, ['Cramps']);
-      expect(obs.comment, 'Intercourse • User note');
+      expect(obs.comment, 'User note');
       expect(obs.isVdrsExplicit, isTrue);
       expect(obs.timestamp, defaultDate);
 
@@ -691,7 +691,7 @@ void main() {
     );
 
     test(
-      'intercourse comment formatted properly when comment is empty',
+      'intercourse observation keeps comment empty when user enters no note',
       () async {
         await db.startNewCycle(DateTime(2026, 7, 1), []);
         final cyclesBefore = await db.streamCycles().first;
@@ -711,7 +711,7 @@ void main() {
         final obsList = cycles.first.dailyEntries['2026-07-27']!.observations;
         expect(obsList.length, 1);
         expect(obsList.first.intercourse, isTrue);
-        expect(obsList.first.comment, 'Intercourse');
+        expect(obsList.first.comment, isEmpty);
 
         controller.dispose();
       },

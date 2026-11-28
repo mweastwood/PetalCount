@@ -355,10 +355,10 @@ class PdfExportService {
           ],
 
           // 6. Daily notes directly under day (size 10)
-          if (entry != null && entry.comments.trim().isNotEmpty) ...[
+          if (entry != null && entry.displayComments.isNotEmpty) ...[
             pw.SizedBox(height: 3),
             pw.Text(
-              entry.comments.trim(),
+              entry.displayComments,
               style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey800),
               textAlign: pw.TextAlign.center,
             ),

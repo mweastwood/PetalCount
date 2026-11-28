@@ -625,6 +625,69 @@ void main() {
         expect((num2.child as pw.Text).text.toPlainText(), equals('3'));
       },
     );
+
+    test(
+      'generatePdfBytes sanitizes legacy Intercourse comments in daily notes',
+      () async {
+        final start = DateTime(2026, 6, 1);
+        final legacyOnlyObs = Observation(
+          id: 'obs-legacy-only',
+          timestamp: start,
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          intercourse: true,
+          comment: 'Intercourse',
+          userId: 'test',
+        );
+        final prefixedNoteObs = Observation(
+          id: 'obs-prefixed-note',
+          timestamp: start.addCalendarDays(1),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: const [],
+          consistencies: const [],
+          bleeding: Bleeding.none,
+          intercourse: true,
+          comment: 'Intercourse • Custom note',
+          userId: 'test',
+        );
+
+        final cycle = Cycle(
+          id: 'cycle-legacy-intercourse',
+          startDate: start,
+          bipCodes: const [],
+          dailyEntries: {
+            '2026-06-01': DailyEntry(
+              date: start,
+              resolvedVdrsCode: '0 I',
+              stampType: StampType.green,
+              observations: [legacyOnlyObs],
+              painLevel: 0,
+              painTypes: const [],
+              comments: 'Intercourse',
+            ),
+            '2026-06-02': DailyEntry(
+              date: start.addCalendarDays(1),
+              resolvedVdrsCode: '0 I',
+              stampType: StampType.green,
+              observations: [prefixedNoteObs],
+              painLevel: 0,
+              painTypes: const [],
+              comments: 'Intercourse • Custom note',
+            ),
+          },
+        );
+
+        final bytes = await PdfExportService.generatePdfBytes([cycle]);
+        final pdfText = _extractPdfText(bytes);
+        expect(pdfText, isNot(contains('Intercourse')));
+        expect(pdfText, contains('Custom'));
+        expect(pdfText, contains('note'));
+      },
+    );
   });
 }
 

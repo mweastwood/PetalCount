@@ -297,10 +297,32 @@ abstract class Observation with _$Observation {
     );
   }
 
+  static final RegExp _legacyIntercoursePrefix = RegExp(r'^Intercourse\s*•\s*');
+
+  /// Strips legacy auto-generated `'Intercourse'` comment prefixes when
+  /// [hasIntercourse] is true, while preserving user-authored notes.
+  static String sanitizeLegacyIntercourseComment(
+    String comment, {
+    required bool hasIntercourse,
+  }) {
+    final trimmed = comment.trim();
+    if (!hasIntercourse || trimmed.isEmpty) {
+      return trimmed;
+    }
+    if (trimmed == 'Intercourse') {
+      return '';
+    }
+    return trimmed.replaceFirst(_legacyIntercoursePrefix, '').trim();
+  }
+
   bool get hasMucus =>
       stretch != Stretch.none || consistencies.isNotEmpty || colors.isNotEmpty;
   bool get hasBleeding => bleeding != Bleeding.none;
   bool get isMenstrualFlow => bleeding.isMenstrualFlow;
+
+  /// Comment formatted for display with legacy `'Intercourse'` prefixes stripped.
+  String get displayComment =>
+      sanitizeLegacyIntercourseComment(comment, hasIntercourse: intercourse);
 
   // Generates the standard VDRS code for this specific observation
   String get vdrsCode {

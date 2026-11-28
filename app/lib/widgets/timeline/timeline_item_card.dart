@@ -83,8 +83,8 @@ class TimelineItemCard extends StatelessWidget {
     final hasPain =
         currentEntry != null &&
         (currentEntry.painLevel > 0 || currentEntry.painTypes.isNotEmpty);
-    final hasComments =
-        currentEntry != null && currentEntry.comments.isNotEmpty;
+    final displayComments = currentEntry?.displayComments ?? '';
+    final hasComments = displayComments.isNotEmpty;
 
     return Container(
       constraints: const BoxConstraints(minHeight: 52.0),
@@ -319,7 +319,7 @@ class TimelineItemCard extends StatelessWidget {
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
-                                '"${currentEntry.comments}"',
+                                '"$displayComments"',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   fontStyle: FontStyle.italic,
                                   color: theme.colorScheme.onSurfaceVariant,
