@@ -36,7 +36,7 @@ class ChartGridStampCell extends StatelessWidget {
 
     final hasPain = currentEntry != null && currentEntry.painLevel > 0;
     final hasComments =
-        currentEntry != null && currentEntry.comments.isNotEmpty;
+        currentEntry != null && currentEntry.displayComments.isNotEmpty;
 
     return GestureDetector(
       onTap: () {

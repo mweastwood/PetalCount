@@ -399,4 +399,170 @@ void main() {
       },
     );
   });
+
+  group('Legacy Intercourse Comment Sanitization Tests', () {
+    Observation makeObs({
+      required String comment,
+      required bool intercourse,
+      String id = 'obs-1',
+    }) {
+      return Observation(
+        id: id,
+        timestamp: DateTime(2026, 8, 3, 21, 0),
+        sensation: Sensation.dry,
+        stretch: Stretch.none,
+        colors: const [],
+        consistencies: const [],
+        bleeding: Bleeding.none,
+        intercourse: intercourse,
+        comment: comment,
+        userId: 'user-1',
+      );
+    }
+
+    test(
+      'Observation.displayComment handles empty and whitespace comments',
+      () {
+        expect(makeObs(comment: '', intercourse: true).displayComment, '');
+        expect(makeObs(comment: '   ', intercourse: true).displayComment, '');
+        expect(makeObs(comment: '   ', intercourse: false).displayComment, '');
+      },
+    );
+
+    test(
+      'Observation.displayComment omits legacy Intercourse when intercourse is true',
+      () {
+        expect(
+          makeObs(comment: 'Intercourse', intercourse: true).displayComment,
+          '',
+        );
+        expect(
+          makeObs(comment: '  Intercourse  ', intercourse: true).displayComment,
+          '',
+        );
+      },
+    );
+
+    test(
+      'Observation.displayComment preserves Intercourse when intercourse is false',
+      () {
+        expect(
+          makeObs(comment: 'Intercourse', intercourse: false).displayComment,
+          'Intercourse',
+        );
+        expect(
+          makeObs(
+            comment: 'Intercourse • User note',
+            intercourse: false,
+          ).displayComment,
+          'Intercourse • User note',
+        );
+      },
+    );
+
+    test(
+      'Observation.displayComment strips legacy Intercourse bullet prefix',
+      () {
+        expect(
+          makeObs(
+            comment: 'Intercourse • User note',
+            intercourse: true,
+          ).displayComment,
+          'User note',
+        );
+        expect(
+          makeObs(comment: 'Intercourse • ', intercourse: true).displayComment,
+          '',
+        );
+        expect(
+          makeObs(comment: 'Intercourse•   ', intercourse: true).displayComment,
+          '',
+        );
+        expect(
+          makeObs(
+            comment: 'Regular user note',
+            intercourse: true,
+          ).displayComment,
+          'Regular user note',
+        );
+      },
+    );
+
+    test(
+      'DailyEntry.displayComments sanitizes single and semicolon-joined segments',
+      () {
+        final intercourseObs = makeObs(
+          comment: 'Intercourse',
+          intercourse: true,
+        );
+        final dryObs = makeObs(comment: 'Morning note', intercourse: false);
+
+        final legacyOnlyEntry = DailyEntry(
+          date: DateTime(2026, 8, 3),
+          resolvedVdrsCode: '0 I',
+          stampType: StampType.green,
+          observations: [intercourseObs],
+          painLevel: 0,
+          painTypes: const [],
+          comments: 'Intercourse',
+        );
+        expect(legacyOnlyEntry.displayComments, '');
+
+        final mixedSegmentsEntry = DailyEntry(
+          date: DateTime(2026, 8, 3),
+          resolvedVdrsCode: '0 I',
+          stampType: StampType.green,
+          observations: [dryObs, intercourseObs],
+          painLevel: 0,
+          painTypes: const [],
+          comments:
+              'Intercourse; Morning note; Intercourse • Evening note; Intercourse • ',
+        );
+        expect(
+          mixedSegmentsEntry.displayComments,
+          'Morning note; Evening note',
+        );
+
+        final noIntercourseEntry = DailyEntry(
+          date: DateTime(2026, 8, 3),
+          resolvedVdrsCode: '0',
+          stampType: StampType.green,
+          observations: [dryObs],
+          painLevel: 0,
+          painTypes: const [],
+          comments: 'Intercourse',
+        );
+        expect(noIntercourseEntry.displayComments, 'Intercourse');
+      },
+    );
+
+    test(
+      'CreightonLogic.resolveDailyEntry omits legacy Intercourse comments and strips prefixes',
+      () {
+        final date = DateTime(2026, 8, 3);
+        final legacyOnly = CreightonLogic.resolveDailyEntry(
+          date: date,
+          observations: [makeObs(comment: 'Intercourse', intercourse: true)],
+        );
+        expect(legacyOnly.comments, '');
+        expect(legacyOnly.displayComments, '');
+
+        final combined = CreightonLogic.resolveDailyEntry(
+          date: date,
+          observations: [
+            makeObs(id: 'obs-1', comment: 'Intercourse', intercourse: true),
+            makeObs(
+              id: 'obs-2',
+              comment: 'Intercourse • Evening note',
+              intercourse: true,
+            ),
+            makeObs(id: 'obs-3', comment: 'Intercourse • ', intercourse: true),
+            makeObs(id: 'obs-4', comment: 'Morning note', intercourse: false),
+          ],
+        );
+        expect(combined.comments, 'Evening note; Morning note');
+        expect(combined.displayComments, 'Evening note; Morning note');
+      },
+    );
+  });
 }

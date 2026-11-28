@@ -52,7 +52,7 @@ class ObservationDetailsCard extends StatelessWidget {
         ? 'Pain: ${observation.painLevel.toStringAsFixed(0)}/10${observation.painTypes.isNotEmpty ? ' (${observation.painTypes.join(', ')})' : ''}'
         : '';
 
-    final displayComment = _formatDisplayComment(observation);
+    final displayComment = observation.displayComment;
     final hasComment = displayComment.isNotEmpty;
 
     return Container(
@@ -189,20 +189,5 @@ class ObservationDetailsCard extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  static String _formatDisplayComment(Observation observation) {
-    final trimmed = observation.comment.trim();
-    if (!observation.intercourse || trimmed.isEmpty) {
-      return trimmed;
-    }
-    if (trimmed == 'Intercourse') {
-      return '';
-    }
-    const legacyPrefix = 'Intercourse • ';
-    if (trimmed.startsWith(legacyPrefix)) {
-      return trimmed.substring(legacyPrefix.length).trim();
-    }
-    return trimmed;
   }
 }

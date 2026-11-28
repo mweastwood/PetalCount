@@ -244,8 +244,9 @@ class CreightonLogic {
         maxPainLevel = observation.painLevel;
       }
       allPainTypes.addAll(observation.painTypes);
-      if (observation.comment.trim().isNotEmpty) {
-        commentsList.add(observation.comment.trim());
+      final displayComment = observation.displayComment;
+      if (displayComment.isNotEmpty) {
+        commentsList.add(displayComment);
       }
     }
 

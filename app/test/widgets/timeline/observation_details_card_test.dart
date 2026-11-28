@@ -432,6 +432,40 @@ void main() {
     );
 
     testWidgets(
+      'preserves literal Intercourse comment when intercourse is false',
+      (WidgetTester tester) async {
+        final obs = Observation(
+          id: 'obs-non-intercourse-comment',
+          userId: 'user-1',
+          timestamp: DateTime(2026, 8, 3, 22, 20),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          intercourse: false,
+          comment: 'Intercourse',
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationDetailsCard(
+                observation: obs,
+                index: 0,
+                totalCount: 1,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.text('Intercourse (I)'), findsNothing);
+        expect(find.byIcon(Icons.notes), findsOneWidget);
+        expect(find.text('"Intercourse"'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
       'renders mucus chip without sensation prefix when sensation is dry but mucus is present',
       (WidgetTester tester) async {
         final obs = Observation(
