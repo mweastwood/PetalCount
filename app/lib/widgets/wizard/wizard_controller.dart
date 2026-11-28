@@ -516,14 +516,7 @@ class WizardController extends ChangeNotifier {
     final double painLevel = hasPain ? _painLevel : 0.0;
     final List<String> painTypes = hasPain ? formattedPainTypes : [];
 
-    String commentText = _commentController.text.trim();
-    if (_hasIntercourse == true) {
-      if (commentText.isEmpty) {
-        commentText = 'Intercourse';
-      } else if (!commentText.contains('Intercourse')) {
-        commentText = 'Intercourse • $commentText';
-      }
-    }
+    final String commentText = _commentController.text.trim();
 
     final bool isVdrsExplicit =
         _hasBleeding == true ||

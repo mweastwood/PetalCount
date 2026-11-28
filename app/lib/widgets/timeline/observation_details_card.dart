@@ -52,7 +52,8 @@ class ObservationDetailsCard extends StatelessWidget {
         ? 'Pain: ${observation.painLevel.toStringAsFixed(0)}/10${observation.painTypes.isNotEmpty ? ' (${observation.painTypes.join(', ')})' : ''}'
         : '';
 
-    final hasComment = observation.comment.isNotEmpty;
+    final displayComment = _formatDisplayComment(observation);
+    final hasComment = displayComment.isNotEmpty;
 
     return Container(
       margin: const EdgeInsets.only(top: 6.0),
@@ -171,7 +172,7 @@ class ObservationDetailsCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      '"${observation.comment}"',
+                      '"$displayComment"',
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontStyle: FontStyle.italic,
                         fontSize: 11,
@@ -188,5 +189,20 @@ class ObservationDetailsCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static String _formatDisplayComment(Observation observation) {
+    final trimmed = observation.comment.trim();
+    if (!observation.intercourse || trimmed.isEmpty) {
+      return trimmed;
+    }
+    if (trimmed == 'Intercourse') {
+      return '';
+    }
+    const legacyPrefix = 'Intercourse • ';
+    if (trimmed.startsWith(legacyPrefix)) {
+      return trimmed.substring(legacyPrefix.length).trim();
+    }
+    return trimmed;
   }
 }

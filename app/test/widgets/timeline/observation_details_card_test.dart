@@ -364,6 +364,74 @@ void main() {
     });
 
     testWidgets(
+      'omits redundant legacy Intercourse comment when intercourse is true',
+      (WidgetTester tester) async {
+        final obs = Observation(
+          id: 'obs-legacy-intercourse',
+          userId: 'user-1',
+          timestamp: DateTime(2026, 8, 3, 22, 20),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          intercourse: true,
+          comment: 'Intercourse',
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationDetailsCard(
+                observation: obs,
+                index: 0,
+                totalCount: 1,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.text('Intercourse (I)'), findsOneWidget);
+        expect(find.byIcon(Icons.notes), findsNothing);
+        expect(find.text('"Intercourse"'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'strips legacy Intercourse prefix from comment when intercourse is true',
+      (WidgetTester tester) async {
+        final obs = Observation(
+          id: 'obs-legacy-intercourse-note',
+          userId: 'user-1',
+          timestamp: DateTime(2026, 8, 3, 22, 20),
+          sensation: Sensation.dry,
+          stretch: Stretch.none,
+          colors: [],
+          consistencies: [],
+          bleeding: Bleeding.none,
+          intercourse: true,
+          comment: 'Intercourse • User note',
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ObservationDetailsCard(
+                observation: obs,
+                index: 0,
+                totalCount: 1,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.text('Intercourse (I)'), findsOneWidget);
+        expect(find.byIcon(Icons.notes), findsOneWidget);
+        expect(find.text('"User note"'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
       'renders mucus chip without sensation prefix when sensation is dry but mucus is present',
       (WidgetTester tester) async {
         final obs = Observation(
